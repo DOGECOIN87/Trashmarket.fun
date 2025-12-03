@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MOCK_COLLECTIONS } from '../constants';
+import { getCollection, getTopCollections } from '../services/magicEdenService';
+import { Collection } from '../types';
+
 import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio } from 'lucide-react';
+
 import { useNetwork } from '../contexts/NetworkContext';
 
 // --- SIMPLE MARQUEE COMPONENT ---
@@ -21,10 +24,29 @@ const Marquee = ({ children, reverse = false, className = "" }: { children?: Rea
 const Home: React.FC = () => {
   const { currency, accentColor } = useNetwork();
   
-  // Set Gorbagios as the featured collection (System Spotlight)
-  const featuredCollection = MOCK_COLLECTIONS.find(c => c.id === 'gorbagios') || MOCK_COLLECTIONS[0];
-  
+  const [featuredCollection, setFeaturedCollection] = useState<Collection | null>(null);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const featured = await getCollection('gorbagios');
+        setFeaturedCollection(featured);
+        const top = await getTopCollections(5);
+        setCollections(top);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const [isHovering, setIsHovering] = useState(false);
+
 
   const MARKET_METRICS = [
     { label: "SOL", value: "$145.20", change: "+5.2%", color: "text-magic-green" },
@@ -59,69 +81,88 @@ const Home: React.FC = () => {
     { type: "SALE", text: `Froganas #221 sold for 1.2 ${currency}`, time: "7s" },
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-magic-green animate-pulse font-mono uppercase tracking-widest text-2xl">
+          LOADING MARKET DATA...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black pb-20" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
       
       {/* Hero / Spotlight */}
-      <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20">
-        <div className="absolute inset-0">
-          <img 
-            src={featuredCollection.banner} 
-            alt="Hero" 
-            className="w-full h-full object-cover opacity-20 grayscale contrast-150"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(18,18,18,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(18,18,18,0.5)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20"></div>
-        </div>
-        
-        <div className="absolute bottom-0 left-0 w-full p-4 md:p-12 z-10">
-          <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-end justify-between gap-8">
-            <div className="max-w-3xl w-full">
-              <div className={`flex items-center justify-between mb-2 w-full border-b ${accentColor === 'text-magic-purple' ? 'border-magic-purple/30' : 'border-magic-green/30'} pb-2`}>
-                   <div className={`inline-flex items-center gap-2 ${accentColor} text-xs font-bold uppercase tracking-widest font-mono`}>
-                        <Terminal className="w-3 h-3" /> System_Spotlight :: {featuredCollection.id.toUpperCase()}
-                   </div>
-                   <div className="flex gap-4 items-center">
-                        <span className={`text-[10px] font-mono uppercase tracking-widest flex items-center gap-2 text-gray-500`}>
-                            <Radio className={`w-3 h-3 ${accentColor} animate-pulse`} />
-                            SYSTEM_ONLINE
-                        </span>
-                        <Link to="/launchpad" className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest font-mono">
-                            [ AI_LAUNCHPAD_ACTIVE ]
-                        </Link>
-                   </div>
-              </div>
-              
-              <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter uppercase leading-none">
-                {featuredCollection.name}
-              </h1>
-              
-              <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
-                  <div className="flex items-center gap-8 text-sm text-gray-400 font-mono">
-                     <div className={`flex flex-col border-l-2 ${accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green'} pl-3`}>
-                        <span className="text-[10px] uppercase tracking-wider text-gray-500">Floor_Price</span>
-                        <span className="text-white text-xl font-bold">{currency} {featuredCollection.floorPrice}</span>
+      {featuredCollection ? (
+        <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20">
+          <div className="absolute inset-0">
+            <img 
+              src={featuredCollection.banner || featuredCollection.image} 
+              alt="Hero" 
+              className="w-full h-full object-cover opacity-20 grayscale contrast-150"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(18,18,18,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(18,18,18,0.5)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20"></div>
+          </div>
+          
+          <div className="absolute bottom-0 left-0 w-full p-4 md:p-12 z-10">
+            <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-end justify-between gap-8">
+              <div className="max-w-3xl w-full">
+                <div className={`flex items-center justify-between mb-2 w-full border-b ${accentColor === 'text-magic-purple' ? 'border-magic-purple/30' : 'border-magic-green/30'} pb-2`}>
+                     <div className={`inline-flex items-center gap-2 ${accentColor} text-xs font-bold uppercase tracking-widest font-mono`}>
+                          <Terminal className="w-3 h-3" /> System_Spotlight :: {featuredCollection.id.toUpperCase()}
                      </div>
-                     <div className="flex flex-col border-l-2 border-gray-800 pl-3">
-                        <span className="text-[10px] uppercase tracking-wider text-gray-500">24h_Volume</span>
-                        <span className="text-white text-xl font-bold">{currency} {(featuredCollection.totalVolume / 1000).toFixed(1)}k</span>
+                     <div className="flex gap-4 items-center">
+                          <span className={`text-[10px] font-mono uppercase tracking-widest flex items-center gap-2 text-gray-500`}>
+                              <Radio className={`w-3 h-3 ${accentColor} animate-pulse`} />
+                              SYSTEM_ONLINE
+                          </span>
+                          <Link to="/launchpad" className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest font-mono">
+                              [ AI_LAUNCHPAD_ACTIVE ]
+                          </Link>
                      </div>
-                  </div>
+                </div>
+                
+                <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter uppercase leading-none">
+                  {featuredCollection.name}
+                </h1>
+                
+                <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
+                    <div className="flex items-center gap-8 text-sm text-gray-400 font-mono">
+                       <div className={`flex flex-col border-l-2 ${accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green'} pl-3`}>
+                          <span className="text-[10px] uppercase tracking-wider text-gray-500">Floor_Price</span>
+                          <span className="text-white text-xl font-bold">{currency} {featuredCollection.floorPrice}</span>
+                       </div>
+                       <div className="flex flex-col border-l-2 border-gray-800 pl-3">
+                          <span className="text-[10px] uppercase tracking-wider text-gray-500">24h_Volume</span>
+                          <span className="text-white text-xl font-bold">{currency} {(featuredCollection.totalVolume / 1000).toFixed(1)}k</span>
+                       </div>
+                    </div>
 
-                  <Link 
-                    to={`/collection/${featuredCollection.id}`}
-                    className={`group relative px-8 py-3 bg-black border ${accentColor === 'text-magic-purple' ? 'border-magic-purple text-magic-purple hover:bg-magic-purple' : 'border-magic-green text-magic-green hover:bg-magic-green'} font-bold uppercase tracking-widest text-xs hover:text-black transition-all duration-200`}
-                  >
-                    <span className="relative z-10 flex items-center gap-2">
-                        Execute_View <ArrowRight className="w-3 h-3" />
-                    </span>
-                  </Link>
+                    <Link 
+                      to={`/collection/${featuredCollection.id}`}
+                      className={`group relative px-8 py-3 bg-black border ${accentColor === 'text-magic-purple' ? 'border-magic-purple text-magic-purple hover:bg-magic-purple' : 'border-magic-green text-magic-green hover:bg-magic-green'} font-bold uppercase tracking-widest text-xs hover:text-black transition-all duration-200`}
+                    >
+                      <span className="relative z-10 flex items-center gap-2">
+                          Execute_View <ArrowRight className="w-3 h-3" />
+                      </span>
+                    </Link>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20 flex items-center justify-center">
+          <div className="text-magic-green animate-pulse font-mono uppercase tracking-widest text-xl">
+            LOADING SPOTLIGHT...
+          </div>
+        </div>
+      )}
+
 
       {/* DUAL SPEED TICKER SYSTEM - CSS ANIMATED */}
       <div className="border-b border-white/20 bg-[#050505] overflow-hidden relative flex flex-col py-2 gap-1 group">
@@ -191,8 +232,9 @@ const Home: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                        {MOCK_COLLECTIONS.map((collection, idx) => (
+                        {collections.map((collection, idx) => (
                             <tr key={collection.id} className="group hover:bg-white/5 transition-colors">
+
                                 <td className="p-4">
                                     <Link to={`/collection/${collection.id}`} className="flex items-center gap-4">
                                         <span className="text-gray-700 font-mono text-sm w-4 text-center group-hover:text-white transition-colors">0{idx + 1}</span>
