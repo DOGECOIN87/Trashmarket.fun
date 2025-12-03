@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trash Market | trashmarket.fun</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'magic-dark': '#000000',
+              'magic-card': '#080808',
+              'magic-hover': '#111111',
+              'magic-pink': '#ff00ff',
+              'magic-purple': '#9945ff',
+              'magic-green': '#adff02',
+              'magic-red': '#ff2222',
+              'magic-text': '#666666',
+            },
+            fontFamily: {
+              sans: ['JetBrains Mono', 'monospace'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            borderRadius: {
+              'none': '0',
+              'sm': '0',
+              'DEFAULT': '0',
+              'md': '0',
+              'lg': '0',
+              'xl': '0',
+              '2xl': '0',
+              '3xl': '0',
+              'full': '0',
+            },
+            animation: {
+              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'marquee': 'marquee 30s linear infinite',
+              'marquee-fast': 'marquee 15s linear infinite',
+              'marquee-reverse': 'marquee-reverse 35s linear infinite',
+            },
+            keyframes: {
+              marquee: {
+                '0%': { transform: 'translateX(0%)' },
+                '100%': { transform: 'translateX(-100%)' },
+              },
+              'marquee-reverse': {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(0%)' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        background-color: #000000;
+        color: #ffffff;
+        font-family: 'JetBrains Mono', monospace;
+      }
+      /* Custom Scrollbar - Raw Industrial Look */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000000; 
+        border-left: 1px solid #222;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #adff02; 
+        border-radius: 0px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #88cc00; 
+      }
+      /* Brutalist selection style */
+      ::selection {
+        background: #adff02;
+        color: #000000;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
