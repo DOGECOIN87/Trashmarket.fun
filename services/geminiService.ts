@@ -10,7 +10,7 @@ const getClient = () => {
 export const generateNFTImage = async (prompt: string): Promise<string | null> => {
     try {
         const ai = getClient();
-        // Using gemini-2.5-flash-image for generation as per guidelines for general image tasks
+        // Using flash-image model for AI image generation
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
             contents: {
@@ -21,7 +21,7 @@ export const generateNFTImage = async (prompt: string): Promise<string | null> =
             config: {
                 imageConfig: {
                     aspectRatio: "1:1",
-                    // imageSize: "1K" -- This is only supported on gemini-3-pro-image-preview
+                    // imageSize: "1K" -- This is only supported on pro-image-preview models
                 }
             }
         });
@@ -34,7 +34,7 @@ export const generateNFTImage = async (prompt: string): Promise<string | null> =
         }
         return null;
     } catch (error) {
-        console.error("Gemini Generation Error:", error);
+        console.error("AI Generation Error:", error);
         return null;
     }
 };
@@ -48,7 +48,7 @@ export const generateCollectionDescription = async (name: string): Promise<strin
         });
         return response.text.trim();
     } catch (error) {
-        console.error("Gemini Text Error:", error);
+        console.error("AI Text Error:", error);
         return "A unique collection from the depths of the Solana blockchain.";
     }
 };

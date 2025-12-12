@@ -30,7 +30,7 @@ const Launchpad: React.FC = () => {
         
         <div className="text-center mb-12">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-black border border-magic-green/30 text-magic-green text-xs font-bold uppercase tracking-widest mb-4">
-                <Sparkles className="w-3 h-3" /> Powered by Gemini 2.5
+                <Sparkles className="w-3 h-3" /> TRASH_AI_GENERATOR
             </span>
             <h1 className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter">TRASH_LAUNCHPAD</h1>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto font-mono">
