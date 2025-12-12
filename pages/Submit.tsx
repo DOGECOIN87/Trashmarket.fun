@@ -410,7 +410,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext, isSubmitting }) 
         
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
-            Mint Price (in {data.mintPrice ? 'G' : 'GOR'}) *
+            Mint Price (in G) *
           </label>
           <input
             type="number"
@@ -564,24 +564,24 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
                   className="hidden"
                 />
               </label>
-            )}
-          </div>
+</div>
         </div>
 
         {/* Sample Images */}
         <div>
-          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
-            Sample NFTs (up to 5)
+          <label className="block text-sm            )}
+          -300 mb-2 uppercase tracking-w font-bold text-gray 5)
           </label>
-          <div className="border-2 border-dashed border-white/20 p-6">
-            {data.sampleFiles.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="border-2 NFTs (up to-white/20 p-6">
+           ider">
+            Sample.length > 0 border-dashed border<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {data.sampleFiles.map((file, index) => (
-                  <div key={index} className="relative">
-                    <img 
-                      src={URL.createObjectURL(file)} 
+                   ? (
+               {data.sampleFiles<div key={index} className="relative">
+                    ={URL.createObjectURL(file)} 
                       alt={`Sample ${index + 1}`}
-                      className="w-full h-24 object-cover border border-white/20"
+                      className="w<img 
+                      src-full h-24 object-cover border border-white/20"
                     />
                     <button
                       onClick={() => removeFile('sample', index)}
@@ -645,6 +645,264 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
   );
 };
 
-// Continue with Step3 and Step4 components...
+// Step 3: Contract & Links
+const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
+  const isValid = data.contractAddress && data.royaltyPercentage >= 0 && data.contactEmail;
+
+  return (
+    <div className="p-8">
+      <h2 className="text-2xl font-bold text-white mb-6 uppercase">Contract_&_Links</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Contract Address * (Gorbagana)
+          </label>
+          <input
+            type="text"
+            value={data.contractAddress}
+            onChange={(e) => updateData({ contractAddress: e.target.value })}
+            placeholder="Gorbagana contract address..."
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Royalty Percentage *
+          </label>
+          <input
+            type="number"
+            value={data.royaltyPercentage}
+            onChange={(e) => updateData({ royaltyPercentage: parseFloat(e.target.value) || 0 })}
+            placeholder="5"
+            min="0"
+            max="20"
+            step="0.5"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+          />
+          <div className="text-xs text-gray-500 mt-1">Max 20%</div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Website
+          </label>
+          <input
+            type="url"
+            value={data.website}
+            onChange={(e) => updateData({ website: e.target.value })}
+            placeholder="https://your-website.com"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Twitter/X
+          </label>
+          <input
+            type="text"
+            value={data.twitter}
+            onChange={(e) => updateData({ twitter: e.target.value })}
+            placeholder="@your_handle"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Discord
+          </label>
+          <input
+            type="url"
+            value={data.discord}
+            onChange={(e) => updateData({ discord: e.target.value })}
+            placeholder="https://discord.gg/your-server"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Telegram
+          </label>
+          <input
+            type="url"
+            value={data.telegram}
+            onChange={(e) => updateData({ telegram: e.target.value })}
+            placeholder="https://t.me/your_group"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+          />
+        </div>
+        
+        <div className="md:col-span-2">
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Contact Email *
+          </label>
+          <input
+            type="email"
+            value={data.contactEmail}
+            onChange={(e) => updateData({ contactEmail: e.target.value })}
+            placeholder="contact@yourproject.com"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+          />
+          <div className="text-xs text-gray-500 mt-1">For submission updates and notifications</div>
+        </div>
+      </div>
+      
+      <div className="flex justify-between mt-8">
+        <button
+          onClick={onBack}
+          className="px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border border-white/20 text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <button
+          onClick={onNext}
+          disabled={!isValid}
+          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${
+            isValid
+              ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+              : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
+          }`}
+        >
+          Next <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Step 4: Project Info & Preview
+const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubmitting }) => {
+  const isValid = data.teamInfo && data.roadmap && data.utility && data.contactEmail;
+
+  return (
+    <div className="p-8">
+      <h2 className="text-2xl font-bold text-white mb-6 uppercase">Project_Information</h2>
+      
+      <div className="space-y-6">
+        <div>
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Team Information *
+          </label>
+          <textarea
+            value={data.teamInfo}
+            onChange={(e) => updateData({ teamInfo: e.target.value })}
+            placeholder="Tell us about your team..."
+            maxLength={1000}
+            rows={3}
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono resize-none"
+          />
+          <div className="text-right text-xs text-gray-500 mt-1">
+            {data.teamInfo.length}/1000
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Roadmap *
+          </label>
+          <textarea
+            value={data.roadmap}
+            onChange={(e) => updateData({ roadmap: e.target.value })}
+            placeholder="What are your future plans?"
+            maxLength={1000}
+            rows={3}
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono resize-none"
+          />
+          <div className="text-right text-xs text-gray-500 mt-1">
+            {data.roadmap.length}/1000
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Utility & Benefits *
+          </label>
+          <textarea
+            value={data.utility}
+            onChange={(e) => updateData({ utility: e.target.value })}
+            placeholder="What does your NFT provide to holders?"
+            maxLength={1000}
+            rows={3}
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono resize-none"
+          />
+          <div className="text-right text-xs text-gray-500 mt-1">
+            {data.utility.length}/1000
+          </div>
+        </div>
+      </div>
+      
+      {/* Preview Section */}
+      <div className="mt-8 border-t border-white/20 pt-8">
+        <h3 className="text-xl font-bold text-magic-green mb-4 uppercase">Submission_Preview</h3>
+        <div className="bg-black border border-white/10 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-400 uppercase tracking-wider">Collection:</span>
+              <div className="text-white font-mono">{data.name}</div>
+            </div>
+            <div>
+              <span className="text-gray-400 uppercase tracking-wider">Symbol:</span>
+              <div className="text-white font-mono">{data.symbol}</div>
+            </div>
+            <div>
+              <span className="text-gray-400 uppercase tracking-wider">Supply:</span>
+              <div className="text-white font-mono">{data.supply.toLocaleString()}</div>
+            </div>
+            <div>
+              <span className="text-gray-400 uppercase tracking-wider">Mint Price:</span>
+              <div className="text-white font-mono">{data.mintPrice} G</div>
+            </div>
+            <div>
+              <span className="text-gray-400 uppercase tracking-wider">Royalty:</span>
+              <div className="text-white font-mono">{data.royaltyPercentage}%</div>
+            </div>
+            <div>
+              <span className="text-gray-400 uppercase tracking-wider">Contract:</span>
+              <div className="text-white font-mono text-xs">
+                {data.contractAddress ? `${data.contractAddress.slice(0, 8)}...${data.contractAddress.slice(-6)}` : 'Not provided'}
+              </div>
+            </div>
+          </div>
+          {data.description && (
+            <div className="mt-4">
+              <span className="text-gray-400 uppercase tracking-wider text-sm">Description:</span>
+              <div className="text-white text-sm mt-1">{data.description}</div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="flex justify-between mt-8">
+        <button
+          onClick={onBack}
+          className="px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border border-white/20 text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <button
+          onClick={onSubmit}
+          disabled={!isValid || isSubmitting}
+          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${
+            isValid && !isSubmitting
+              ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+              : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
+          }`}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Submitting...
+            </>
+          ) : (
+            'Submit Collection'
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export default Submit;
