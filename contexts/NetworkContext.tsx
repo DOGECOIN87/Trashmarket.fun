@@ -1,33 +1,67 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 
-type Network = 'SOL' | 'GRB';
+// Gorbagana Network Configuration
+export const GORBAGANA_CONFIG = {
+  name: 'Gorbagana',
+  chainId: 'gorbagana-mainnet',
+  rpcEndpoint: 'https://rpc.gorbagana.wtf',
+  explorerUrl: 'https://trashscan.io',
+  currency: {
+    symbol: 'GOR',
+    decimals: 9,
+    displaySymbol: 'G',
+  },
+  networkLabel: 'Gorbagana_L2',
+  tpsLabel: 'GPS', // Gorbagana Per Second
+};
 
 interface NetworkContextType {
-  network: Network;
-  toggleNetwork: () => void;
+  network: 'GOR';
   currency: string;
   networkName: string;
   tpsLabel: string;
-  accentColor: string; // 'text-magic-green' | 'text-magic-purple'
+  accentColor: string;
+  rpcEndpoint: string;
+  explorerUrl: string;
+  getExplorerLink: (type: 'tx' | 'address' | 'token', value: string) => string;
 }
 
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
 
 export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [network, setNetwork] = useState<Network>('SOL');
+  const network = 'GOR' as const;
+  const currency = GORBAGANA_CONFIG.currency.displaySymbol;
+  const networkName = GORBAGANA_CONFIG.networkLabel;
+  const tpsLabel = GORBAGANA_CONFIG.tpsLabel;
+  const accentColor = 'text-magic-green';
+  const rpcEndpoint = GORBAGANA_CONFIG.rpcEndpoint;
+  const explorerUrl = GORBAGANA_CONFIG.explorerUrl;
 
-  const toggleNetwork = () => {
-    setNetwork(prev => prev === 'SOL' ? 'GRB' : 'SOL');
+  const getExplorerLink = (type: 'tx' | 'address' | 'token', value: string): string => {
+    const baseUrl = GORBAGANA_CONFIG.explorerUrl;
+    switch (type) {
+      case 'tx':
+        return `${baseUrl}/tx/${value}`;
+      case 'address':
+        return `${baseUrl}/address/${value}`;
+      case 'token':
+        return `${baseUrl}/token/${value}`;
+      default:
+        return baseUrl;
+    }
   };
 
-  const currency = network === 'SOL' ? '◎' : 'G';
-  const networkName = network === 'SOL' ? 'Solana_Mainnet' : 'Gorbagana_L2';
-  const tpsLabel = network === 'SOL' ? 'TPS' : 'GPS';
-  // Swapped: SOL is Purple, GRB is Green
-  const accentColor = network === 'SOL' ? 'text-magic-purple' : 'text-magic-green';
-
   return (
-    <NetworkContext.Provider value={{ network, toggleNetwork, currency, networkName, tpsLabel, accentColor }}>
+    <NetworkContext.Provider value={{ 
+      network, 
+      currency, 
+      networkName, 
+      tpsLabel, 
+      accentColor,
+      rpcEndpoint,
+      explorerUrl,
+      getExplorerLink
+    }}>
       {children}
     </NetworkContext.Provider>
   );

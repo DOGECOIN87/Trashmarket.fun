@@ -46,3 +46,53 @@ export enum LaunchpadStatus {
   SUCCESS,
   ERROR
 }
+
+export enum SubmissionStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected'
+}
+
+export interface CollectionSubmission {
+  id: string;
+  // Collection Details
+  name: string;
+  symbol: string;
+  description: string;
+  supply: number;
+  mintPrice: number;
+  mintDate: string;
+  
+  // Visual Assets
+  logoUrl: string;
+  bannerUrl: string;
+  sampleImages: string[];
+  
+  // Smart Contract Info
+  contractAddress: string;
+  creatorWallet: string;
+  submittedBy: string; // Wallet address that submitted
+  royaltyPercentage: number;
+  
+  // Social Links
+  website?: string;
+  twitter?: string;
+  discord?: string;
+  telegram?: string;
+  
+  // Project Information
+  teamInfo: string;
+  roadmap: string;
+  utility: string;
+  contactEmail: string;
+  
+  // Review Tracking
+  status: SubmissionStatus;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  reviewNotes?: string;
+  
+  // Submission Tracking
+  submissionCount: number; // Track per wallet for limit enforcement
+}
