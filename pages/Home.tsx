@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getTopCollections } from '../services/magicEdenService';
 import { getGorbagioCollection } from '../services/gorbagioService';
+import { getMarketMetrics, MarketMetric, getMockTokenMetrics } from '../services/tokenService';
 import { Collection } from '../types';
 
 import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio } from 'lucide-react';
@@ -24,22 +25,26 @@ const Marquee = ({ children, reverse = false, className = "" }: { children?: Rea
 
 const Home: React.FC = () => {
   const { currency, accentColor } = useNetwork();
-  
+
   const [featuredCollection, setFeaturedCollection] = useState<Collection | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [marketMetrics, setMarketMetrics] = useState<MarketMetric[]>(getMockTokenMetrics());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch featured Gorbagios collection from Gorbagio API
-        const featured = await getGorbagioCollection();
-        setFeaturedCollection(featured);
+        // Fetch all data in parallel
+        const [featured, top, metrics] = await Promise.all([
+          getGorbagioCollection(),
+          getTopCollections(5),
+          getMarketMetrics()
+        ]);
 
-        // Fetch top collections from Magic Eden API
-        const top = await getTopCollections(5);
+        setFeaturedCollection(featured);
         setCollections(top);
+        setMarketMetrics(metrics);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -50,25 +55,6 @@ const Home: React.FC = () => {
   }, []);
 
   const [isHovering, setIsHovering] = useState(false);
-
-
-  const MARKET_METRICS = [
-    { label: "SOL", value: "$145.20", change: "+5.2%", color: "text-magic-green" },
-    { label: "BTC", value: "$65,100", change: "+1.2%", color: "text-magic-green" },
-    { label: "ETH", value: "$3,450", change: "-0.4%", color: "text-magic-red" },
-    { label: "JUP", value: "$1.45", change: "+12.4%", color: "text-magic-green" },
-    { label: "PYTH", value: "$0.45", change: "+1.2%", color: "text-magic-green" },
-    { label: "WIF", value: "$3.20", change: "-4.5%", color: "text-magic-red" },
-    { label: "BONK", value: "$0.000024", change: "+8.2%", color: "text-magic-green" },
-    { label: "POPCAT", value: "$0.45", change: "+15%", color: "text-magic-green" },
-    { label: "RENDER", value: "$7.20", change: "+3.1%", color: "text-magic-green" },
-    { label: "HNT", value: "$6.50", change: "-1.2%", color: "text-magic-red" },
-    { label: "RAY", value: "$1.80", change: "+5.5%", color: "text-magic-green" },
-    { label: "ORCA", value: "$2.10", change: "+0.5%", color: "text-magic-green" },
-    { label: "GAS", value: "4 Gwei", change: "LOW", color: "text-blue-400" },
-    { label: "TPS", value: "3,892", change: "LIVE", color: "text-yellow-400" },
-    { label: "DOM", value: "2.4%", change: "SOL", color: "text-white" },
-  ];
 
   const LIVE_ACTIVITIES = [
     { type: "SALE", text: `Mad Lads #2912 sold for 145.5 ${currency}`, time: "1s" },
@@ -174,10 +160,10 @@ const Home: React.FC = () => {
          <div className="absolute top-0 left-0 w-24 h-full bg-gradient-to-r from-black to-transparent z-20 pointer-events-none"></div>
          <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-black to-transparent z-20 pointer-events-none"></div>
          
-         {/* Top Row: Macro Stats (Right) */}
+         {/* Top Row: Token Prices from Trashscan (Right) */}
          <div className="border-b border-white/5 bg-black/50 backdrop-blur-sm relative z-10">
              <Marquee reverse={true}>
-                {MARKET_METRICS.map((item, idx) => (
+                {marketMetrics.map((item, idx) => (
                     <div key={`m-${idx}`} className="flex items-center gap-3 mx-8 py-2 text-xs uppercase tracking-wider font-mono whitespace-nowrap">
                         <span className="text-gray-600 font-bold">{item.label}</span>
                         <span className={`font-bold ${item.color}`}>{item.value}</span>
