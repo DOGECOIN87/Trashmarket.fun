@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getCollection, getTopCollections } from '../services/magicEdenService';
+import { getTopCollections } from '../services/magicEdenService';
+import { getGorbagioCollection } from '../services/gorbagioService';
 import { Collection } from '../types';
 
 import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio } from 'lucide-react';
@@ -32,8 +33,11 @@ const Home: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const featured = await getCollection('gorbagios');
+        // Fetch featured Gorbagios collection from Gorbagio API
+        const featured = await getGorbagioCollection();
         setFeaturedCollection(featured);
+
+        // Fetch top collections from Magic Eden API
         const top = await getTopCollections(5);
         setCollections(top);
       } catch (error) {
