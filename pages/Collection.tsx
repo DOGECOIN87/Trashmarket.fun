@@ -33,6 +33,7 @@ const Collection: React.FC = () => {
       setApiError(null);
 
       try {
+        // Service functions now handle fallback internally, so this won't throw
         const [collectionData, nftsData, activityData] = await Promise.all([
           getGorbagioCollection(),
           getGorbagios(),
@@ -44,14 +45,7 @@ const Collection: React.FC = () => {
         setApiActivity(activityData);
       } catch (error) {
         console.error('Failed to fetch Gorbagio data:', error);
-        setApiError('Failed to load Gorbagios. Using fallback data.');
-        // Fall back to mock data on error
-        const mockCollection = MOCK_COLLECTIONS.find(c => c.id === 'gorbagios');
-        if (mockCollection) {
-          setApiCollection(mockCollection);
-          setApiNfts(MOCK_NFTS['gorbagios'] || []);
-          setApiActivity(generateActivity('gorbagios'));
-        }
+        setApiError('Failed to load Gorbagios.');
       } finally {
         setIsLoading(false);
       }
