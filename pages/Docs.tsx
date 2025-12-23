@@ -258,6 +258,31 @@ const Docs: React.FC = () => {
                           </div>
                       </div>
 
+                      {/* Gorbagio Endpoint */}
+                      <div>
+                          <div className="flex items-center gap-4 mb-2">
+                              <span className="px-2 py-1 bg-magic-green text-black text-xs font-bold font-mono">GET</span>
+                              <span className="text-white font-mono text-sm">https://gorapi.onrender.com/api/gorbagios</span>
+                          </div>
+                          <div className="bg-black border border-white/10 p-4 font-mono text-xs overflow-x-auto">
+<pre className="text-gray-400">
+{`{
+  "success": true,
+  "count": 4444,
+  "data": [
+    {
+      "solana_mint": "DsdQoA...",
+      "metadata": {
+        "name": "Gorbagio #3437",
+        "image": "https://.../3437.png"
+      }
+    }
+  ]
+}`}
+</pre>
+                          </div>
+                      </div>
+
                        {/* Endpoint 2 */}
                        <div>
                           <div className="flex items-center gap-4 mb-2">

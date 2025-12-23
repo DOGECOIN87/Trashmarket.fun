@@ -1,182 +1,188 @@
-import { Collection, NFT, ActivityItem } from '../types';
+import { Collection, NFT } from '../types';
 
-const GORBAGIO_API_BASE = 'https://gorapi.onrender.com/api';
+const GORBAGIO_API_URL = 'https://gorapi.onrender.com/api/gorbagios';
 
-export interface GorbagioNFT {
-  id: string;
-  name: string;
-  image: string;
-  price?: number;
-  rank?: number;
-  rarity?: string;
-  attributes?: Array<{ trait_type: string; value: string }>;
-  owner?: string;
-  listed?: boolean;
-  lastSale?: number;
+interface GorbagioAttribute {
+  trait_type: string;
+  value: string;
 }
 
-export interface GorbagioCollection {
-  name: string;
-  description: string;
-  image: string;
-  banner?: string;
-  floorPrice?: number;
-  totalVolume?: number;
-  listedCount?: number;
+interface GorbagioMetadata {
+  mintAddress?: string;
   supply?: number;
-  isVerified?: boolean;
+  collection?: string;
+  collectionName?: string;
+  name?: string;
+  updateAuthority?: string;
+  primarySaleHappened?: boolean;
+  sellerFeeBasisPoints?: number;
+  image?: string;
+  attributes?: GorbagioAttribute[];
+  properties?: {
+    files?: Array<{ uri?: string; type?: string }>;
+    category?: string;
+  };
+  isCompressed?: boolean;
+  listStatus?: string;
 }
 
-export interface GorbagioApiResponse {
-  collection?: GorbagioCollection;
-  nfts?: GorbagioNFT[];
-  items?: GorbagioNFT[];
-  data?: GorbagioNFT[];
-  total?: number;
+interface GorbagioApiItem {
+  solana_mint?: string;
+  gorbagana_mint?: string;
+  current_owner?: string;
+  metadata?: GorbagioMetadata;
+}
+
+interface GorbagioApiResponse {
   success?: boolean;
+  count?: number;
+  total?: number;
+  data?: GorbagioApiItem[];
 }
 
-// Fallback mock NFT data for when API is unavailable
-const MOCK_GORBAGIOS: NFT[] = Array.from({ length: 24 }).map((_, i) => ({
-  id: `gorbagio-${i + 1}`,
-  name: `Gorbagio #${i + 1}`,
-  image: `https://gorapi.onrender.com/images/${i + 1}.png`,
-  price: parseFloat((0.05 + Math.random() * 0.5).toFixed(3)),
-  rank: Math.floor(Math.random() * 1000) + 1,
-  rarity: ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][Math.floor(Math.random() * 5)],
-  collectionId: 'gorbagios',
-  description: 'A unique Gorbagio from the Gorbagana Network.',
-}));
-
-const MOCK_COLLECTION: Collection = {
-  id: 'gorbagios',
-  name: 'Gorbagios',
-  description: 'The official Gorbagio NFT collection on Gorbagana Network. Literal garbage bags living on the blockchain.',
-  image: 'https://gorapi.onrender.com/images/1.png',
-  banner: 'https://gorapi.onrender.com/images/banner.png',
-  floorPrice: 0.05,
-  totalVolume: 69420,
-  listedCount: 420,
-  supply: 6969,
-  isVerified: true,
-  change24h: 42.0,
+const normalizeWhitespace = (value?: string): string => {
+  return value ? value.replace(/\s+/g, ' ').trim() : '';
 };
 
-/**
- * Fetch all Gorbagios NFTs from the API
- */
-export const getGorbagios = async (): Promise<NFT[]> => {
-  try {
-    const response = await fetch(`${GORBAGIO_API_BASE}/gorbagios`);
-    if (!response.ok) {
-      console.warn(`Gorbagio API returned ${response.status}, using fallback data`);
-      return MOCK_GORBAGIOS;
-    }
-    const data: GorbagioApiResponse = await response.json();
+let gorbagioCache: GorbagioApiResponse | null = null;
+let gorbagioFetchPromise: Promise<GorbagioApiResponse> | null = null;
 
-    // Handle various possible response formats
-    const nfts = data.nfts || data.items || data.data || (Array.isArray(data) ? data : []);
+const fetchGorbagios = async (): Promise<GorbagioApiResponse> => {
+  if (gorbagioCache) return gorbagioCache;
+  if (gorbagioFetchPromise) return gorbagioFetchPromise;
 
-    if (nfts.length === 0) {
-      console.warn('Gorbagio API returned empty data, using fallback');
-      return MOCK_GORBAGIOS;
-    }
+  gorbagioFetchPromise = fetch(GORBAGIO_API_URL)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to fetch Gorbagios (${response.status})`);
+      }
+      return response.json();
+    })
+    .then((data: GorbagioApiResponse) => {
+      gorbagioCache = data;
+      return data;
+    })
+    .finally(() => {
+      gorbagioFetchPromise = null;
+    });
 
-    return nfts.map((nft: GorbagioNFT) => ({
-      id: nft.id || String(Math.random()),
-      name: nft.name || 'Gorbagio',
-      image: nft.image || `https://gorapi.onrender.com/images/${Math.floor(Math.random() * 24) + 1}.png`,
-      price: nft.price || 0,
-      rank: nft.rank,
-      rarity: nft.rarity,
-      collectionId: 'gorbagios',
-      description: '',
-      lastSale: nft.lastSale,
-    }));
-  } catch (error) {
-    console.error('Error fetching Gorbagios, using fallback:', error);
-    return MOCK_GORBAGIOS;
+  return gorbagioFetchPromise;
+};
+
+const getSupplyFromResponse = (response: GorbagioApiResponse): number => {
+  if (typeof response.total === 'number') return response.total;
+  if (typeof response.count === 'number') return response.count;
+  return response.data?.length ?? 0;
+};
+
+const buildGorbagioCollection = (
+  response: GorbagioApiResponse,
+  fallback?: Partial<Collection>
+): Collection => {
+  const items = response.data ?? [];
+  const first = items[0];
+  const supply = getSupplyFromResponse(response);
+  const listedFromApi = items.filter(
+    (item) => item.metadata?.listStatus && item.metadata.listStatus !== 'unlisted'
+  ).length;
+
+  const name = normalizeWhitespace(
+    first?.metadata?.collectionName || fallback?.name || 'Gorbagios'
+  ) || 'Gorbagios';
+  const image = first?.metadata?.image || fallback?.image || '';
+  const banner = fallback?.banner || image;
+
+  return {
+    id: fallback?.id || 'gorbagios',
+    name,
+    description: fallback?.description || 'The Gorbagio collection on Gorbagana.',
+    image,
+    banner,
+    floorPrice: fallback?.floorPrice ?? 0,
+    totalVolume: fallback?.totalVolume ?? 0,
+    listedCount: items.length ? listedFromApi : fallback?.listedCount ?? 0,
+    supply: supply || fallback?.supply || 0,
+    isVerified: fallback?.isVerified ?? true,
+    change24h: fallback?.change24h ?? 0,
+  };
+};
+
+const mapGorbagioNFTs = (
+  items: GorbagioApiItem[],
+  options: {
+    collectionId: string;
+    collectionName: string;
+    defaultPrice: number;
+    limit?: number;
+    offset?: number;
   }
-};
+): NFT[] => {
+  const offset = options.offset ?? 0;
+  const limit = options.limit ?? items.length;
+  const price = Number.isFinite(options.defaultPrice) ? options.defaultPrice : 0;
 
-/**
- * Fetch Gorbagios collection metadata
- */
-export const getGorbagioCollection = async (): Promise<Collection> => {
-  try {
-    const response = await fetch(`${GORBAGIO_API_BASE}/gorbagios`);
-    if (!response.ok) {
-      console.warn(`Gorbagio API returned ${response.status}, using fallback collection`);
-      return MOCK_COLLECTION;
-    }
-    const data: GorbagioApiResponse = await response.json();
-
-    // Try to extract collection info or construct from NFTs
-    const nfts = data.nfts || data.items || data.data || (Array.isArray(data) ? data : []);
-    const collection = data.collection;
-
-    if (nfts.length === 0 && !collection) {
-      console.warn('Gorbagio API returned empty data, using fallback collection');
-      return MOCK_COLLECTION;
-    }
-
-    // Calculate floor price from NFTs if not provided
-    const listedNfts = nfts.filter((n: GorbagioNFT) => n.price && n.price > 0);
-    const floorPrice = collection?.floorPrice ||
-      (listedNfts.length > 0 ? Math.min(...listedNfts.map((n: GorbagioNFT) => n.price || Infinity)) : 0.05);
+  return items.slice(offset, offset + limit).map((item, index) => {
+    const name =
+      normalizeWhitespace(item.metadata?.name) ||
+      `${options.collectionName} #${offset + index + 1}`;
 
     return {
-      id: 'gorbagios',
-      name: collection?.name || 'Gorbagios',
-      description: collection?.description || 'The official Gorbagio NFT collection on Gorbagana Network.',
-      image: collection?.image || (nfts[0]?.image || 'https://gorapi.onrender.com/images/1.png'),
-      banner: collection?.banner || 'https://gorapi.onrender.com/images/banner.png',
-      floorPrice: floorPrice,
-      totalVolume: collection?.totalVolume || 69420,
-      listedCount: collection?.listedCount || listedNfts.length || nfts.length,
-      supply: collection?.supply || nfts.length || 6969,
-      isVerified: collection?.isVerified ?? true,
-      change24h: 42.0,
-    };
-  } catch (error) {
-    console.error('Error fetching Gorbagio collection, using fallback:', error);
-    return MOCK_COLLECTION;
-  }
-};
-
-/**
- * Fetch paginated Gorbagios NFTs
- */
-export const getGorbagiosPaginated = async (offset = 0, limit = 20): Promise<NFT[]> => {
-  const allNfts = await getGorbagios();
-  return allNfts.slice(offset, offset + limit);
-};
-
-/**
- * Get a specific Gorbagio by ID
- */
-export const getGorbagioById = async (id: string): Promise<NFT | null> => {
-  const allNfts = await getGorbagios();
-  return allNfts.find(nft => nft.id === id) || null;
-};
-
-/**
- * Generate activity data for Gorbagios (simulated based on NFT data)
- */
-export const getGorbagioActivity = async (limit = 15): Promise<ActivityItem[]> => {
-  const nfts = await getGorbagios();
-
-  return nfts.slice(0, limit).map((nft, i) => {
-    const isSale = Math.random() > 0.3;
-    return {
-      id: `gor-act-${nft.id}-${i}`,
-      type: isSale ? 'sale' as const : 'list' as const,
-      price: nft.price || parseFloat((Math.random() * 2).toFixed(2)),
-      from: `gor...${Math.floor(Math.random() * 999).toString().padStart(3, '0')}`,
-      to: isSale ? `bag...${Math.floor(Math.random() * 999).toString().padStart(3, '0')}` : undefined,
-      time: `${Math.floor(Math.random() * 59) + 1}m ago`,
-      image: nft.image,
-      name: nft.name,
+      id: item.gorbagana_mint || item.solana_mint || `${options.collectionId}-${offset + index}`,
+      name,
+      image: item.metadata?.image || '',
+      price,
+      collectionId: options.collectionId,
     };
   });
+};
+
+export const getGorbagioCollection = async (
+  fallback?: Partial<Collection>
+): Promise<Collection> => {
+  const response = await fetchGorbagios();
+  return buildGorbagioCollection(response, fallback);
+};
+
+export const getGorbagioNFTs = async (options?: {
+  limit?: number;
+  offset?: number;
+  defaultPrice?: number;
+  collectionId?: string;
+  collectionName?: string;
+}): Promise<NFT[]> => {
+  const response = await fetchGorbagios();
+  const items = response.data ?? [];
+  const collectionName =
+    normalizeWhitespace(items[0]?.metadata?.collectionName) || options?.collectionName || 'Gorbagios';
+
+  return mapGorbagioNFTs(items, {
+    collectionId: options?.collectionId || 'gorbagios',
+    collectionName,
+    defaultPrice: options?.defaultPrice ?? 0,
+    limit: options?.limit,
+    offset: options?.offset,
+  });
+};
+
+export const getGorbagioCollectionWithNFTs = async (options?: {
+  collectionFallback?: Partial<Collection>;
+  defaultPrice?: number;
+  limit?: number;
+  offset?: number;
+}): Promise<{ collection: Collection; nfts: NFT[]; total: number }> => {
+  const response = await fetchGorbagios();
+  const collection = buildGorbagioCollection(response, options?.collectionFallback);
+  const nfts = mapGorbagioNFTs(response.data ?? [], {
+    collectionId: collection.id,
+    collectionName: collection.name,
+    defaultPrice: options?.defaultPrice ?? collection.floorPrice,
+    limit: options?.limit,
+    offset: options?.offset,
+  });
+
+  return {
+    collection,
+    nfts,
+    total: getSupplyFromResponse(response),
+  };
 };
