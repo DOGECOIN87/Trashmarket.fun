@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getTopCollections } from '../services/magicEdenService';
-import { getGorbagioCollection } from '../services/gorbagioService';
+import { getGorbagioCollection, getGorbagioNFTs } from '../services/gorbagioService';
 import { getMarketMetrics, MarketMetric, getMockTokenMetrics } from '../services/tokenService';
-import { Collection } from '../types';
+import { Collection, NFT } from '../types';
+import { MOCK_COLLECTIONS, MOCK_NFTS } from '../constants';
 
 import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio } from 'lucide-react';
 
@@ -27,31 +28,60 @@ const Home: React.FC = () => {
   const { currency, accentColor } = useNetwork();
 
   const [featuredCollection, setFeaturedCollection] = useState<Collection | null>(null);
+  const [featuredArtworks, setFeaturedArtworks] = useState<NFT[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [marketMetrics, setMarketMetrics] = useState<MarketMetric[]>(getMockTokenMetrics());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchData = async () => {
       setLoading(true);
-      try {
-        // Fetch all data in parallel
-        const [featured, top, metrics] = await Promise.all([
-          getGorbagioCollection(),
-          getTopCollections(5),
-          getMarketMetrics()
-        ]);
+      const heroArtCount = 18;
+      const gorbagioFallback = MOCK_COLLECTIONS.find((item) => item.id === 'gorbagios') || null;
+      const gorbagioArtFallback = MOCK_NFTS['gorbagios']?.slice(0, heroArtCount) || [];
+      const [featuredResult, topResult, artResult, metricsResult] = await Promise.allSettled([
+        getGorbagioCollection(gorbagioFallback || undefined),
+        getTopCollections(5),
+        getGorbagioNFTs({ limit: heroArtCount, defaultPrice: gorbagioFallback?.floorPrice ?? 0 }),
+        getMarketMetrics(),
+      ]);
 
-        setFeaturedCollection(featured);
-        setCollections(top);
-        setMarketMetrics(metrics);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
+      if (!isMounted) return;
+
+      if (featuredResult.status === 'fulfilled') {
+        setFeaturedCollection(featuredResult.value);
+      } else {
+        console.error('Error fetching Gorbagios:', featuredResult.reason);
+        setFeaturedCollection(gorbagioFallback);
       }
+
+      if (topResult.status === 'fulfilled') {
+        setCollections(topResult.value);
+      } else {
+        console.error('Error fetching top collections:', topResult.reason);
+      }
+
+      if (artResult.status === 'fulfilled') {
+        const artItems = artResult.value.filter((item) => item.image);
+        setFeaturedArtworks(artItems.length ? artItems : gorbagioArtFallback);
+      } else {
+        console.error('Error fetching Gorbagio artwork:', artResult.reason);
+        setFeaturedArtworks(gorbagioArtFallback);
+      }
+
+      if (metricsResult.status === 'fulfilled') {
+        setMarketMetrics(metricsResult.value);
+      } else {
+        setMarketMetrics(getMockTokenMetrics());
+      }
+
+      setLoading(false);
     };
     fetchData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const [isHovering, setIsHovering] = useState(false);
@@ -70,6 +100,8 @@ const Home: React.FC = () => {
     { type: "VOL", text: "Famous Fox Fed vol spike > 500%", time: "6s" },
     { type: "SALE", text: `Froganas #221 sold for 1.2 ${currency}`, time: "7s" },
   ];
+
+  const carouselItems = featuredArtworks.filter((item) => item.image);
 
   if (loading) {
     return (
@@ -99,7 +131,7 @@ const Home: React.FC = () => {
           </div>
           
           <div className="absolute bottom-0 left-0 w-full p-4 md:p-12 z-10">
-            <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-end justify-between gap-8">
+            <div className="max-w-[1600px] mx-auto flex flex-col gap-6">
               <div className="max-w-3xl w-full">
                 <div className={`flex items-center justify-between mb-2 w-full border-b ${accentColor === 'text-magic-purple' ? 'border-magic-purple/30' : 'border-magic-green/30'} pb-2`}>
                      <div className={`inline-flex items-center gap-2 ${accentColor} text-xs font-bold uppercase tracking-widest font-mono`}>
@@ -142,6 +174,33 @@ const Home: React.FC = () => {
                     </Link>
                 </div>
               </div>
+
+              {carouselItems.length > 0 && (
+                <div className="border-t border-white/10 pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${accentColor}`}>Gorbagio_Art_Stream</span>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-gray-600">Continuous_Carousel</span>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute left-0 top-0 h-full w-16 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none"></div>
+                    <div className="absolute right-0 top-0 h-full w-16 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none"></div>
+                    <Marquee className="py-2">
+                      {carouselItems.map((art, idx) => (
+                        <div key={`${art.id}-${idx}`} className="mx-2 md:mx-3">
+                          <div className={`w-20 h-20 md:w-24 md:h-24 bg-black border ${accentColor === 'text-magic-purple' ? 'border-magic-purple/40' : 'border-magic-green/40'} overflow-hidden`}>
+                            <img
+                              src={art.image}
+                              alt={art.name}
+                              className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-300"
+                              loading="lazy"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </Marquee>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

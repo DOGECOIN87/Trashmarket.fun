@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { MOCK_COLLECTIONS, MOCK_NFTS, generateChartData, generateActivity } from '../constants';
 import NFTCard from '../components/NFTCard';
 import PriceChart from '../components/PriceChart';
-import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, List, SlidersHorizontal, Loader2 } from 'lucide-react';
+import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
-import { getGorbagios, getGorbagioCollection, getGorbagioActivity } from '../services/gorbagioService';
-import { Collection as CollectionType, NFT, ActivityItem } from '../types';
+import { getGorbagioCollectionWithNFTs } from '../services/gorbagioService';
+import { Collection as CollectionType, NFT } from '../types';
 
 const Collection: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,58 +15,63 @@ const Collection: React.FC = () => {
   const [sweepCount, setSweepCount] = useState<number>(0);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
-  // API state for Gorbagios
-  const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [apiCollection, setApiCollection] = useState<CollectionType | null>(null);
-  const [apiNfts, setApiNfts] = useState<NFT[]>([]);
-  const [apiActivity, setApiActivity] = useState<ActivityItem[]>([]);
-
   const { currency, accentColor } = useNetwork();
 
-  // Fetch Gorbagio data from API when collection is 'gorbagios'
+  const [collection, setCollection] = useState<CollectionType | null>(() => {
+    return id ? MOCK_COLLECTIONS.find((item) => item.id === id) || null : null;
+  });
+  const [nfts, setNfts] = useState<NFT[]>(() => {
+    return id ? MOCK_NFTS[id] || [] : [];
+  });
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
   useEffect(() => {
-    const fetchGorbagioData = async () => {
-      if (id !== 'gorbagios') return;
+    if (!id) return;
 
-      setIsLoading(true);
-      setApiError(null);
+    const fallbackCollection = MOCK_COLLECTIONS.find((item) => item.id === id) || null;
+    const fallbackNfts = id ? MOCK_NFTS[id] || [] : [];
 
-      try {
-        // Service functions now handle fallback internally, so this won't throw
-        const [collectionData, nftsData, activityData] = await Promise.all([
-          getGorbagioCollection(),
-          getGorbagios(),
-          getGorbagioActivity(15)
-        ]);
+    setCollection(fallbackCollection);
+    setNfts(fallbackNfts);
+    setApiError(null);
 
-        setApiCollection(collectionData);
-        setApiNfts(nftsData.sort((a, b) => a.price - b.price));
-        setApiActivity(activityData);
-      } catch (error) {
-        console.error('Failed to fetch Gorbagio data:', error);
-        setApiError('Failed to load Gorbagios.');
-      } finally {
-        setIsLoading(false);
-      }
+    if (id !== 'gorbagios') {
+      setIsSyncing(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsSyncing(true);
+
+    getGorbagioCollectionWithNFTs({
+      collectionFallback: fallbackCollection || undefined,
+      defaultPrice: fallbackCollection?.floorPrice ?? 0,
+      limit: 120,
+    })
+      .then(({ collection: liveCollection, nfts: liveNfts }) => {
+        if (!isMounted) return;
+        setCollection(liveCollection);
+        setNfts(liveNfts);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        console.error('Error fetching Gorbagios:', error);
+        setApiError('Failed to load Gorbagios. Using fallback data.');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsSyncing(false);
+      });
+
+    return () => {
+      isMounted = false;
     };
-
-    fetchGorbagioData();
   }, [id]);
-
-  // Use API data for Gorbagios, mock data for others
-  const collection = id === 'gorbagios' && apiCollection
-    ? apiCollection
-    : MOCK_COLLECTIONS.find(c => c.id === id);
-  const nfts = id === 'gorbagios' && apiNfts.length > 0
-    ? apiNfts
-    : (id ? MOCK_NFTS[id] : []);
 
   // Memoized data
   const chartData = useMemo(() => collection ? generateChartData(collection.floorPrice) : [], [collection]);
-  const activityData = id === 'gorbagios' && apiActivity.length > 0
-    ? apiActivity
-    : useMemo(() => id ? generateActivity(id) : [], [id]);
+  const activityData = useMemo(() => (id ? generateActivity(id) : []), [id]);
 
   // Filter Logic
   const filteredNfts = nfts?.filter(nft => 
@@ -88,19 +93,6 @@ const Collection: React.FC = () => {
   // Styling maps
   const btnPrimary = accentColor === 'text-magic-purple' ? 'bg-magic-purple text-white hover:bg-white hover:text-magic-purple' : 'bg-magic-green text-black hover:bg-white hover:text-black';
   const borderFocus = accentColor === 'text-magic-purple' ? 'focus:border-magic-purple' : 'focus:border-magic-green';
-  const textAccent = accentColor; // Helper
-
-  // Loading state for Gorbagios API
-  if (id === 'gorbagios' && isLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className={`w-12 h-12 ${accentColor} animate-spin mx-auto mb-4`} />
-          <p className="text-white font-mono uppercase tracking-wider">Loading Gorbagios...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!collection) {
     return <div className="p-20 text-center font-mono text-red-500 uppercase">Error: Collection_Not_Found</div>;
@@ -200,6 +192,11 @@ const Collection: React.FC = () => {
                                 {collection.isVerified && <Zap className={`w-4 h-4 md:w-5 md:h-5 ${accentColor} fill-current flex-shrink-0`} />}
                             </h1>
                             <p className="text-gray-500 text-[10px] md:text-xs font-mono mt-1 line-clamp-2">{collection.description}</p>
+                            {isSyncing && (
+                                <div className="text-[9px] font-mono uppercase tracking-widest text-gray-600 mt-2">
+                                    Syncing Gorbagio API...
+                                </div>
+                            )}
                         </div>
                     </div>
 
