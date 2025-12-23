@@ -3,8 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { MOCK_COLLECTIONS, MOCK_NFTS, generateChartData, generateActivity } from '../constants';
 import NFTCard from '../components/NFTCard';
 import PriceChart from '../components/PriceChart';
-import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, List, SlidersHorizontal } from 'lucide-react';
+import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, List, SlidersHorizontal, Loader2 } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
+import { getGorbagios, getGorbagioCollection, getGorbagioActivity } from '../services/gorbagioService';
+import { Collection as CollectionType, NFT, ActivityItem } from '../types';
 
 const Collection: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -12,15 +14,65 @@ const Collection: React.FC = () => {
   const [viewMode, setViewMode] = useState<'items' | 'activity'>('items');
   const [sweepCount, setSweepCount] = useState<number>(0);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-  
+
+  // API state for Gorbagios
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiCollection, setApiCollection] = useState<CollectionType | null>(null);
+  const [apiNfts, setApiNfts] = useState<NFT[]>([]);
+  const [apiActivity, setApiActivity] = useState<ActivityItem[]>([]);
+
   const { currency, accentColor } = useNetwork();
 
-  const collection = MOCK_COLLECTIONS.find(c => c.id === id);
-  const nfts = id ? MOCK_NFTS[id] : [];
-  
+  // Fetch Gorbagio data from API when collection is 'gorbagios'
+  useEffect(() => {
+    const fetchGorbagioData = async () => {
+      if (id !== 'gorbagios') return;
+
+      setIsLoading(true);
+      setApiError(null);
+
+      try {
+        const [collectionData, nftsData, activityData] = await Promise.all([
+          getGorbagioCollection(),
+          getGorbagios(),
+          getGorbagioActivity(15)
+        ]);
+
+        setApiCollection(collectionData);
+        setApiNfts(nftsData.sort((a, b) => a.price - b.price));
+        setApiActivity(activityData);
+      } catch (error) {
+        console.error('Failed to fetch Gorbagio data:', error);
+        setApiError('Failed to load Gorbagios. Using fallback data.');
+        // Fall back to mock data on error
+        const mockCollection = MOCK_COLLECTIONS.find(c => c.id === 'gorbagios');
+        if (mockCollection) {
+          setApiCollection(mockCollection);
+          setApiNfts(MOCK_NFTS['gorbagios'] || []);
+          setApiActivity(generateActivity('gorbagios'));
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGorbagioData();
+  }, [id]);
+
+  // Use API data for Gorbagios, mock data for others
+  const collection = id === 'gorbagios' && apiCollection
+    ? apiCollection
+    : MOCK_COLLECTIONS.find(c => c.id === id);
+  const nfts = id === 'gorbagios' && apiNfts.length > 0
+    ? apiNfts
+    : (id ? MOCK_NFTS[id] : []);
+
   // Memoized data
   const chartData = useMemo(() => collection ? generateChartData(collection.floorPrice) : [], [collection]);
-  const activityData = useMemo(() => id ? generateActivity(id) : [], [id]);
+  const activityData = id === 'gorbagios' && apiActivity.length > 0
+    ? apiActivity
+    : useMemo(() => id ? generateActivity(id) : [], [id]);
 
   // Filter Logic
   const filteredNfts = nfts?.filter(nft => 
@@ -43,6 +95,18 @@ const Collection: React.FC = () => {
   const btnPrimary = accentColor === 'text-magic-purple' ? 'bg-magic-purple text-white hover:bg-white hover:text-magic-purple' : 'bg-magic-green text-black hover:bg-white hover:text-black';
   const borderFocus = accentColor === 'text-magic-purple' ? 'focus:border-magic-purple' : 'focus:border-magic-green';
   const textAccent = accentColor; // Helper
+
+  // Loading state for Gorbagios API
+  if (id === 'gorbagios' && isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className={`w-12 h-12 ${accentColor} animate-spin mx-auto mb-4`} />
+          <p className="text-white font-mono uppercase tracking-wider">Loading Gorbagios...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!collection) {
     return <div className="p-20 text-center font-mono text-red-500 uppercase">Error: Collection_Not_Found</div>;
@@ -90,7 +154,14 @@ const Collection: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
-      
+
+      {/* API Error Banner */}
+      {apiError && (
+        <div className="bg-yellow-500/20 border-b border-yellow-500/40 px-4 py-2 text-center">
+          <p className="text-yellow-500 text-xs font-mono uppercase">{apiError}</p>
+        </div>
+      )}
+
       {/* Mobile Filter Drawer Overlay */}
       {isMobileFilterOpen && (
           <div className="fixed inset-0 z-50 flex lg:hidden">
