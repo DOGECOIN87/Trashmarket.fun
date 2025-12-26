@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getGorbagioCollection, getGorbagioNFTs } from '../services/gorbagioService';
-import { getMarketMetrics, MarketMetric, getMockTokenMetrics } from '../services/tokenService';
 import { Collection, NFT } from '../types';
 
 import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio } from 'lucide-react';
@@ -27,7 +26,7 @@ const Home: React.FC = () => {
 
   const [featuredCollection, setFeaturedCollection] = useState<Collection | null>(null);
   const [featuredArtworks, setFeaturedArtworks] = useState<NFT[]>([]);
-  const [marketMetrics, setMarketMetrics] = useState<MarketMetric[]>(getMockTokenMetrics());
+  const [tickerNFTs, setTickerNFTs] = useState<NFT[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,11 +36,12 @@ const Home: React.FC = () => {
       setLoading(true);
       setError(null);
       const heroArtCount = 18;
+      const tickerCount = 30;
 
-      const [featuredResult, artResult, metricsResult] = await Promise.allSettled([
+      const [featuredResult, artResult, tickerResult] = await Promise.allSettled([
         getGorbagioCollection(),
         getGorbagioNFTs({ limit: heroArtCount }),
-        getMarketMetrics(),
+        getGorbagioNFTs({ limit: tickerCount }),
       ]);
 
       if (!isMounted) return;
@@ -60,10 +60,8 @@ const Home: React.FC = () => {
         console.error('Error fetching Gorbagio artwork:', artResult.reason);
       }
 
-      if (metricsResult.status === 'fulfilled') {
-        setMarketMetrics(metricsResult.value);
-      } else {
-        setMarketMetrics(getMockTokenMetrics());
+      if (tickerResult.status === 'fulfilled') {
+        setTickerNFTs(tickerResult.value);
       }
 
       setLoading(false);
@@ -75,21 +73,6 @@ const Home: React.FC = () => {
   }, []);
 
   const [isHovering, setIsHovering] = useState(false);
-
-  const LIVE_ACTIVITIES = [
-    { type: "SALE", text: `Mad Lads #2912 sold for 145.5 ${currency}`, time: "1s" },
-    { type: "LIST", text: `Tensorian #400 listed for 18.2 ${currency}`, time: "1s" },
-    { type: "SALE", text: `SMB Gen2 #441 sold for 24.5 ${currency}`, time: "2s" },
-    { type: "OFFER", text: `Offer of 45.0 ${currency} on DeGods #3321`, time: "2s" },
-    { type: "SWEEP", text: `Whale swept 5x Claynos (Floor 9.5 ${currency})`, time: "3s" },
-    { type: "SALE", text: `Foxes #551 sold for 4.2 ${currency}`, time: "4s" },
-    { type: "MINT", text: "Galactic Geckos #999 minted", time: "4s" },
-    { type: "SALE", text: `Okay Bears #881 sold for 12.0 ${currency}`, time: "5s" },
-    { type: "LIST", text: `Retardio #12 listed for 5.5 ${currency}`, time: "5s" },
-    { type: "SALE", text: `Sharx #302 sold for 7.8 ${currency}`, time: "6s" },
-    { type: "VOL", text: "Famous Fox Fed vol spike > 500%", time: "6s" },
-    { type: "SALE", text: `Froganas #221 sold for 1.2 ${currency}`, time: "7s" },
-  ];
 
   const carouselItems = featuredArtworks.filter((item) => item.image);
 
@@ -121,21 +104,21 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black pb-20" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
-      
+
       {/* Hero / Spotlight */}
       {featuredCollection ? (
         <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20">
           <div className="absolute inset-0">
-            <img 
-              src={featuredCollection.banner || featuredCollection.image} 
-              alt="Hero" 
+            <img
+              src={featuredCollection.banner || featuredCollection.image}
+              alt="Hero"
               className="w-full h-full object-cover opacity-20 grayscale contrast-150"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
             <div className="absolute inset-0 bg-[linear-gradient(rgba(18,18,18,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(18,18,18,0.5)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20"></div>
           </div>
-          
+
           <div className="absolute bottom-0 left-0 w-full p-4 md:p-12 z-10">
             <div className="max-w-[1600px] mx-auto flex flex-col gap-6">
               <div className="max-w-3xl w-full">
@@ -150,11 +133,11 @@ const Home: React.FC = () => {
                           </span>
                      </div>
                 </div>
-                
+
                 <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter uppercase leading-none">
                   {featuredCollection.name}
                 </h1>
-                
+
                 <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
                     <div className="flex items-center gap-8 text-sm text-gray-400 font-mono">
                        <div className={`flex flex-col border-l-2 ${accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green'} pl-3`}>
@@ -167,7 +150,7 @@ const Home: React.FC = () => {
                        </div>
                     </div>
 
-                    <Link 
+                    <Link
                       to={`/collection/${featuredCollection.id}`}
                       className={`group relative px-8 py-3 bg-black border ${accentColor === 'text-magic-purple' ? 'border-magic-purple text-magic-purple hover:bg-magic-purple' : 'border-magic-green text-magic-green hover:bg-magic-green'} font-bold uppercase tracking-widest text-xs hover:text-black transition-all duration-200`}
                     >
@@ -216,42 +199,33 @@ const Home: React.FC = () => {
       )}
 
 
-      {/* DUAL SPEED TICKER SYSTEM - CSS ANIMATED */}
-      <div className="border-b border-white/20 bg-[#050505] overflow-hidden relative flex flex-col py-2 gap-1 group">
-         {/* Gradient Masks */}
-         <div className="absolute top-0 left-0 w-24 h-full bg-gradient-to-r from-black to-transparent z-20 pointer-events-none"></div>
-         <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-black to-transparent z-20 pointer-events-none"></div>
-         
-         {/* Top Row: Token Prices from Trashscan (Right) */}
-         <div className="border-b border-white/5 bg-black/50 backdrop-blur-sm relative z-10">
-             <Marquee reverse={true}>
-                {marketMetrics.map((item, idx) => (
-                    <div key={`m-${idx}`} className="flex items-center gap-3 mx-8 py-2 text-xs uppercase tracking-wider font-mono whitespace-nowrap">
-                        <span className="text-gray-600 font-bold">{item.label}</span>
-                        <span className={`font-bold ${item.color}`}>{item.value}</span>
-                        <span className={`text-[10px] ${item.change.startsWith('+') ? 'text-magic-green' : item.change.startsWith('-') ? 'text-magic-red' : 'text-gray-400'}`}>
-                            {item.change}
-                        </span>
-                        <span className="text-gray-800 ml-4">/</span>
-                    </div>
-                ))}
-             </Marquee>
-         </div>
+      {/* GORBAGIO NFT TICKER */}
+      {tickerNFTs.length > 0 && (
+        <div className="border-b border-white/20 bg-[#050505] overflow-hidden relative py-2 group">
+           {/* Gradient Masks */}
+           <div className="absolute top-0 left-0 w-24 h-full bg-gradient-to-r from-black to-transparent z-20 pointer-events-none"></div>
+           <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-black to-transparent z-20 pointer-events-none"></div>
 
-         {/* Bottom Row: Live Activities (Left) */}
-         <div className="bg-black relative z-10">
-             <Marquee reverse={false}>
-                {LIVE_ACTIVITIES.map((item, idx) => (
-                    <div key={`a-${idx}`} className="flex items-center gap-2 mx-8 py-2 text-xs uppercase tracking-wider font-mono border-r border-white/10 pr-8 whitespace-nowrap">
-                        <div className={`w-1.5 h-1.5 ${item.type === 'SALE' ? (accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green') : item.type === 'SWEEP' ? 'bg-magic-pink' : 'bg-blue-400'}`}></div>
-                        <span className="text-gray-500 font-bold">[{item.type}]</span>
-                        <span className="text-gray-200">{item.text}</span>
-                        <span className="text-gray-700 text-[10px]">{item.time}</span>
-                    </div>
-                ))}
-             </Marquee>
-         </div>
-      </div>
+           <div className="bg-black/50 backdrop-blur-sm relative z-10">
+               <Marquee reverse={true}>
+                  {tickerNFTs.map((nft, idx) => (
+                      <div key={`ticker-${nft.id}-${idx}`} className="flex items-center gap-3 mx-6 py-2 text-xs uppercase tracking-wider font-mono whitespace-nowrap">
+                          {nft.image && (
+                            <img
+                              src={nft.image}
+                              alt={nft.name}
+                              className="w-6 h-6 object-cover border border-white/20"
+                              loading="lazy"
+                            />
+                          )}
+                          <span className={`font-bold ${accentColor}`}>{nft.name}</span>
+                          <span className="text-gray-800 ml-2">|</span>
+                      </div>
+                  ))}
+               </Marquee>
+           </div>
+        </div>
+      )}
 
       {/* Pro Table Section */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-12">

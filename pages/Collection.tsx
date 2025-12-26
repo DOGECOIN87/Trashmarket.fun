@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { generateChartData, generateActivity } from '../constants';
 import NFTCard from '../components/NFTCard';
-import PriceChart from '../components/PriceChart';
 import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, SlidersHorizontal, Database, Cloud } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
 import { getGorbagioCollectionWithNFTs, forceSync, getCacheStatus } from '../services/gorbagioService';
@@ -104,9 +102,6 @@ const Collection: React.FC = () => {
     };
   }, [id, navigate]);
 
-  // Memoized data
-  const chartData = useMemo(() => collection ? generateChartData(collection.floorPrice) : [], [collection]);
-  const activityData = useMemo(() => (id ? generateActivity(id) : []), [id]);
 
   // Filter Logic
   const filteredNfts = nfts?.filter(nft => 
@@ -293,19 +288,16 @@ const Collection: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Chart Area */}
-                <div className="lg:w-2/3 h-[200px] md:h-[250px] bg-black p-4 relative group overflow-hidden">
-                     <div className="absolute top-4 left-4 z-10 flex gap-4 text-[10px] md:text-xs font-bold font-mono pointer-events-none">
-                        <div className="flex items-center gap-2">
-                             <div className={`w-2 h-2 ${accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green'}`}></div>
-                             <span className="text-white">FLOOR_PRICE</span>
+                {/* Stats Area */}
+                <div className="lg:w-2/3 h-[200px] md:h-[250px] bg-black p-4 relative group overflow-hidden flex items-center justify-center">
+                     <div className="text-center">
+                        <div className={`text-6xl md:text-8xl font-black ${accentColor} mb-2`}>
+                          {collection.supply}
                         </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                             <div className="w-2 h-2 bg-gray-700"></div>
-                             <span>AVG_PRICE</span>
+                        <div className="text-xs md:text-sm font-mono uppercase tracking-widest text-gray-500">
+                          Total Gorbagios on Gorbagana
                         </div>
                      </div>
-                     <PriceChart data={chartData} color={accentColor === 'text-magic-purple' ? '#9945ff' : '#adff02'} />
                 </div>
             </div>
         </div>
@@ -422,65 +414,40 @@ const Collection: React.FC = () => {
                         ))}
                     </div>
                 ) : (
-                    // Activity View
-                    <div className="border border-white/20 bg-black overflow-x-auto">
-                        <table className="w-full text-left min-w-[500px]">
-                            <thead className="bg-white/5 text-gray-500 font-mono text-xs uppercase">
-                                <tr>
-                                    <th className="p-3">Item</th>
-                                    <th className="p-3 text-right">Price</th>
-                                    <th className="p-3 text-right">From</th>
-                                    <th className="p-3 text-right">To</th>
-                                    <th className="p-3 text-right">Time</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/10 font-mono text-xs md:text-sm">
-                                {activityData.map(item => (
-                                    <tr key={item.id} className="hover:bg-white/5 transition-colors">
-                                        <td className="p-3 flex items-center gap-3">
-                                            <img src={item.image} className="w-8 h-8 object-cover border border-white/20" alt="" />
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-white">{item.name}</span>
-                                                <span className={`text-[9px] w-fit px-1 border ${item.type === 'sale' ? `${accentColor} border-current` : 'border-blue-500 text-blue-500'} uppercase`}>
-                                                    {item.type}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="p-3 text-right text-white font-bold">{currency} {item.price}</td>
-                                        <td className="p-3 text-right text-gray-400 truncate max-w-[80px]">{item.from}</td>
-                                        <td className="p-3 text-right text-gray-500 truncate max-w-[80px]">{item.to || '-'}</td>
-                                        <td className="p-3 text-right text-gray-600">{item.time}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    // Activity View - Coming Soon
+                    <div className="border border-white/20 bg-black p-12 flex flex-col items-center justify-center min-h-[300px]">
+                        <ActivityIcon className={`w-12 h-12 ${accentColor} mb-4 opacity-50`} />
+                        <div className="text-xl font-bold text-white uppercase tracking-widest mb-2">Activity Coming Soon</div>
+                        <div className="text-sm text-gray-500 font-mono text-center max-w-md">
+                          On-chain activity tracking will be available when marketplace transactions are enabled on Gorbagana.
+                        </div>
                     </div>
                 )}
             </div>
         </div>
 
-        {/* Right Sidebar (Recent Activity - Desktop Only) */}
+        {/* Right Sidebar (Recent NFTs - Desktop Only) */}
         <div className="hidden xl:block w-80 border-l border-white/20 p-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-black">
             <div className="p-4 border-b border-white/20 bg-white/5">
                  <h3 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                    <ActivityIcon className={`w-3 h-3 ${accentColor}`} /> Live Feed
+                    <ActivityIcon className={`w-3 h-3 ${accentColor}`} /> Recent Gorbagios
                 </h3>
             </div>
-           
+
             <div className="divide-y divide-white/10">
-                {activityData.filter(a => a.type === 'sale').map(item => (
-                    <div key={item.id} className="p-3 flex gap-3 items-start hover:bg-white/5 transition-colors group cursor-pointer">
+                {nfts.slice(0, 10).map(nft => (
+                    <div key={nft.id} className="p-3 flex gap-3 items-start hover:bg-white/5 transition-colors group cursor-pointer">
                         <div className="w-10 h-10 bg-gray-800 border border-white/20 flex-shrink-0">
-                            <img src={item.image} className="w-full h-full object-cover grayscale group-hover:grayscale-0" alt="" />
+                            {nft.image && (
+                              <img src={nft.image} className="w-full h-full object-cover grayscale group-hover:grayscale-0" alt="" />
+                            )}
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-baseline mb-1">
-                                <span className="text-xs font-bold text-white truncate">{item.name}</span>
-                                <span className={`text-sm font-mono ${accentColor}`}>{currency}{item.price}</span>
+                                <span className="text-xs font-bold text-white truncate">{nft.name}</span>
                             </div>
-                            <div className="flex justify-between text-[10px] text-gray-500 font-mono">
-                                <span>{item.time}</span>
-                                <span className="text-gray-600">SALE</span>
+                            <div className="text-[10px] text-gray-600 font-mono uppercase">
+                                Gorbagios
                             </div>
                         </div>
                     </div>
