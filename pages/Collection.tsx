@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { generateChartData, generateActivity } from '../constants';
 import NFTCard from '../components/NFTCard';
 import PriceChart from '../components/PriceChart';
-import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, SlidersHorizontal, Database, Cloud } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
-import { getGorbagioCollectionWithNFTs } from '../services/gorbagioService';
+import { getGorbagioCollectionWithNFTs, forceSync, getCacheStatus } from '../services/gorbagioService';
 import { Collection as CollectionType, NFT } from '../types';
 
 const Collection: React.FC = () => {
@@ -23,6 +23,51 @@ const Collection: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Cache status
+  const [cacheStatus, setCacheStatus] = useState<{
+    hasCachedData: boolean;
+    ageMinutes: number | null;
+    totalCached: number;
+    isValid: boolean;
+  } | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  // Fetch cache status
+  const updateCacheStatus = async () => {
+    try {
+      const status = await getCacheStatus();
+      setCacheStatus(status);
+    } catch (error) {
+      console.error('Error fetching cache status:', error);
+    }
+  };
+
+  // Manual sync handler
+  const handleSync = async () => {
+    setIsSyncing(true);
+    setSyncMessage(null);
+
+    try {
+      const result = await forceSync();
+      setSyncMessage(result.message);
+
+      if (result.success) {
+        // Reload the data
+        const { collection: newCollection, nfts: newNfts } = await getGorbagioCollectionWithNFTs({ limit: 120 });
+        setCollection(newCollection);
+        setNfts(newNfts);
+        await updateCacheStatus();
+      }
+    } catch (error) {
+      setSyncMessage('Sync failed. Please try again.');
+    } finally {
+      setIsSyncing(false);
+      // Clear message after 3 seconds
+      setTimeout(() => setSyncMessage(null), 3000);
+    }
+  };
+
   useEffect(() => {
     // Only Gorbagios collection exists on Gorbagana
     if (id !== 'gorbagios') {
@@ -34,13 +79,15 @@ const Collection: React.FC = () => {
     setIsLoading(true);
     setApiError(null);
 
-    getGorbagioCollectionWithNFTs({
-      limit: 120,
-    })
-      .then(({ collection: liveCollection, nfts: liveNfts }) => {
+    Promise.all([
+      getGorbagioCollectionWithNFTs({ limit: 120 }),
+      getCacheStatus()
+    ])
+      .then(([{ collection: liveCollection, nfts: liveNfts }, status]) => {
         if (!isMounted) return;
         setCollection(liveCollection);
         setNfts(liveNfts);
+        setCacheStatus(status);
       })
       .catch((error) => {
         if (!isMounted) return;
@@ -204,13 +251,45 @@ const Collection: React.FC = () => {
                             <div className={`${accentColor} font-mono font-bold text-base md:text-lg`}>{currency} {collection.floorPrice}</div>
                         </div>
                         <div className="bg-black p-2 md:p-3 hover:bg-white/5 transition-colors">
-                            <div className="text-gray-500 text-[9px] md:text-[10px] uppercase font-bold mb-1">Vol (24h)</div>
-                            <div className="text-white font-mono font-bold text-base md:text-lg">{(collection.totalVolume/1000).toFixed(1)}k</div>
+                            <div className="text-gray-500 text-[9px] md:text-[10px] uppercase font-bold mb-1">Supply</div>
+                            <div className="text-white font-mono font-bold text-base md:text-lg">{collection.supply.toLocaleString()}</div>
                         </div>
                          <div className="bg-black p-2 md:p-3 hover:bg-white/5 transition-colors">
                             <div className="text-gray-500 text-[9px] md:text-[10px] uppercase font-bold mb-1">Listed</div>
                             <div className="text-white font-mono font-bold text-base md:text-lg">{collection.listedCount}</div>
                         </div>
+                    </div>
+
+                    {/* Cache Status & Sync */}
+                    <div className="mt-4 p-3 border border-white/10 bg-white/5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Database className={`w-3 h-3 ${cacheStatus?.hasCachedData ? 'text-magic-green' : 'text-gray-600'}`} />
+                          <span className="text-[10px] font-mono text-gray-400 uppercase">
+                            {cacheStatus?.hasCachedData
+                              ? `Cached ${cacheStatus.totalCached} items • ${cacheStatus.ageMinutes}m ago`
+                              : 'No cache'
+                            }
+                          </span>
+                        </div>
+                        <button
+                          onClick={handleSync}
+                          disabled={isSyncing}
+                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase border transition-all ${
+                            isSyncing
+                              ? 'border-gray-700 text-gray-600 cursor-wait'
+                              : 'border-white/20 text-gray-400 hover:border-magic-green hover:text-magic-green'
+                          }`}
+                        >
+                          <Cloud className={`w-3 h-3 ${isSyncing ? 'animate-pulse' : ''}`} />
+                          {isSyncing ? 'Syncing...' : 'Sync API'}
+                        </button>
+                      </div>
+                      {syncMessage && (
+                        <div className={`mt-2 text-[10px] font-mono ${syncMessage.includes('Success') ? 'text-magic-green' : 'text-yellow-500'}`}>
+                          {syncMessage}
+                        </div>
+                      )}
                     </div>
                 </div>
 
