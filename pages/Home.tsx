@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getTopCollections } from '../services/magicEdenService';
 import { getGorbagioCollection, getGorbagioNFTs } from '../services/gorbagioService';
 import { getMarketMetrics, MarketMetric, getMockTokenMetrics } from '../services/tokenService';
 import { Collection, NFT } from '../types';
-import { MOCK_COLLECTIONS, MOCK_NFTS } from '../constants';
 
 import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio } from 'lucide-react';
 
@@ -29,21 +27,20 @@ const Home: React.FC = () => {
 
   const [featuredCollection, setFeaturedCollection] = useState<Collection | null>(null);
   const [featuredArtworks, setFeaturedArtworks] = useState<NFT[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
   const [marketMetrics, setMarketMetrics] = useState<MarketMetric[]>(getMockTokenMetrics());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     const fetchData = async () => {
       setLoading(true);
+      setError(null);
       const heroArtCount = 18;
-      const gorbagioFallback = MOCK_COLLECTIONS.find((item) => item.id === 'gorbagios') || null;
-      const gorbagioArtFallback = MOCK_NFTS['gorbagios']?.slice(0, heroArtCount) || [];
-      const [featuredResult, topResult, artResult, metricsResult] = await Promise.allSettled([
-        getGorbagioCollection(gorbagioFallback || undefined),
-        getTopCollections(5),
-        getGorbagioNFTs({ limit: heroArtCount, defaultPrice: gorbagioFallback?.floorPrice ?? 0 }),
+
+      const [featuredResult, artResult, metricsResult] = await Promise.allSettled([
+        getGorbagioCollection(),
+        getGorbagioNFTs({ limit: heroArtCount }),
         getMarketMetrics(),
       ]);
 
@@ -53,21 +50,14 @@ const Home: React.FC = () => {
         setFeaturedCollection(featuredResult.value);
       } else {
         console.error('Error fetching Gorbagios:', featuredResult.reason);
-        setFeaturedCollection(gorbagioFallback);
-      }
-
-      if (topResult.status === 'fulfilled') {
-        setCollections(topResult.value);
-      } else {
-        console.error('Error fetching top collections:', topResult.reason);
+        setError('Failed to load Gorbagios collection');
       }
 
       if (artResult.status === 'fulfilled') {
         const artItems = artResult.value.filter((item) => item.image);
-        setFeaturedArtworks(artItems.length ? artItems : gorbagioArtFallback);
+        setFeaturedArtworks(artItems);
       } else {
         console.error('Error fetching Gorbagio artwork:', artResult.reason);
-        setFeaturedArtworks(gorbagioArtFallback);
       }
 
       if (metricsResult.status === 'fulfilled') {
@@ -107,8 +97,24 @@ const Home: React.FC = () => {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-magic-green animate-pulse font-mono uppercase tracking-widest text-2xl">
-          LOADING MARKET DATA...
+          LOADING GORBAGIOS...
         </div>
+      </div>
+    );
+  }
+
+  if (error && !featuredCollection) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center flex-col gap-4">
+        <div className="text-red-500 font-mono uppercase tracking-widest text-xl">
+          {error}
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-6 py-2 border border-magic-green text-magic-green hover:bg-magic-green hover:text-black transition-colors font-mono uppercase text-sm"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -140,11 +146,8 @@ const Home: React.FC = () => {
                      <div className="flex gap-4 items-center">
                           <span className={`text-[10px] font-mono uppercase tracking-widest flex items-center gap-2 text-gray-500`}>
                               <Radio className={`w-3 h-3 ${accentColor} animate-pulse`} />
-                              SYSTEM_ONLINE
+                              GORBAGANA_L2
                           </span>
-                          <Link to="/launchpad" className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest font-mono">
-                              [ AI_LAUNCHPAD_ACTIVE ]
-                          </Link>
                      </div>
                 </div>
                 
@@ -281,50 +284,50 @@ const Home: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                        {collections.map((collection, idx) => (
-                            <tr key={collection.id} className="group hover:bg-white/5 transition-colors">
+                        {featuredCollection && (
+                            <tr className="group hover:bg-white/5 transition-colors">
 
                                 <td className="p-4">
-                                    <Link to={`/collection/${collection.id}`} className="flex items-center gap-4">
-                                        <span className="text-gray-700 font-mono text-sm w-4 text-center group-hover:text-white transition-colors">0{idx + 1}</span>
+                                    <Link to={`/collection/${featuredCollection.id}`} className="flex items-center gap-4">
+                                        <span className="text-gray-700 font-mono text-sm w-4 text-center group-hover:text-white transition-colors">01</span>
                                         <div className={`w-8 h-8 border border-white/20 overflow-hidden bg-gray-900 group-hover:border-${accentColor === 'text-magic-purple' ? 'magic-purple' : 'magic-green'} transition-colors`}>
-                                            <img src={collection.image} alt="" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                                            <img src={featuredCollection.image} alt="" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
                                         </div>
                                         <div>
                                             <div className="font-bold text-gray-300 group-hover:text-white flex items-center gap-2 uppercase tracking-tight text-sm transition-colors">
-                                                {collection.name}
-                                                {collection.isVerified && <Zap className={`w-3 h-3 ${accentColor} fill-current`} />}
+                                                {featuredCollection.name}
+                                                {featuredCollection.isVerified && <Zap className={`w-3 h-3 ${accentColor} fill-current`} />}
                                             </div>
                                         </div>
                                     </Link>
                                 </td>
                                 <td className={`p-4 text-right font-mono font-bold text-gray-300 group-hover:${accentColor} transition-colors`}>
-                                    {currency} {collection.floorPrice}
+                                    {currency} {featuredCollection.floorPrice}
                                 </td>
-                                <td className={`p-4 text-right font-mono font-bold text-xs ${collection.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}`}>
+                                <td className={`p-4 text-right font-mono font-bold text-xs ${featuredCollection.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}`}>
                                     <div className="flex items-center justify-end gap-1">
-                                        {collection.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                                        {Math.abs(collection.change24h)}%
+                                        {featuredCollection.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                        {Math.abs(featuredCollection.change24h)}%
                                     </div>
                                 </td>
                                 <td className="p-4 text-right font-mono text-gray-500 text-xs">
-                                    {currency} {(collection.totalVolume / 1000).toFixed(1)}k
+                                    {currency} {(featuredCollection.totalVolume / 1000).toFixed(1)}k
                                 </td>
                                 <td className="p-4 text-right font-mono text-gray-500 text-xs">
-                                    {collection.listedCount * 2}
+                                    {featuredCollection.listedCount}
                                 </td>
                                 <td className="p-4 text-right font-mono text-gray-600 text-xs">
-                                    {collection.supply}
+                                    {featuredCollection.supply}
                                 </td>
                             </tr>
-                        ))}
+                        )}
                     </tbody>
                 </table>
             </div>
-            <div className="p-3 border-t border-white/10 text-center bg-black hover:bg-white/5 cursor-pointer transition-colors">
-                <button className="text-[10px] text-gray-400 font-bold flex items-center justify-center gap-2 w-full uppercase tracking-widest hover:text-white">
-                    [ LOAD_MORE_DATA ]
-                </button>
+            <div className="p-3 border-t border-white/10 text-center bg-black">
+                <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">
+                    [ GORBAGIOS_ONLY_COLLECTION_ON_GORBAGANA ]
+                </span>
             </div>
         </div>
       </div>

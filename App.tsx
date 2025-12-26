@@ -6,7 +6,6 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Collection from './pages/Collection';
-import Launchpad from './pages/Launchpad';
 import Docs from './pages/Docs';
 
 const App: React.FC = () => {
@@ -20,7 +19,6 @@ const App: React.FC = () => {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/collection/:id" element={<Collection />} />
-                <Route path="/launchpad" element={<Launchpad />} />
                 <Route path="/docs" element={<Docs />} />
               </Routes>
             </main>

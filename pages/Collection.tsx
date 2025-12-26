@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
-import { MOCK_COLLECTIONS, MOCK_NFTS, generateChartData, generateActivity } from '../constants';
+import { useParams, useNavigate } from 'react-router-dom';
+import { generateChartData, generateActivity } from '../constants';
 import NFTCard from '../components/NFTCard';
 import PriceChart from '../components/PriceChart';
 import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, SlidersHorizontal } from 'lucide-react';
@@ -10,6 +10,7 @@ import { Collection as CollectionType, NFT } from '../types';
 
 const Collection: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'items' | 'activity'>('items');
   const [sweepCount, setSweepCount] = useState<number>(0);
@@ -17,36 +18,23 @@ const Collection: React.FC = () => {
 
   const { currency, accentColor } = useNetwork();
 
-  const [collection, setCollection] = useState<CollectionType | null>(() => {
-    return id ? MOCK_COLLECTIONS.find((item) => item.id === id) || null : null;
-  });
-  const [nfts, setNfts] = useState<NFT[]>(() => {
-    return id ? MOCK_NFTS[id] || [] : [];
-  });
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [collection, setCollection] = useState<CollectionType | null>(null);
+  const [nfts, setNfts] = useState<NFT[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
-
-    const fallbackCollection = MOCK_COLLECTIONS.find((item) => item.id === id) || null;
-    const fallbackNfts = id ? MOCK_NFTS[id] || [] : [];
-
-    setCollection(fallbackCollection);
-    setNfts(fallbackNfts);
-    setApiError(null);
-
+    // Only Gorbagios collection exists on Gorbagana
     if (id !== 'gorbagios') {
-      setIsSyncing(false);
+      navigate('/collection/gorbagios', { replace: true });
       return;
     }
 
     let isMounted = true;
-    setIsSyncing(true);
+    setIsLoading(true);
+    setApiError(null);
 
     getGorbagioCollectionWithNFTs({
-      collectionFallback: fallbackCollection || undefined,
-      defaultPrice: fallbackCollection?.floorPrice ?? 0,
       limit: 120,
     })
       .then(({ collection: liveCollection, nfts: liveNfts }) => {
@@ -57,17 +45,17 @@ const Collection: React.FC = () => {
       .catch((error) => {
         if (!isMounted) return;
         console.error('Error fetching Gorbagios:', error);
-        setApiError('Failed to load Gorbagios. Using fallback data.');
+        setApiError('Failed to load Gorbagios collection.');
       })
       .finally(() => {
         if (!isMounted) return;
-        setIsSyncing(false);
+        setIsLoading(false);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, navigate]);
 
   // Memoized data
   const chartData = useMemo(() => collection ? generateChartData(collection.floorPrice) : [], [collection]);
@@ -94,8 +82,30 @@ const Collection: React.FC = () => {
   const btnPrimary = accentColor === 'text-magic-purple' ? 'bg-magic-purple text-white hover:bg-white hover:text-magic-purple' : 'bg-magic-green text-black hover:bg-white hover:text-black';
   const borderFocus = accentColor === 'text-magic-purple' ? 'focus:border-magic-purple' : 'focus:border-magic-green';
 
-  if (!collection) {
-    return <div className="p-20 text-center font-mono text-red-500 uppercase">Error: Collection_Not_Found</div>;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-magic-green animate-pulse font-mono uppercase tracking-widest text-xl">
+          LOADING GORBAGIOS...
+        </div>
+      </div>
+    );
+  }
+
+  if (apiError || !collection) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center flex-col gap-4">
+        <div className="text-red-500 font-mono uppercase tracking-widest text-xl">
+          {apiError || 'Collection not found'}
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-6 py-2 border border-magic-green text-magic-green hover:bg-magic-green hover:text-black transition-colors font-mono uppercase text-sm"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   // Reusable Filter Content
@@ -141,13 +151,6 @@ const Collection: React.FC = () => {
   return (
     <div className="min-h-screen bg-black flex flex-col">
 
-      {/* API Error Banner */}
-      {apiError && (
-        <div className="bg-yellow-500/20 border-b border-yellow-500/40 px-4 py-2 text-center">
-          <p className="text-yellow-500 text-xs font-mono uppercase">{apiError}</p>
-        </div>
-      )}
-
       {/* Mobile Filter Drawer Overlay */}
       {isMobileFilterOpen && (
           <div className="fixed inset-0 z-50 flex lg:hidden">
@@ -192,11 +195,6 @@ const Collection: React.FC = () => {
                                 {collection.isVerified && <Zap className={`w-4 h-4 md:w-5 md:h-5 ${accentColor} fill-current flex-shrink-0`} />}
                             </h1>
                             <p className="text-gray-500 text-[10px] md:text-xs font-mono mt-1 line-clamp-2">{collection.description}</p>
-                            {isSyncing && (
-                                <div className="text-[9px] font-mono uppercase tracking-widest text-gray-600 mt-2">
-                                    Syncing Gorbagio API...
-                                </div>
-                            )}
                         </div>
                     </div>
 

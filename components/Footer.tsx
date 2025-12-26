@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
                     <div>
                         <h3 className="text-xl font-bold bg-gradient-to-r from-magic-green to-white bg-clip-text text-transparent mb-4 tracking-tighter">TRASHMARKET.FUN</h3>
                         <p className="text-gray-500 text-sm font-mono">
-                            The rawest NFT marketplace on Solana. No filler, just trash.
+                            The rawest NFT marketplace on Gorbagana. No filler, just trash.
                         </p>
                     </div>
                     <div>

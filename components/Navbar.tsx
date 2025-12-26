@@ -130,7 +130,7 @@ const Navbar: React.FC = () => {
 
   const navLinks = [
     { name: 'Collections', path: '/' },
-    { name: 'Launchpad', path: '/launchpad' },
+    { name: 'Gorbagios', path: '/collection/gorbagios' },
     { name: 'Docs / Brand', path: '/docs' },
   ];
 

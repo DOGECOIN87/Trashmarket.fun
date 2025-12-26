@@ -564,24 +564,24 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
                   className="hidden"
                 />
               </label>
-</div>
+            )}
+          </div>
         </div>
 
         {/* Sample Images */}
         <div>
-          <label className="block text-sm            )}
-          -300 mb-2 uppercase tracking-w font-bold text-gray 5)
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Sample NFTs (up to 5)
           </label>
-          <div className="border-2 NFTs (up to-white/20 p-6">
-           ider">
-            Sample.length > 0 border-dashed border<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="border-2 border-dashed border-white/20 p-6">
+            {data.sampleFiles.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {data.sampleFiles.map((file, index) => (
-                   ? (
-               {data.sampleFiles<div key={index} className="relative">
-                    ={URL.createObjectURL(file)} 
+                  <div key={index} className="relative">
+                    <img
+                      src={URL.createObjectURL(file)}
                       alt={`Sample ${index + 1}`}
-                      className="w<img 
-                      src-full h-24 object-cover border border-white/20"
+                      className="w-full h-24 object-cover border border-white/20"
                     />
                     <button
                       onClick={() => removeFile('sample', index)}
