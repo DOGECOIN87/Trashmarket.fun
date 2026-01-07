@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
+    "@gorid/spl-name-service": "^1.0.5",
+    "@solana/web3.js": "^1.98.4",
     "firebase": "^12.6.0",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
