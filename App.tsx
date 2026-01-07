@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Collection from './pages/Collection';
 import Launchpad from './pages/Launchpad';
 import Docs from './pages/Docs';
+import Gorid from './pages/Gorid';
 
 const App: React.FC = () => {
   return (
@@ -21,6 +22,7 @@ const App: React.FC = () => {
                 <Route path="/" element={<Home />} />
                 <Route path="/collection/:id" element={<Collection />} />
                 <Route path="/launchpad" element={<Launchpad />} />
+                <Route path="/gorid" element={<Gorid />} />
                 <Route path="/docs" element={<Docs />} />
               </Routes>
             </main>
