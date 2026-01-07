@@ -130,6 +130,7 @@ const Navbar: React.FC = () => {
 
   const navLinks = [
     { name: 'Collections', path: '/' },
+    { name: 'GorID', path: '/gorid' },
     { name: 'Launchpad', path: '/launchpad' },
     { name: 'Docs / Brand', path: '/docs' },
   ];
