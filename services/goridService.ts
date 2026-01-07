@@ -222,3 +222,199 @@ export async function getTotalVolume(): Promise<number> {
   const sales = await getRecentSales();
   return sales.reduce((total, sale) => total + sale.price, 0);
 }
+
+// Trading Result Type
+export interface TradingResult {
+  success: boolean;
+  txSignature?: string;
+  error?: string;
+}
+
+/**
+ * Buy a domain at the listed price
+ * In production, this would create and sign a transaction
+ */
+export async function buyDomain(
+  domainKey: string,
+  price: number,
+  buyerAddress: string
+): Promise<TradingResult> {
+  try {
+    // Simulate transaction delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // In production, this would:
+    // 1. Create a transaction to transfer payment to seller
+    // 2. Transfer domain ownership to buyer
+    // 3. Update listing status
+
+    // For demo, simulate success with 90% probability
+    if (Math.random() > 0.1) {
+      return {
+        success: true,
+        txSignature: `${Date.now().toString(36)}...${Math.random().toString(36).slice(2, 6)}`,
+      };
+    } else {
+      return {
+        success: false,
+        error: 'Transaction failed. Please try again.',
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Failed to process purchase',
+    };
+  }
+}
+
+/**
+ * Make an offer on a domain
+ * In production, this would create an escrow offer
+ */
+export async function makeOffer(
+  domainKey: string,
+  offerPrice: number,
+  bidderAddress: string
+): Promise<TradingResult> {
+  try {
+    // Validate offer price
+    if (offerPrice <= 0) {
+      return {
+        success: false,
+        error: 'Invalid offer price',
+      };
+    }
+
+    // Simulate transaction delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // In production, this would:
+    // 1. Create an escrow account with the offer amount
+    // 2. Register the offer on-chain or via API
+    // 3. Notify the domain owner
+
+    return {
+      success: true,
+      txSignature: `offer_${Date.now().toString(36)}...${Math.random().toString(36).slice(2, 6)}`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Failed to submit offer',
+    };
+  }
+}
+
+/**
+ * List a domain for sale
+ * In production, this would create a listing on-chain
+ */
+export async function listDomainForSale(
+  domainKey: string,
+  price: number,
+  ownerAddress: string
+): Promise<TradingResult> {
+  try {
+    // Validate price
+    if (price <= 0) {
+      return {
+        success: false,
+        error: 'Invalid listing price',
+      };
+    }
+
+    // Simulate transaction delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // In production, this would:
+    // 1. Verify ownership of the domain
+    // 2. Create a listing account on-chain
+    // 3. Approve the marketplace to transfer the domain on sale
+
+    return {
+      success: true,
+      txSignature: `list_${Date.now().toString(36)}...${Math.random().toString(36).slice(2, 6)}`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Failed to create listing',
+    };
+  }
+}
+
+/**
+ * Transfer a domain to another wallet
+ * In production, this would transfer domain ownership
+ */
+export async function transferDomain(
+  domainKey: string,
+  recipientAddress: string,
+  ownerAddress: string
+): Promise<TradingResult> {
+  try {
+    // Validate recipient address
+    if (!recipientAddress || recipientAddress.length < 32) {
+      return {
+        success: false,
+        error: 'Invalid recipient address',
+      };
+    }
+
+    // Prevent self-transfer
+    if (recipientAddress === ownerAddress) {
+      return {
+        success: false,
+        error: 'Cannot transfer to yourself',
+      };
+    }
+
+    // Simulate transaction delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // In production, this would:
+    // 1. Verify ownership of the domain
+    // 2. Create and sign a transfer transaction
+    // 3. Update domain ownership on-chain
+
+    return {
+      success: true,
+      txSignature: `transfer_${Date.now().toString(36)}...${Math.random().toString(36).slice(2, 6)}`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Failed to transfer domain',
+    };
+  }
+}
+
+/**
+ * Cancel an existing listing
+ * In production, this would close the listing account
+ */
+export async function cancelListing(
+  domainKey: string,
+  ownerAddress: string
+): Promise<TradingResult> {
+  try {
+    // Simulate transaction delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // In production, this would:
+    // 1. Verify ownership and listing exists
+    // 2. Close the listing account
+    // 3. Revoke marketplace approval
+
+    return {
+      success: true,
+      txSignature: `cancel_${Date.now().toString(36)}...${Math.random().toString(36).slice(2, 6)}`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: 'Failed to cancel listing',
+    };
+  }
+}

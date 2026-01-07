@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Tag, Activity, ShoppingCart, ExternalLink, ArrowRight, Clock, TrendingUp, User, Zap } from 'lucide-react';
+import { Search, Tag, Activity, ShoppingCart, ExternalLink, ArrowRight, Clock, TrendingUp, User, Zap, DollarSign, Send, AlertCircle, Check, X } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useWallet } from '../contexts/WalletContext';
 import {
@@ -11,6 +11,11 @@ import {
   formatTimeAgo,
   getFloorPrice,
   getTotalVolume,
+  buyDomain,
+  makeOffer,
+  listDomainForSale,
+  transferDomain,
+  cancelListing,
   GoridListing,
   GoridSale,
   GoridName,
@@ -32,6 +37,23 @@ const Gorid: React.FC = () => {
   const [lookupAddress, setLookupAddress] = useState('');
   const [lookupResult, setLookupResult] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
+
+  // Trading modal states
+  const [showBuyModal, setShowBuyModal] = useState(false);
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [showListModal, setShowListModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedOwnedDomain, setSelectedOwnedDomain] = useState<GoridName | null>(null);
+
+  // Trading form states
+  const [offerPrice, setOfferPrice] = useState('');
+  const [listingPrice, setListingPrice] = useState('');
+  const [transferAddress, setTransferAddress] = useState('');
+
+  // Transaction states
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [txStatus, setTxStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [txMessage, setTxMessage] = useState('');
 
   // Stats
   const [floorPrice, setFloorPrice] = useState<number>(0);
@@ -89,6 +111,189 @@ const Gorid: React.FC = () => {
       setLookupResult('Error looking up domain');
     }
     setIsLookingUp(false);
+  };
+
+  // Reset transaction state
+  const resetTxState = () => {
+    setTxStatus('idle');
+    setTxMessage('');
+    setOfferPrice('');
+    setListingPrice('');
+    setTransferAddress('');
+  };
+
+  // Handle Buy Now
+  const handleBuyNow = async () => {
+    if (!selectedDomain || !connected || !address) return;
+
+    setIsProcessing(true);
+    setTxStatus('processing');
+    setTxMessage('Preparing transaction...');
+
+    try {
+      const result = await buyDomain(selectedDomain.domainKey, selectedDomain.price, address);
+      if (result.success) {
+        setTxStatus('success');
+        setTxMessage(`Successfully purchased ${selectedDomain.name}!`);
+        // Refresh data after purchase
+        const [listedDomains, ownedDomains] = await Promise.all([
+          getListedDomains(),
+          getDomainsOwnedBy(address),
+        ]);
+        setListings(listedDomains);
+        setMyDomains(ownedDomains);
+      } else {
+        setTxStatus('error');
+        setTxMessage(result.error || 'Transaction failed');
+      }
+    } catch (error) {
+      setTxStatus('error');
+      setTxMessage('Failed to complete purchase');
+    }
+    setIsProcessing(false);
+  };
+
+  // Handle Make Offer
+  const handleMakeOffer = async () => {
+    if (!selectedDomain || !connected || !address || !offerPrice) return;
+
+    const price = parseFloat(offerPrice);
+    if (isNaN(price) || price <= 0) {
+      setTxStatus('error');
+      setTxMessage('Please enter a valid offer price');
+      return;
+    }
+
+    setIsProcessing(true);
+    setTxStatus('processing');
+    setTxMessage('Submitting offer...');
+
+    try {
+      const result = await makeOffer(selectedDomain.domainKey, price, address);
+      if (result.success) {
+        setTxStatus('success');
+        setTxMessage(`Offer of ${currency} ${price} submitted for ${selectedDomain.name}!`);
+      } else {
+        setTxStatus('error');
+        setTxMessage(result.error || 'Failed to submit offer');
+      }
+    } catch (error) {
+      setTxStatus('error');
+      setTxMessage('Failed to submit offer');
+    }
+    setIsProcessing(false);
+  };
+
+  // Handle List for Sale
+  const handleListForSale = async () => {
+    if (!selectedOwnedDomain || !connected || !address || !listingPrice) return;
+
+    const price = parseFloat(listingPrice);
+    if (isNaN(price) || price <= 0) {
+      setTxStatus('error');
+      setTxMessage('Please enter a valid listing price');
+      return;
+    }
+
+    setIsProcessing(true);
+    setTxStatus('processing');
+    setTxMessage('Creating listing...');
+
+    try {
+      const result = await listDomainForSale(selectedOwnedDomain.domainKey, price, address);
+      if (result.success) {
+        setTxStatus('success');
+        setTxMessage(`${selectedOwnedDomain.name} listed for ${currency} ${price}!`);
+        // Refresh listings
+        const listedDomains = await getListedDomains();
+        setListings(listedDomains);
+      } else {
+        setTxStatus('error');
+        setTxMessage(result.error || 'Failed to create listing');
+      }
+    } catch (error) {
+      setTxStatus('error');
+      setTxMessage('Failed to create listing');
+    }
+    setIsProcessing(false);
+  };
+
+  // Handle Transfer
+  const handleTransfer = async () => {
+    if (!selectedOwnedDomain || !connected || !address || !transferAddress) return;
+
+    // Validate address format (basic check)
+    if (transferAddress.length < 32) {
+      setTxStatus('error');
+      setTxMessage('Please enter a valid wallet address');
+      return;
+    }
+
+    setIsProcessing(true);
+    setTxStatus('processing');
+    setTxMessage('Transferring domain...');
+
+    try {
+      const result = await transferDomain(selectedOwnedDomain.domainKey, transferAddress, address);
+      if (result.success) {
+        setTxStatus('success');
+        setTxMessage(`${selectedOwnedDomain.name} transferred successfully!`);
+        // Refresh owned domains
+        const ownedDomains = await getDomainsOwnedBy(address);
+        setMyDomains(ownedDomains);
+      } else {
+        setTxStatus('error');
+        setTxMessage(result.error || 'Failed to transfer domain');
+      }
+    } catch (error) {
+      setTxStatus('error');
+      setTxMessage('Failed to transfer domain');
+    }
+    setIsProcessing(false);
+  };
+
+  // Open trading modals
+  const openBuyModal = () => {
+    if (!connected) {
+      setTxStatus('error');
+      setTxMessage('Please connect your wallet to buy');
+      return;
+    }
+    resetTxState();
+    setShowBuyModal(true);
+  };
+
+  const openOfferModal = () => {
+    if (!connected) {
+      setTxStatus('error');
+      setTxMessage('Please connect your wallet to make an offer');
+      return;
+    }
+    resetTxState();
+    setShowOfferModal(true);
+  };
+
+  const openListModal = (domain: GoridName) => {
+    setSelectedOwnedDomain(domain);
+    resetTxState();
+    setShowListModal(true);
+  };
+
+  const openTransferModal = (domain: GoridName) => {
+    setSelectedOwnedDomain(domain);
+    resetTxState();
+    setShowTransferModal(true);
+  };
+
+  // Close all modals
+  const closeAllModals = () => {
+    setShowBuyModal(false);
+    setShowOfferModal(false);
+    setShowListModal(false);
+    setShowTransferModal(false);
+    setSelectedDomain(null);
+    setSelectedOwnedDomain(null);
+    resetTxState();
   };
 
   // Styling
@@ -385,11 +590,17 @@ const Gorid: React.FC = () => {
                           </div>
                           <h3 className="text-xl font-black text-white mb-4">{domain.name}</h3>
                           <div className="flex gap-2">
-                            <button className="flex-1 bg-white/10 text-white px-3 py-2 text-xs font-bold uppercase hover:bg-white/20 transition-colors">
-                              List for Sale
+                            <button
+                              onClick={() => openListModal(domain)}
+                              className="flex-1 bg-white/10 text-white px-3 py-2 text-xs font-bold uppercase hover:bg-white/20 transition-colors flex items-center justify-center gap-1"
+                            >
+                              <DollarSign className="w-3 h-3" /> List for Sale
                             </button>
-                            <button className="flex-1 border border-white/20 text-gray-400 px-3 py-2 text-xs font-bold uppercase hover:border-white/40 hover:text-white transition-colors">
-                              Transfer
+                            <button
+                              onClick={() => openTransferModal(domain)}
+                              className="flex-1 border border-white/20 text-gray-400 px-3 py-2 text-xs font-bold uppercase hover:border-white/40 hover:text-white transition-colors flex items-center justify-center gap-1"
+                            >
+                              <Send className="w-3 h-3" /> Transfer
                             </button>
                           </div>
                         </div>
@@ -481,14 +692,42 @@ const Gorid: React.FC = () => {
 
             <div className="space-y-3">
               <button
+                onClick={openBuyModal}
                 className={`w-full ${btnPrimary} py-3 font-bold uppercase tracking-widest flex items-center justify-center gap-2`}
               >
                 <ShoppingCart className="w-4 h-4" /> Buy Now
               </button>
-              <button className="w-full border border-white/20 text-gray-400 py-3 font-bold uppercase tracking-widest hover:border-white/40 hover:text-white transition-colors">
-                Make Offer
+              <button
+                onClick={openOfferModal}
+                className="w-full border border-white/20 text-gray-400 py-3 font-bold uppercase tracking-widest hover:border-white/40 hover:text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <DollarSign className="w-4 h-4" /> Make Offer
               </button>
             </div>
+
+            {/* Transaction Status */}
+            {txStatus !== 'idle' && !showBuyModal && !showOfferModal && (
+              <div className={`mt-4 p-3 border ${
+                txStatus === 'processing' ? 'border-yellow-500/50 bg-yellow-500/10' :
+                txStatus === 'success' ? 'border-magic-green/50 bg-magic-green/10' :
+                'border-red-500/50 bg-red-500/10'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {txStatus === 'processing' && (
+                    <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent animate-spin" />
+                  )}
+                  {txStatus === 'success' && <Check className="w-4 h-4 text-magic-green" />}
+                  {txStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
+                  <span className={`text-sm font-mono ${
+                    txStatus === 'processing' ? 'text-yellow-500' :
+                    txStatus === 'success' ? 'text-magic-green' :
+                    'text-red-500'
+                  }`}>
+                    {txMessage}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 pt-4 border-t border-white/10 text-center">
               <a
@@ -499,6 +738,363 @@ const Gorid: React.FC = () => {
               >
                 View on GorID.com <ExternalLink className="w-3 h-3" />
               </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Buy Confirmation Modal */}
+      {showBuyModal && selectedDomain && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+            onClick={() => !isProcessing && setShowBuyModal(false)}
+          />
+          <div className="relative bg-magic-dark border border-magic-green/50 p-6 max-w-sm w-full animate-in zoom-in-95">
+            <button
+              onClick={() => !isProcessing && setShowBuyModal(false)}
+              disabled={isProcessing}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl disabled:opacity-50"
+            >
+              &times;
+            </button>
+
+            <div className="text-center mb-6">
+              <ShoppingCart className="w-12 h-12 text-magic-green mx-auto mb-4" />
+              <h2 className="text-xl font-black text-white uppercase">Confirm Purchase</h2>
+            </div>
+
+            <div className="bg-black/50 border border-white/10 p-4 mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-500 text-sm">Domain</span>
+                <span className="text-white font-bold">{selectedDomain.name}</span>
+              </div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-500 text-sm">Price</span>
+                <span className="text-magic-green font-mono font-bold">{currency} {selectedDomain.price}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-sm">Seller</span>
+                <span className="text-gray-400 font-mono text-sm">{selectedDomain.owner}</span>
+              </div>
+            </div>
+
+            {txStatus !== 'idle' && (
+              <div className={`mb-4 p-3 border ${
+                txStatus === 'processing' ? 'border-yellow-500/50 bg-yellow-500/10' :
+                txStatus === 'success' ? 'border-magic-green/50 bg-magic-green/10' :
+                'border-red-500/50 bg-red-500/10'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {txStatus === 'processing' && (
+                    <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent animate-spin" />
+                  )}
+                  {txStatus === 'success' && <Check className="w-4 h-4 text-magic-green" />}
+                  {txStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
+                  <span className={`text-sm font-mono ${
+                    txStatus === 'processing' ? 'text-yellow-500' :
+                    txStatus === 'success' ? 'text-magic-green' :
+                    'text-red-500'
+                  }`}>
+                    {txMessage}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBuyModal(false)}
+                disabled={isProcessing}
+                className="flex-1 border border-white/20 text-gray-400 py-3 font-bold uppercase tracking-wider text-sm hover:border-white/40 hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBuyNow}
+                disabled={isProcessing || txStatus === 'success'}
+                className={`flex-1 ${btnPrimary} py-3 font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 disabled:opacity-50`}
+              >
+                {isProcessing ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
+                ) : txStatus === 'success' ? (
+                  <><Check className="w-4 h-4" /> Done</>
+                ) : (
+                  <><ShoppingCart className="w-4 h-4" /> Buy Now</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Make Offer Modal */}
+      {showOfferModal && selectedDomain && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+            onClick={() => !isProcessing && setShowOfferModal(false)}
+          />
+          <div className="relative bg-magic-dark border border-magic-green/50 p-6 max-w-sm w-full animate-in zoom-in-95">
+            <button
+              onClick={() => !isProcessing && setShowOfferModal(false)}
+              disabled={isProcessing}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl disabled:opacity-50"
+            >
+              &times;
+            </button>
+
+            <div className="text-center mb-6">
+              <DollarSign className="w-12 h-12 text-magic-green mx-auto mb-4" />
+              <h2 className="text-xl font-black text-white uppercase">Make an Offer</h2>
+              <p className="text-gray-500 text-sm mt-2">for {selectedDomain.name}</p>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-gray-500 text-xs uppercase font-bold block mb-2">
+                Your Offer Price ({currency})
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={offerPrice}
+                  onChange={(e) => setOfferPrice(e.target.value)}
+                  placeholder={`e.g. ${Math.floor(selectedDomain.price * 0.8)}`}
+                  disabled={isProcessing || txStatus === 'success'}
+                  className="w-full bg-black border border-white/20 px-4 py-3 text-white font-mono focus:border-magic-green outline-none placeholder-gray-600 disabled:opacity-50"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono">{currency}</span>
+              </div>
+              <p className="text-gray-600 text-xs mt-2">Listed price: {currency} {selectedDomain.price}</p>
+            </div>
+
+            {txStatus !== 'idle' && (
+              <div className={`mb-4 p-3 border ${
+                txStatus === 'processing' ? 'border-yellow-500/50 bg-yellow-500/10' :
+                txStatus === 'success' ? 'border-magic-green/50 bg-magic-green/10' :
+                'border-red-500/50 bg-red-500/10'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {txStatus === 'processing' && (
+                    <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent animate-spin" />
+                  )}
+                  {txStatus === 'success' && <Check className="w-4 h-4 text-magic-green" />}
+                  {txStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
+                  <span className={`text-sm font-mono ${
+                    txStatus === 'processing' ? 'text-yellow-500' :
+                    txStatus === 'success' ? 'text-magic-green' :
+                    'text-red-500'
+                  }`}>
+                    {txMessage}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowOfferModal(false)}
+                disabled={isProcessing}
+                className="flex-1 border border-white/20 text-gray-400 py-3 font-bold uppercase tracking-wider text-sm hover:border-white/40 hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMakeOffer}
+                disabled={isProcessing || txStatus === 'success' || !offerPrice}
+                className={`flex-1 ${btnPrimary} py-3 font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 disabled:opacity-50`}
+              >
+                {isProcessing ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
+                ) : txStatus === 'success' ? (
+                  <><Check className="w-4 h-4" /> Sent</>
+                ) : (
+                  <>Submit Offer</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* List for Sale Modal */}
+      {showListModal && selectedOwnedDomain && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+            onClick={() => !isProcessing && setShowListModal(false)}
+          />
+          <div className="relative bg-magic-dark border border-magic-green/50 p-6 max-w-sm w-full animate-in zoom-in-95">
+            <button
+              onClick={() => !isProcessing && setShowListModal(false)}
+              disabled={isProcessing}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl disabled:opacity-50"
+            >
+              &times;
+            </button>
+
+            <div className="text-center mb-6">
+              <Tag className="w-12 h-12 text-magic-green mx-auto mb-4" />
+              <h2 className="text-xl font-black text-white uppercase">List for Sale</h2>
+              <p className="text-gray-500 text-sm mt-2">{selectedOwnedDomain.name}</p>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-gray-500 text-xs uppercase font-bold block mb-2">
+                Listing Price ({currency})
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={listingPrice}
+                  onChange={(e) => setListingPrice(e.target.value)}
+                  placeholder="Enter price"
+                  disabled={isProcessing || txStatus === 'success'}
+                  className="w-full bg-black border border-white/20 px-4 py-3 text-white font-mono focus:border-magic-green outline-none placeholder-gray-600 disabled:opacity-50"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono">{currency}</span>
+              </div>
+              <p className="text-gray-600 text-xs mt-2">Floor price: {currency} {floorPrice}</p>
+            </div>
+
+            {txStatus !== 'idle' && (
+              <div className={`mb-4 p-3 border ${
+                txStatus === 'processing' ? 'border-yellow-500/50 bg-yellow-500/10' :
+                txStatus === 'success' ? 'border-magic-green/50 bg-magic-green/10' :
+                'border-red-500/50 bg-red-500/10'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {txStatus === 'processing' && (
+                    <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent animate-spin" />
+                  )}
+                  {txStatus === 'success' && <Check className="w-4 h-4 text-magic-green" />}
+                  {txStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
+                  <span className={`text-sm font-mono ${
+                    txStatus === 'processing' ? 'text-yellow-500' :
+                    txStatus === 'success' ? 'text-magic-green' :
+                    'text-red-500'
+                  }`}>
+                    {txMessage}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowListModal(false)}
+                disabled={isProcessing}
+                className="flex-1 border border-white/20 text-gray-400 py-3 font-bold uppercase tracking-wider text-sm hover:border-white/40 hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleListForSale}
+                disabled={isProcessing || txStatus === 'success' || !listingPrice}
+                className={`flex-1 ${btnPrimary} py-3 font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 disabled:opacity-50`}
+              >
+                {isProcessing ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
+                ) : txStatus === 'success' ? (
+                  <><Check className="w-4 h-4" /> Listed</>
+                ) : (
+                  <>List Domain</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Modal */}
+      {showTransferModal && selectedOwnedDomain && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+            onClick={() => !isProcessing && setShowTransferModal(false)}
+          />
+          <div className="relative bg-magic-dark border border-magic-green/50 p-6 max-w-sm w-full animate-in zoom-in-95">
+            <button
+              onClick={() => !isProcessing && setShowTransferModal(false)}
+              disabled={isProcessing}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl disabled:opacity-50"
+            >
+              &times;
+            </button>
+
+            <div className="text-center mb-6">
+              <Send className="w-12 h-12 text-magic-green mx-auto mb-4" />
+              <h2 className="text-xl font-black text-white uppercase">Transfer Domain</h2>
+              <p className="text-gray-500 text-sm mt-2">{selectedOwnedDomain.name}</p>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-gray-500 text-xs uppercase font-bold block mb-2">
+                Recipient Wallet Address
+              </label>
+              <input
+                type="text"
+                value={transferAddress}
+                onChange={(e) => setTransferAddress(e.target.value)}
+                placeholder="Enter wallet address"
+                disabled={isProcessing || txStatus === 'success'}
+                className="w-full bg-black border border-white/20 px-4 py-3 text-white font-mono focus:border-magic-green outline-none placeholder-gray-600 disabled:opacity-50 text-sm"
+              />
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 mb-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <p className="text-yellow-500 text-xs">
+                  This action is irreversible. Make sure the recipient address is correct.
+                </p>
+              </div>
+            </div>
+
+            {txStatus !== 'idle' && (
+              <div className={`mb-4 p-3 border ${
+                txStatus === 'processing' ? 'border-yellow-500/50 bg-yellow-500/10' :
+                txStatus === 'success' ? 'border-magic-green/50 bg-magic-green/10' :
+                'border-red-500/50 bg-red-500/10'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {txStatus === 'processing' && (
+                    <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent animate-spin" />
+                  )}
+                  {txStatus === 'success' && <Check className="w-4 h-4 text-magic-green" />}
+                  {txStatus === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
+                  <span className={`text-sm font-mono ${
+                    txStatus === 'processing' ? 'text-yellow-500' :
+                    txStatus === 'success' ? 'text-magic-green' :
+                    'text-red-500'
+                  }`}>
+                    {txMessage}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowTransferModal(false)}
+                disabled={isProcessing}
+                className="flex-1 border border-white/20 text-gray-400 py-3 font-bold uppercase tracking-wider text-sm hover:border-white/40 hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleTransfer}
+                disabled={isProcessing || txStatus === 'success' || !transferAddress}
+                className={`flex-1 ${btnPrimary} py-3 font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 disabled:opacity-50`}
+              >
+                {isProcessing ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
+                ) : txStatus === 'success' ? (
+                  <><Check className="w-4 h-4" /> Sent</>
+                ) : (
+                  <><Send className="w-4 h-4" /> Transfer</>
+                )}
+              </button>
             </div>
           </div>
         </div>
