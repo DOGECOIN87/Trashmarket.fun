@@ -132,6 +132,7 @@ const Navbar: React.FC = () => {
     { name: 'Collections', path: '/' },
     { name: 'GorID', path: '/gorid' },
     { name: 'Launchpad', path: '/launchpad' },
+    { name: 'Bridge', path: '/bridge' },
     { name: 'Docs / Brand', path: '/docs' },
   ];
 
