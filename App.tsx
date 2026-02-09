@@ -9,6 +9,7 @@ import Collection from './pages/Collection';
 import Launchpad from './pages/Launchpad';
 import Docs from './pages/Docs';
 import Gorid from './pages/Gorid';
+import Bridge from './pages/Bridge';
 
 const App: React.FC = () => {
   return (
@@ -24,6 +25,7 @@ const App: React.FC = () => {
                 <Route path="/launchpad" element={<Launchpad />} />
                 <Route path="/gorid" element={<Gorid />} />
                 <Route path="/docs" element={<Docs />} />
+                <Route path="/bridge" element={<Bridge />} />
               </Routes>
             </main>
             <Footer />
