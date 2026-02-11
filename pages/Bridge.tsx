@@ -32,9 +32,12 @@ import {
 import {
   SGOR_TOKEN_MINT,
   BRIDGE_FEE_RATE,
+  PLATFORM_FEE_WALLET,
   calculateBridgeFee,
   sendSGORTokens,
+  sendSGORWithPlatformFee,
   sendGGORNative,
+  sendGGORWithPlatformFee,
   verifyTransaction,
   isValidPublicKey,
   verifySGORTokenMint,
@@ -167,11 +170,11 @@ const Bridge: React.FC = () => {
 
       if (selectedOrder.sellToken === 'gGOR') {
         // Seller is selling gGOR, buyer pays with sGOR on Solana
-        // Verify sGOR token mint before deposit
+        // Splits: netAmount to seller + fee to platform wallet (single tx)
         const conn = getSolanaConnection();
         await verifySGORTokenMint(conn);
 
-        txHash = await sendSGORTokens(
+        txHash = await sendSGORWithPlatformFee(
           new PublicKey(buyerSolanaAddr),
           new PublicKey(selectedOrder.sellerSolanaAddress),
           selectedOrder.amount
@@ -179,7 +182,8 @@ const Bridge: React.FC = () => {
         txChain = 'solana';
       } else {
         // Seller is selling sGOR, buyer pays with gGOR on Gorbagana
-        txHash = await sendGGORNative(
+        // Splits: netAmount to seller + fee to platform wallet (single tx)
+        txHash = await sendGGORWithPlatformFee(
           new PublicKey(buyerGorbaganaAddr),
           new PublicKey(selectedOrder.sellerGorbaganaAddress),
           selectedOrder.amount
@@ -329,7 +333,7 @@ const Bridge: React.FC = () => {
               </div>
               <p className="text-gray-400 text-sm md:text-base max-w-xl">
                 P2P bridge between Solana (sGOR) and Gorbagana (gGOR).
-                1:1 rate with 5% bridge fee. All transactions are on-chain.
+                1:1 rate. 5% flat fee to platform. All transactions on-chain.
               </p>
               <div className="mt-2 text-[10px] text-gray-600 font-mono">
                 sGOR MINT: {SGOR_TOKEN_MINT.toBase58()}
@@ -541,30 +545,42 @@ const Bridge: React.FC = () => {
                   />
                 </div>
 
-                {createAmount && parseFloat(createAmount) > 0 && (
-                  <div className="p-4 bg-white/5 border border-white/10 text-xs space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">You sell:</span>
-                      <span>{parseFloat(createAmount).toLocaleString()} {createSellToken}</span>
+                {createAmount && parseFloat(createAmount) > 0 && (() => {
+                  const fb = calculateBridgeFee(parseFloat(createAmount));
+                  const otherToken = createSellToken === 'gGOR' ? 'sGOR' : 'gGOR';
+                  return (
+                    <div className="p-4 bg-white/5 border border-white/10 text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Listed amount:</span>
+                        <span>{fb.grossAmount.toLocaleString()} {createSellToken}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Buyer pays (total):</span>
+                        <span>{fb.grossAmount.toLocaleString()} {otherToken}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">You receive from buyer:</span>
+                        <span>{fb.netAmount.toLocaleString()} {otherToken}</span>
+                      </div>
+                      <div className="flex justify-between text-red-400">
+                        <span>Platform fee (5%):</span>
+                        <span>{fb.fee.toLocaleString()} {otherToken}</span>
+                      </div>
+                      <div className="flex justify-between text-magic-green">
+                        <span>Both sides exchange:</span>
+                        <span>{fb.netAmount.toLocaleString()}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Buyer sends you:</span>
-                      <span>{parseFloat(createAmount).toLocaleString()} {createSellToken === 'gGOR' ? 'sGOR' : 'gGOR'}</span>
-                    </div>
-                    <div className="flex justify-between text-magic-green">
-                      <span>Buyer receives (after 5% fee):</span>
-                      <span>{calculateBridgeFee(parseFloat(createAmount)).netAmount.toLocaleString()} {createSellToken}</span>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div className="p-4 bg-magic-green/10 border border-magic-green/20">
                   <div className="flex gap-2 text-magic-green text-xs">
                     <Info className="w-4 h-4 shrink-0" />
                     <span>
                       Your offer will be listed publicly. When a buyer accepts,
-                      they send {createSellToken === 'gGOR' ? 'sGOR' : 'gGOR'} directly to your wallet.
-                      You then release {createSellToken} (minus 5% fee) to complete the trade.
+                      they pay the full amount (5% fee goes to platform, rest to you).
+                      You then send the net amount of {createSellToken} to the buyer to complete the trade.
                     </span>
                   </div>
                 </div>
@@ -778,14 +794,18 @@ const Bridge: React.FC = () => {
 
             <div className="space-y-4 mb-6">
               <div className="flex justify-between text-sm border-b border-white/10 pb-2">
-                <span className="text-gray-500">You Send</span>
+                <span className="text-gray-500">You Send (total)</span>
                 <span className="font-bold">
                   {selectedOrder.amount.toLocaleString()} {selectedOrder.buyToken}
                 </span>
               </div>
-              <div className="flex justify-between text-sm border-b border-white/10 pb-2">
-                <span className="text-gray-500">Bridge Fee (5%)</span>
-                <span className="text-red-400">{feeBreakdown.fee.toLocaleString()} {selectedOrder.sellToken}</span>
+              <div className="flex justify-between text-sm border-b border-white/10 pb-2 pl-4">
+                <span className="text-gray-600">to Seller</span>
+                <span>{feeBreakdown.netAmount.toLocaleString()} {selectedOrder.buyToken}</span>
+              </div>
+              <div className="flex justify-between text-sm border-b border-white/10 pb-2 pl-4">
+                <span className="text-gray-600">to Platform (5% fee)</span>
+                <span className="text-red-400">{feeBreakdown.fee.toLocaleString()} {selectedOrder.buyToken}</span>
               </div>
               <div className="flex justify-between text-sm border-b border-white/10 pb-2">
                 <span className="text-gray-500">You Receive</span>
@@ -793,9 +813,13 @@ const Bridge: React.FC = () => {
                   {feeBreakdown.netAmount.toLocaleString()} {selectedOrder.sellToken}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-sm border-b border-white/10 pb-2">
                 <span className="text-gray-500">Seller</span>
                 <span className="text-xs font-mono">{formatAddr(selectedOrder.seller)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Fee Wallet</span>
+                <span className="text-xs font-mono">{formatAddr(PLATFORM_FEE_WALLET.toBase58())}</span>
               </div>
             </div>
 
@@ -826,10 +850,11 @@ const Bridge: React.FC = () => {
             <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 mb-6 flex gap-3">
               <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
               <p className="text-[10px] text-yellow-500 leading-relaxed">
-                This is a real cross-chain P2P trade. Your wallet will sign an on-chain transaction
-                to send {selectedOrder.buyToken} to the seller. The seller must then release{' '}
-                {selectedOrder.sellToken} to you. sGOR token mint ({SGOR_TOKEN_MINT.toBase58().slice(0, 8)}...)
-                is verified before every deposit.
+                This is a real cross-chain P2P trade. Your wallet will sign one atomic transaction
+                that sends {feeBreakdown.netAmount} {selectedOrder.buyToken} to the seller
+                and {feeBreakdown.fee} {selectedOrder.buyToken} (5% fee) to the platform wallet.
+                The seller must then release {feeBreakdown.netAmount} {selectedOrder.sellToken} to you.
+                sGOR mint ({SGOR_TOKEN_MINT.toBase58().slice(0, 8)}...) verified before every deposit.
               </p>
             </div>
 
@@ -869,16 +894,20 @@ const Bridge: React.FC = () => {
 
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-sm border-b border-white/10 pb-2">
-                <span className="text-gray-500">Escrow Amount</span>
-                <span className="font-bold">{releaseEscrow.amount.toLocaleString()} {releaseEscrow.sellToken}</span>
+                <span className="text-gray-500">Trade Amount</span>
+                <span>{releaseEscrow.amount.toLocaleString()} {releaseEscrow.sellToken}</span>
               </div>
               <div className="flex justify-between text-sm border-b border-white/10 pb-2">
-                <span className="text-gray-500">Fee Retained (5%)</span>
-                <span className="text-magic-green">{releaseEscrow.feeAmount} {releaseEscrow.sellToken}</span>
+                <span className="text-gray-500">Platform Fee (paid by buyer)</span>
+                <span className="text-gray-500">{releaseEscrow.feeAmount} {releaseEscrow.buyToken}</span>
+              </div>
+              <div className="flex justify-between text-sm border-b border-white/10 pb-2">
+                <span className="text-gray-500">You Received from Buyer</span>
+                <span>{releaseEscrow.netAmount.toLocaleString()} {releaseEscrow.buyToken}</span>
               </div>
               <div className="flex justify-between text-sm border-b border-white/10 pb-2">
                 <span className="text-gray-500">You Send to Buyer</span>
-                <span className="font-bold">{releaseEscrow.netAmount.toLocaleString()} {releaseEscrow.sellToken}</span>
+                <span className="font-bold text-magic-green">{releaseEscrow.netAmount.toLocaleString()} {releaseEscrow.sellToken}</span>
               </div>
               {releaseEscrow.buyerTxHash && (
                 <div className="flex justify-between text-sm">
@@ -903,8 +932,9 @@ const Bridge: React.FC = () => {
             <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 mb-6 flex gap-3">
               <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
               <p className="text-[10px] text-yellow-500 leading-relaxed">
-                Verify the buyer's deposit transaction before releasing. Your wallet will sign
-                a transaction to send {releaseEscrow.netAmount} {releaseEscrow.sellToken} to the buyer.
+                Verify the buyer's deposit before releasing. The buyer already paid the 5% platform fee.
+                Your wallet will sign a transaction to send {releaseEscrow.netAmount} {releaseEscrow.sellToken} to the buyer.
+                Both sides exchange the same net amount.
               </p>
             </div>
 

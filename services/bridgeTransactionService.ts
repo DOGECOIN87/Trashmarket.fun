@@ -20,6 +20,9 @@ export const SGOR_DECIMALS = 9;
 export const BRIDGE_FEE_RATE = 0.05; // 5%
 export const GGOR_DECIMALS = GORBAGANA_CONFIG.currency.decimals; // 9
 
+// Platform fee wallet — receives the 5% bridge fee on both chains
+export const PLATFORM_FEE_WALLET = new PublicKey('GdS8GCrAaVviZE5nxTNGG3pYxxb1UCgUbf23FwCTVirK');
+
 const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
 const GORBAGANA_RPC = GORBAGANA_CONFIG.rpcEndpoint;
 
@@ -99,8 +102,9 @@ export interface FeeBreakdown {
 
 /**
  * Calculate the 5% bridge fee.
- * Fee is deducted from the amount the buyer receives.
- * Seller sends grossAmount, buyer receives netAmount.
+ * Fee is sent to the platform wallet. Both parties exchange netAmount.
+ * Buyer pays grossAmount total: netAmount to seller + fee to platform.
+ * Seller sends netAmount to buyer.
  */
 export const calculateBridgeFee = (grossAmount: number): FeeBreakdown => {
   if (grossAmount <= 0) throw new Error('Amount must be positive');
@@ -117,14 +121,29 @@ export const calculateBridgeFee = (grossAmount: number): FeeBreakdown => {
 // --- sGOR SPL TOKEN TRANSFER (SOLANA) ---
 
 /**
- * Send sGOR SPL tokens on Solana from sender to recipient.
- * Verifies the sGOR token mint before every transfer.
- * Creates the recipient's Associated Token Account if needed.
- *
- * @param fromPubkey - Sender's Solana public key
- * @param toPubkey - Recipient's Solana public key
- * @param amount - Amount of sGOR tokens (in human-readable units, not lamports)
- * @returns Transaction signature
+ * Helper: ensure an ATA exists for a given owner, add create instruction if not.
+ */
+const ensureATA = async (
+  connection: Connection,
+  transaction: Transaction,
+  payer: PublicKey,
+  owner: PublicKey,
+): Promise<PublicKey> => {
+  const ata = await getAssociatedTokenAddress(SGOR_TOKEN_MINT, owner);
+  try {
+    await getAccount(connection, ata, 'confirmed');
+  } catch {
+    transaction.add(
+      createAssociatedTokenAccountInstruction(payer, ata, owner, SGOR_TOKEN_MINT)
+    );
+  }
+  return ata;
+};
+
+/**
+ * Send sGOR SPL tokens on Solana — simple transfer (no fee split).
+ * Used for seller release where the full amount goes to buyer.
+ * Verifies sGOR token mint before every transfer.
  */
 export const sendSGORTokens = async (
   fromPubkey: PublicKey,
@@ -136,11 +155,9 @@ export const sendSGORTokens = async (
   const provider = getSolanaProvider();
   const connection = getSolanaConnection();
 
-  // Verify token mint before deposit
   await verifySGORTokenMint(connection);
 
   const sourceATA = await getAssociatedTokenAddress(SGOR_TOKEN_MINT, fromPubkey);
-  const destATA = await getAssociatedTokenAddress(SGOR_TOKEN_MINT, toPubkey);
 
   // Verify sender has sufficient balance
   try {
@@ -148,9 +165,69 @@ export const sendSGORTokens = async (
     const requiredLamports = BigInt(Math.round(amount * Math.pow(10, SGOR_DECIMALS)));
     if (sourceAccount.amount < requiredLamports) {
       const currentBalance = Number(sourceAccount.amount) / Math.pow(10, SGOR_DECIMALS);
-      throw new Error(
-        `Insufficient sGOR balance: have ${currentBalance}, need ${amount}`
-      );
+      throw new Error(`Insufficient sGOR balance: have ${currentBalance}, need ${amount}`);
+    }
+  } catch (error: any) {
+    if (error.message?.includes('could not find account')) {
+      throw new Error('You do not have an sGOR token account. Ensure you hold sGOR tokens.');
+    }
+    throw error;
+  }
+
+  const transaction = new Transaction();
+  const destATA = await ensureATA(connection, transaction, fromPubkey, toPubkey);
+
+  const lamports = BigInt(Math.round(amount * Math.pow(10, SGOR_DECIMALS)));
+  transaction.add(
+    createTransferInstruction(sourceATA, destATA, fromPubkey, lamports)
+  );
+
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = fromPubkey;
+
+  const signed = await provider.signTransaction(transaction);
+  const signature = await connection.sendRawTransaction(signed.serialize(), {
+    skipPreflight: false,
+    preflightCommitment: 'confirmed',
+  });
+  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+
+  return signature;
+};
+
+/**
+ * Send sGOR with platform fee split — single atomic transaction.
+ * Sends netAmount to the seller and feeAmount to the platform fee wallet.
+ * Used for buyer deposit.
+ *
+ * @param fromPubkey - Buyer's Solana public key
+ * @param toSellerPubkey - Seller's Solana public key
+ * @param grossAmount - Total trade amount (net + fee will be transferred)
+ * @returns Transaction signature
+ */
+export const sendSGORWithPlatformFee = async (
+  fromPubkey: PublicKey,
+  toSellerPubkey: PublicKey,
+  grossAmount: number
+): Promise<string> => {
+  if (grossAmount <= 0) throw new Error('Transfer amount must be positive');
+
+  const provider = getSolanaProvider();
+  const connection = getSolanaConnection();
+
+  await verifySGORTokenMint(connection);
+
+  const { fee, netAmount } = calculateBridgeFee(grossAmount);
+  const sourceATA = await getAssociatedTokenAddress(SGOR_TOKEN_MINT, fromPubkey);
+
+  // Verify sender has sufficient balance for the full grossAmount
+  try {
+    const sourceAccount = await getAccount(connection, sourceATA, 'confirmed');
+    const requiredLamports = BigInt(Math.round(grossAmount * Math.pow(10, SGOR_DECIMALS)));
+    if (sourceAccount.amount < requiredLamports) {
+      const currentBalance = Number(sourceAccount.amount) / Math.pow(10, SGOR_DECIMALS);
+      throw new Error(`Insufficient sGOR balance: have ${currentBalance}, need ${grossAmount}`);
     }
   } catch (error: any) {
     if (error.message?.includes('could not find account')) {
@@ -161,47 +238,32 @@ export const sendSGORTokens = async (
 
   const transaction = new Transaction();
 
-  // Create destination ATA if it doesn't exist
-  try {
-    await getAccount(connection, destATA, 'confirmed');
-  } catch {
-    transaction.add(
-      createAssociatedTokenAccountInstruction(
-        fromPubkey,    // payer
-        destATA,       // ATA to create
-        toPubkey,      // owner of the new ATA
-        SGOR_TOKEN_MINT // token mint
-      )
-    );
-  }
+  // Ensure ATAs exist for seller and platform fee wallet
+  const sellerATA = await ensureATA(connection, transaction, fromPubkey, toSellerPubkey);
+  const feeATA = await ensureATA(connection, transaction, fromPubkey, PLATFORM_FEE_WALLET);
 
-  // Transfer sGOR tokens
-  const lamports = BigInt(Math.round(amount * Math.pow(10, SGOR_DECIMALS)));
+  // Transfer netAmount to seller
+  const netLamports = BigInt(Math.round(netAmount * Math.pow(10, SGOR_DECIMALS)));
   transaction.add(
-    createTransferInstruction(
-      sourceATA,   // source
-      destATA,     // destination
-      fromPubkey,  // owner/signer
-      lamports     // amount in smallest units
-    )
+    createTransferInstruction(sourceATA, sellerATA, fromPubkey, netLamports)
+  );
+
+  // Transfer fee to platform wallet
+  const feeLamports = BigInt(Math.round(fee * Math.pow(10, SGOR_DECIMALS)));
+  transaction.add(
+    createTransferInstruction(sourceATA, feeATA, fromPubkey, feeLamports)
   );
 
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = fromPubkey;
 
-  // Sign via wallet extension
   const signed = await provider.signTransaction(transaction);
   const signature = await connection.sendRawTransaction(signed.serialize(), {
     skipPreflight: false,
     preflightCommitment: 'confirmed',
   });
-
-  // Wait for confirmation
-  await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    'confirmed'
-  );
+  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
 
   return signature;
 };
@@ -209,13 +271,8 @@ export const sendSGORTokens = async (
 // --- gGOR NATIVE TRANSFER (GORBAGANA) ---
 
 /**
- * Send gGOR native tokens on Gorbagana from sender to recipient.
- * gGOR is the native gas token (like SOL on Solana).
- *
- * @param fromPubkey - Sender's Gorbagana public key
- * @param toPubkey - Recipient's Gorbagana public key
- * @param amount - Amount of gGOR (in human-readable units)
- * @returns Transaction signature
+ * Send gGOR native tokens — simple transfer (no fee split).
+ * Used for seller release where the full netAmount goes to buyer.
  */
 export const sendGGORNative = async (
   fromPubkey: PublicKey,
@@ -227,23 +284,15 @@ export const sendGGORNative = async (
   const provider = getGorbaganaProvider();
   const connection = getGorbaganaConnection();
 
-  // Verify sender has sufficient balance
   const balanceLamports = await connection.getBalance(fromPubkey, 'confirmed');
   const requiredLamports = Math.round(amount * Math.pow(10, GGOR_DECIMALS));
-  // Account for tx fees (~5000 lamports)
   if (balanceLamports < requiredLamports + 10000) {
     const currentBalance = balanceLamports / Math.pow(10, GGOR_DECIMALS);
-    throw new Error(
-      `Insufficient gGOR balance: have ${currentBalance.toFixed(4)}, need ${amount} + gas`
-    );
+    throw new Error(`Insufficient gGOR balance: have ${currentBalance.toFixed(4)}, need ${amount} + gas`);
   }
 
   const transaction = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey,
-      toPubkey,
-      lamports: requiredLamports,
-    })
+    SystemProgram.transfer({ fromPubkey, toPubkey, lamports: requiredLamports })
   );
 
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
@@ -255,11 +304,64 @@ export const sendGGORNative = async (
     skipPreflight: false,
     preflightCommitment: 'confirmed',
   });
+  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
 
-  await connection.confirmTransaction(
-    { signature, blockhash, lastValidBlockHeight },
-    'confirmed'
+  return signature;
+};
+
+/**
+ * Send gGOR with platform fee split — single atomic transaction.
+ * Sends netAmount to the seller and feeAmount to the platform fee wallet.
+ * Used for buyer deposit when paying with gGOR.
+ *
+ * @param fromPubkey - Buyer's Gorbagana public key
+ * @param toSellerPubkey - Seller's Gorbagana public key
+ * @param grossAmount - Total trade amount
+ * @returns Transaction signature
+ */
+export const sendGGORWithPlatformFee = async (
+  fromPubkey: PublicKey,
+  toSellerPubkey: PublicKey,
+  grossAmount: number
+): Promise<string> => {
+  if (grossAmount <= 0) throw new Error('Transfer amount must be positive');
+
+  const provider = getGorbaganaProvider();
+  const connection = getGorbaganaConnection();
+
+  const { fee, netAmount } = calculateBridgeFee(grossAmount);
+  const netLamports = Math.round(netAmount * Math.pow(10, GGOR_DECIMALS));
+  const feeLamports = Math.round(fee * Math.pow(10, GGOR_DECIMALS));
+  const totalLamports = netLamports + feeLamports;
+
+  const balanceLamports = await connection.getBalance(fromPubkey, 'confirmed');
+  if (balanceLamports < totalLamports + 10000) {
+    const currentBalance = balanceLamports / Math.pow(10, GGOR_DECIMALS);
+    throw new Error(`Insufficient gGOR balance: have ${currentBalance.toFixed(4)}, need ${grossAmount} + gas`);
+  }
+
+  const transaction = new Transaction();
+
+  // Transfer netAmount to seller
+  transaction.add(
+    SystemProgram.transfer({ fromPubkey, toPubkey: toSellerPubkey, lamports: netLamports })
   );
+
+  // Transfer fee to platform wallet
+  transaction.add(
+    SystemProgram.transfer({ fromPubkey, toPubkey: PLATFORM_FEE_WALLET, lamports: feeLamports })
+  );
+
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = fromPubkey;
+
+  const signed = await provider.signTransaction(transaction);
+  const signature = await connection.sendRawTransaction(signed.serialize(), {
+    skipPreflight: false,
+    preflightCommitment: 'confirmed',
+  });
+  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
 
   return signature;
 };
