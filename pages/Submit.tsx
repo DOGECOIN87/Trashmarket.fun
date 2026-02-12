@@ -1,15 +1,16 @@
-import React, { useState, useCallback } from 'react';
-import { useWallet } from '../contexts/WalletContext';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useNetwork } from '../contexts/NetworkContext';
 import { submitCollection, getSubmissionCount } from '../services/submissionService';
 import { CollectionSubmission, SubmissionStatus } from '../types';
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Upload, 
-  X, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  ArrowLeft,
+  ArrowRight,
+  Upload,
+  X,
+  CheckCircle,
+  AlertCircle,
   Wallet,
   ExternalLink,
   Loader2,
@@ -25,12 +26,12 @@ interface FormData {
   supply: number;
   mintPrice: number;
   mintDate: string;
-  
+
   // Step 2: Visual Assets
   logoFile: File | null;
   bannerFile: File | null;
   sampleFiles: File[];
-  
+
   // Step 3: Contract & Links
   contractAddress: string;
   royaltyPercentage: number;
@@ -38,7 +39,7 @@ interface FormData {
   twitter: string;
   discord: string;
   telegram: string;
-  
+
   // Step 4: Project Info
   teamInfo: string;
   roadmap: string;
@@ -78,7 +79,8 @@ const INITIAL_FORM_DATA: FormData = {
 };
 
 const Submit: React.FC = () => {
-  const { connected, address, connect } = useWallet();
+  const { connected, publicKey } = useWallet();
+  const { setVisible } = useWalletModal();
   const { currency } = useNetwork();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
@@ -89,6 +91,9 @@ const Submit: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const MAX_SUBMISSIONS_PER_WALLET = 3;
+
+  // Format public key for display
+  const address = publicKey?.toBase58() || null;
 
   // Load submission count when wallet connects
   const loadSubmissionCount = useCallback(async () => {
@@ -105,7 +110,7 @@ const Submit: React.FC = () => {
     }
   }, [address]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (connected && address) {
       loadSubmissionCount();
     }
@@ -117,9 +122,7 @@ const Submit: React.FC = () => {
 
   const handleWalletConnect = async () => {
     if (!connected) {
-      // We'll add wallet selection modal here
-      // For now, show a message
-      alert('Wallet connection modal will be implemented in the Navbar update.');
+      setVisible(true);
     }
   };
 
@@ -163,17 +166,18 @@ const Submit: React.FC = () => {
       );
 
       setSubmitSuccess(`Collection submitted successfully! ID: ${submissionId}`);
-      
+
       // Reset form
       setFormData(INITIAL_FORM_DATA);
       setCurrentStep(1);
-      
+
       // Refresh submission count
       await loadSubmissionCount();
-      
-    } catch (error: any) {
+
+    } catch (error: unknown) {
       console.error('Submission error:', error);
-      setSubmitError(error.message || 'Failed to submit collection.');
+      const message = error instanceof Error ? error.message : 'Failed to submit collection.';
+      setSubmitError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -185,7 +189,7 @@ const Submit: React.FC = () => {
   return (
     <div className="min-h-screen bg-black pt-12 pb-20">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -233,16 +237,13 @@ const Submit: React.FC = () => {
                 {[1, 2, 3, 4].map((step) => (
                   <div
                     key={step}
-                    className={`flex items-center ${
-                      step < 4 ? 'flex-1' : ''
-                    } ${step < 4 ? 'border-r border-white/20' : ''}`}
+                    className={`flex items-center ${step < 4 ? 'flex-1' : ''} ${step < 4 ? 'border-r border-white/20' : ''}`}
                   >
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 ${
-                        step <= currentStep
-                          ? 'bg-magic-green text-black border-magic-green'
-                          : 'bg-transparent text-gray-600 border-gray-600'
-                      }`}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 ${step <= currentStep
+                        ? 'bg-magic-green text-black border-magic-green'
+                        : 'bg-transparent text-gray-600 border-gray-600'
+                        }`}
                     >
                       {step < currentStep ? (
                         <CheckCircle className="w-5 h-5" />
@@ -251,9 +252,7 @@ const Submit: React.FC = () => {
                       )}
                     </div>
                     <div className="ml-3 hidden sm:block">
-                      <div className={`text-sm font-bold uppercase ${
-                        step <= currentStep ? 'text-white' : 'text-gray-600'
-                      }`}>
+                      <div className={`text-sm font-bold uppercase ${step <= currentStep ? 'text-white' : 'text-gray-600'}`}>
                         {step === 1 && 'Collection Info'}
                         {step === 2 && 'Assets'}
                         {step === 3 && 'Contract'}
@@ -264,7 +263,7 @@ const Submit: React.FC = () => {
                 ))}
               </div>
               <div className="w-full bg-gray-800 h-1">
-                <div 
+                <div
                   className="bg-magic-green h-1 transition-all duration-500"
                   style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
                 />
@@ -286,40 +285,40 @@ const Submit: React.FC = () => {
             {/* Form Steps */}
             <div className="bg-[#1c1c24] border border-white/20">
               {currentStep === 1 && (
-                <Step1 
-                  data={formData} 
-                  updateData={updateData} 
+                <Step1
+                  data={formData}
+                  updateData={updateData}
                   onNext={() => setCurrentStep(2)}
                   onBack={() => setCurrentStep(1)}
-                  onSubmit={() => {}}
+                  onSubmit={() => { }}
                   isSubmitting={isSubmitting}
                 />
               )}
               {currentStep === 2 && (
-                <Step2 
-                  data={formData} 
-                  updateData={updateData} 
+                <Step2
+                  data={formData}
+                  updateData={updateData}
                   onNext={() => setCurrentStep(3)}
                   onBack={() => setCurrentStep(1)}
-                  onSubmit={() => {}}
+                  onSubmit={() => { }}
                   isSubmitting={isSubmitting}
                 />
               )}
               {currentStep === 3 && (
-                <Step3 
-                  data={formData} 
-                  updateData={updateData} 
+                <Step3
+                  data={formData}
+                  updateData={updateData}
                   onNext={() => setCurrentStep(4)}
                   onBack={() => setCurrentStep(2)}
-                  onSubmit={() => {}}
+                  onSubmit={() => { }}
                   isSubmitting={isSubmitting}
                 />
               )}
               {currentStep === 4 && (
-                <Step4 
-                  data={formData} 
-                  updateData={updateData} 
-                  onNext={() => {}}
+                <Step4
+                  data={formData}
+                  updateData={updateData}
+                  onNext={() => { }}
                   onBack={() => setCurrentStep(3)}
                   onSubmit={handleSubmit}
                   isSubmitting={isSubmitting}
@@ -343,13 +342,13 @@ const Submit: React.FC = () => {
 };
 
 // Step 1: Collection Information
-const Step1: React.FC<StepProps> = ({ data, updateData, onNext, isSubmitting }) => {
+const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
   const isValid = data.name && data.symbol && data.description && data.supply > 0 && data.mintPrice > 0;
 
   return (
     <div className="p-8">
       <h2 className="text-2xl font-bold text-white mb-6 uppercase">Collection_Information</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
@@ -363,7 +362,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext, isSubmitting }) 
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Symbol *
@@ -376,7 +375,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext, isSubmitting }) 
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono uppercase"
           />
         </div>
-        
+
         <div className="md:col-span-2">
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Description *
@@ -393,7 +392,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext, isSubmitting }) 
             {data.description.length}/500
           </div>
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Total Supply *
@@ -407,7 +406,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext, isSubmitting }) 
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Mint Price (in G) *
@@ -422,7 +421,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext, isSubmitting }) 
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
           />
         </div>
-        
+
         <div className="md:col-span-2">
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Mint Date & Time *
@@ -435,16 +434,15 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext, isSubmitting }) 
           />
         </div>
       </div>
-      
+
       <div className="flex justify-end mt-8">
         <button
           onClick={onNext}
           disabled={!isValid}
-          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${
-            isValid
-              ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
-              : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
-          }`}
+          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${isValid
+            ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+            : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
+            }`}
         >
           Next <ArrowRight className="w-4 h-4" />
         </button>
@@ -455,36 +453,70 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext, isSubmitting }) 
 
 // Step 2: Visual Assets
 const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [samplePreviews, setSamplePreviews] = useState<string[]>([]);
+
   const handleFileChange = (type: 'logo' | 'banner' | 'sample', files: FileList | null) => {
     if (!files) return;
-    
+
     if (type === 'logo') {
-      updateData({ logoFile: files[0] });
+      const file = files[0];
+      updateData({ logoFile: file });
+      if (logoPreview) URL.revokeObjectURL(logoPreview);
+      setLogoPreview(URL.createObjectURL(file));
     } else if (type === 'banner') {
-      updateData({ bannerFile: files[0] });
+      const file = files[0];
+      updateData({ bannerFile: file });
+      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+      setBannerPreview(URL.createObjectURL(file));
     } else if (type === 'sample') {
-      const sampleFiles = Array.from(files).slice(0, 5); // Max 5 samples
+      const sampleFiles = Array.from(files).slice(0, 5);
       updateData({ sampleFiles });
+      // Revoke old previews
+      samplePreviews.forEach(url => URL.revokeObjectURL(url));
+      setSamplePreviews(sampleFiles.map(file => URL.createObjectURL(file)));
     }
   };
 
   const removeFile = (type: 'logo' | 'banner' | 'sample', index?: number) => {
     if (type === 'logo') {
       updateData({ logoFile: null });
+      if (logoPreview) {
+        URL.revokeObjectURL(logoPreview);
+        setLogoPreview(null);
+      }
     } else if (type === 'banner') {
       updateData({ bannerFile: null });
+      if (bannerPreview) {
+        URL.revokeObjectURL(bannerPreview);
+        setBannerPreview(null);
+      }
     } else if (type === 'sample' && index !== undefined) {
       const newSamples = data.sampleFiles.filter((_, i) => i !== index);
       updateData({ sampleFiles: newSamples });
+      if (samplePreviews[index]) {
+        URL.revokeObjectURL(samplePreviews[index]);
+        setSamplePreviews(prev => prev.filter((_, i) => i !== index));
+      }
     }
   };
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview);
+      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+      samplePreviews.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [logoPreview, bannerPreview, samplePreviews]);
 
   const isValid = data.logoFile && data.bannerFile;
 
   return (
     <div className="p-8">
       <h2 className="text-2xl font-bold text-white mb-6 uppercase">Visual_Assets</h2>
-      
+
       <div className="space-y-8">
         {/* Logo Upload */}
         <div>
@@ -492,12 +524,12 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             Collection Logo * (400x400px minimum)
           </label>
           <div className="border-2 border-dashed border-white/20 p-6">
-            {data.logoFile ? (
+            {data.logoFile && logoPreview ? (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <img 
-                    src={URL.createObjectURL(data.logoFile)} 
-                    alt="Logo" 
+                  <img
+                    src={logoPreview}
+                    alt="Logo"
                     className="w-16 h-16 object-cover border border-white/20"
                   />
                   <div>
@@ -533,12 +565,12 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             Collection Banner * (1600x400px recommended)
           </label>
           <div className="border-2 border-dashed border-white/20 p-6">
-            {data.bannerFile ? (
+            {data.bannerFile && bannerPreview ? (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <img 
-                    src={URL.createObjectURL(data.bannerFile)} 
-                    alt="Banner" 
+                  <img
+                    src={bannerPreview}
+                    alt="Banner"
                     className="w-24 h-16 object-cover border border-white/20"
                   />
                   <div>
@@ -564,25 +596,27 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
                   className="hidden"
                 />
               </label>
-</div>
+            )}
+          </div>
         </div>
 
         {/* Sample Images */}
         <div>
-          <label className="block text-sm            )}
-          -300 mb-2 uppercase tracking-w font-bold text-gray 5)
+          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+            Sample NFTs (up to 5)
           </label>
-          <div className="border-2 NFTs (up to-white/20 p-6">
-           ider">
-            Sample.length > 0 border-dashed border<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="border-2 border-dashed border-white/20 p-6">
+            {data.sampleFiles.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {data.sampleFiles.map((file, index) => (
-                   ? (
-               {data.sampleFiles<div key={index} className="relative">
-                    ={URL.createObjectURL(file)} 
-                      alt={`Sample ${index + 1}`}
-                      className="w<img 
-                      src-full h-24 object-cover border border-white/20"
-                    />
+                  <div key={index} className="relative">
+                    {samplePreviews[index] && (
+                      <img
+                        src={samplePreviews[index]}
+                        alt={`Sample ${index + 1}`}
+                        className="w-full h-24 object-cover border border-white/20"
+                      />
+                    )}
                     <button
                       onClick={() => removeFile('sample', index)}
                       className="absolute -top-2 -right-2 bg-magic-red text-white rounded-full p-1"
@@ -621,7 +655,7 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           </div>
         </div>
       </div>
-      
+
       <div className="flex justify-between mt-8">
         <button
           onClick={onBack}
@@ -632,11 +666,10 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
         <button
           onClick={onNext}
           disabled={!isValid}
-          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${
-            isValid
-              ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
-              : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
-          }`}
+          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${isValid
+            ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+            : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
+            }`}
         >
           Next <ArrowRight className="w-4 h-4" />
         </button>
@@ -652,7 +685,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
   return (
     <div className="p-8">
       <h2 className="text-2xl font-bold text-white mb-6 uppercase">Contract_&_Links</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
@@ -666,7 +699,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Royalty Percentage *
@@ -683,7 +716,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           />
           <div className="text-xs text-gray-500 mt-1">Max 20%</div>
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Website
@@ -696,7 +729,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Twitter/X
@@ -709,7 +742,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Discord
@@ -722,7 +755,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Telegram
@@ -735,7 +768,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
           />
         </div>
-        
+
         <div className="md:col-span-2">
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Contact Email *
@@ -750,7 +783,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           <div className="text-xs text-gray-500 mt-1">For submission updates and notifications</div>
         </div>
       </div>
-      
+
       <div className="flex justify-between mt-8">
         <button
           onClick={onBack}
@@ -761,11 +794,10 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
         <button
           onClick={onNext}
           disabled={!isValid}
-          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${
-            isValid
-              ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
-              : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
-          }`}
+          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${isValid
+            ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+            : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
+            }`}
         >
           Next <ArrowRight className="w-4 h-4" />
         </button>
@@ -781,7 +813,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
   return (
     <div className="p-8">
       <h2 className="text-2xl font-bold text-white mb-6 uppercase">Project_Information</h2>
-      
+
       <div className="space-y-6">
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
@@ -799,7 +831,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
             {data.teamInfo.length}/1000
           </div>
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Roadmap *
@@ -816,7 +848,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
             {data.roadmap.length}/1000
           </div>
         </div>
-        
+
         <div>
           <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
             Utility & Benefits *
@@ -834,7 +866,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
           </div>
         </div>
       </div>
-      
+
       {/* Preview Section */}
       <div className="mt-8 border-t border-white/20 pt-8">
         <h3 className="text-xl font-bold text-magic-green mb-4 uppercase">Submission_Preview</h3>
@@ -875,7 +907,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
           )}
         </div>
       </div>
-      
+
       <div className="flex justify-between mt-8">
         <button
           onClick={onBack}
@@ -886,11 +918,10 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
         <button
           onClick={onSubmit}
           disabled={!isValid || isSubmitting}
-          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${
-            isValid && !isSubmitting
-              ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
-              : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
-          }`}
+          className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${isValid && !isSubmitting
+            ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+            : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
+            }`}
         >
           {isSubmitting ? (
             <>
