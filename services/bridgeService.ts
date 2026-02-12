@@ -1,440 +1,281 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  getDocs, 
-  updateDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  Timestamp,
-  onSnapshot
-} from 'firebase/firestore';
-import { db } from '../firebase.config';
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
+import { BN } from '@coral-xyz/anchor';
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { useAnchor } from '../contexts/AnchorContext';
 
-// --- TYPES ---
+const PROGRAM_ID = new PublicKey('FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq');
+const SGOR_MINT = new PublicKey('71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg');
+
 export interface BridgeOrder {
-  id: string;
-  seller: string;
-  sellToken: 'gGOR' | 'sGOR';
-  buyToken: 'gGOR' | 'sGOR';
-  amount: number;
-  status: 'active' | 'pending' | 'completed' | 'cancelled';
-  createdAt: string;
-  updatedAt: string;
-  requiredWallet: string;
-  sellerWallet: string;
+  orderPDA: PublicKey;
+  maker: PublicKey;
+  amount: BN;
+  direction: number;
+  expirationSlot: BN;
+  isFilled: boolean;
+  bump: number;
 }
 
-export interface EscrowRecord {
-  id: string;
-  orderId: string;
-  buyerAddress: string;
-  sellerAddress: string;
-  amount: number;
-  token: 'gGOR' | 'sGOR';
-  status: 'locking' | 'verifying' | 'completed' | 'failed' | 'cancelled';
-  lockTx?: string;
-  verifyTx?: string;
-  settleTx?: string;
-  createdAt: string;
-  completedAt?: string;
-}
+export const useBridgeService = () => {
+  const { program, provider } = useAnchor();
 
-export interface TradeHistory {
-  id: string;
-  escrowId: string;
-  buyerAddress: string;
-  sellerAddress: string;
-  type: 'BUY' | 'SELL';
-  amount: number;
-  token: 'gGOR' | 'sGOR';
-  status: 'completed' | 'failed';
-  txHash: string;
-  timestamp: string;
-}
+  // Derive Order PDA
+  const deriveOrderPDA = (maker: PublicKey, amount: BN): PublicKey => {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('order'),
+        maker.toBuffer(),
+        amount.toArrayLike(Buffer, 'le', 8),
+      ],
+      PROGRAM_ID
+    );
+    return pda;
+  };
 
-// --- CONSTANTS ---
-const ORDERS_COLLECTION = 'bridge_orders';
-const ESCROWS_COLLECTION = 'bridge_escrows';
-const HISTORY_COLLECTION = 'bridge_history';
-const ORDER_EXPIRY_HOURS = 24;
+  // Create Order (Direction 1: gGOR -> sGOR)
+  const createOrderGGOR = async (amount: number, expirationSlot: number) => {
+    if (!program || !provider) throw new Error('Wallet not connected');
+    const wallet = provider.wallet;
+    const amountBN = new BN(amount);
+    const orderPDA = deriveOrderPDA(wallet.publicKey, amountBN);
 
-// --- ORDER MANAGEMENT ---
+    const tx = await program.methods
+      .createOrder(amountBN, 1, new BN(expirationSlot))
+      .accounts({
+        maker: wallet.publicKey,
+        order: orderPDA,
+        escrowTokenAccount: null, // This is null for direction 1 during creation
+        makerTokenAccount: null,   // This is null for direction 1 during creation
+        sgorMint: null,           // This is null for direction 1 during creation
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .transaction();
 
-/**
- * Create a new P2P bridge order
- */
-export const createBridgeOrder = async (
-  seller: string,
-  sellToken: 'gGOR' | 'sGOR',
-  buyToken: 'gGOR' | 'sGOR',
-  amount: number,
-  requiredWallet: string
-): Promise<string> => {
-  try {
-    if (amount <= 0) throw new Error('Amount must be greater than 0');
-    if (sellToken === buyToken) throw new Error('Cannot trade same token');
-    if (!seller) throw new Error('Seller address required');
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    tx.recentBlockhash = latestBlockhash.blockhash;
+    tx.feePayer = wallet.publicKey;
 
-    const order: Omit<BridgeOrder, 'id'> = {
-      seller,
-      sellToken,
-      buyToken,
-      amount,
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      requiredWallet,
-      sellerWallet: seller
-    };
+    const signedTx = await wallet.signTransaction(tx);
 
-    const docRef = await addDoc(collection(db, ORDERS_COLLECTION), {
-      ...order,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
+    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
+      skipPreflight: true,
+      maxRetries: 2,
     });
 
-    return docRef.id;
-  } catch (error) {
-    console.error('Error creating bridge order:', error);
-    throw error;
-  }
-};
+    await provider.connection.confirmTransaction({
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+      signature: txid,
+    }, 'confirmed');
 
-/**
- * Get all active orders with optional filtering
- */
-export const getActiveOrders = async (filter?: 'gGOR' | 'sGOR'): Promise<BridgeOrder[]> => {
-  try {
-    let q = query(
-      collection(db, ORDERS_COLLECTION),
-      where('status', '==', 'active'),
-      orderBy('createdAt', 'desc'),
-      limit(100)
-    );
+    return { tx: txid, orderPDA };
+  };
 
-    if (filter) {
-      q = query(
-        collection(db, ORDERS_COLLECTION),
-        where('status', '==', 'active'),
-        where('sellToken', '==', filter),
-        orderBy('createdAt', 'desc'),
-        limit(100)
-      );
+  // Create Order (Direction 0: sGOR -> gGOR)
+  const createOrderSGOR = async (amount: number, expirationSlot: number) => {
+    if (!program || !provider) throw new Error('Wallet not connected');
+    const wallet = provider.wallet;
+    const amountBN = new BN(amount);
+    const orderPDA = deriveOrderPDA(wallet.publicKey, amountBN);
+
+    const escrowPDA = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('escrow'),
+        wallet.publicKey.toBuffer(),
+        amountBN.toArrayLike(Buffer, 'le', 8),
+      ],
+      PROGRAM_ID
+    )[0];
+
+    const makerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
+
+    const tx = await program.methods
+      .createOrder(amountBN, 0, new BN(expirationSlot))
+      .accounts({
+        maker: wallet.publicKey,
+        order: orderPDA,
+        escrowTokenAccount: escrowPDA,
+        makerTokenAccount: makerATA,
+        sgorMint: SGOR_MINT,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .transaction();
+
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    tx.recentBlockhash = latestBlockhash.blockhash;
+    tx.feePayer = wallet.publicKey;
+
+    const signedTx = await wallet.signTransaction(tx);
+
+    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
+      skipPreflight: true,
+      maxRetries: 2,
+    });
+
+    await provider.connection.confirmTransaction({
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+      signature: txid,
+    }, 'confirmed');
+
+    return { tx: txid, orderPDA, escrowPDA };
+  };
+
+  // Fill Order
+  const fillOrder = async (orderPDA: PublicKey) => {
+    if (!program || !provider) throw new Error('Wallet not connected');
+    const wallet = provider.wallet;
+
+    // Fetch order to get direction and maker
+    const order = await program.account.order.fetch(orderPDA);
+
+    const accounts: any = {
+      taker: wallet.publicKey,
+      maker: order.maker,
+      order: orderPDA,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      // Initialize escrowTokenAccount with a default PublicKey.
+      // This is necessary because the instruction might expect it to be present,
+      // even if it's not directly used for all directions.
+      escrowTokenAccount: PublicKey.default,
+    };
+
+    if (order.direction === 0) {
+      // Direction 0: Taker sends gGOR, receives sGOR
+      // Maker is selling sGOR, so escrow holds sGOR.
+      const takerReceiveATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey); // Taker receives sGOR
+      const escrowPDA = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from('escrow'),
+          order.maker.toBuffer(),
+          order.amount.toArrayLike(Buffer, 'le', 8),
+        ],
+        PROGRAM_ID
+      )[0];
+
+      accounts.escrowTokenAccount = escrowPDA; // Set the actual escrow PDA for direction 0
+      accounts.takerReceiveTokenAccount = takerReceiveATA;
+    } else {
+      // Direction 1: Taker sends sGOR, receives gGOR
+      // Maker is selling gGOR. Taker sends sGOR.
+      // The escrow account for direction 1 is not explicitly derived in createOrderGGOR (it's null).
+      // However, the fillOrder instruction might still expect it.
+      // We've initialized it to PublicKey.default above.
+      // If the program logic for direction 1 requires a specific account, this might need adjustment.
+      const takerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey); // Taker sends sGOR
+      const makerATA = await getAssociatedTokenAddress(SGOR_MINT, order.maker); // Maker receives sGOR
+
+      accounts.takerTokenAccount = takerATA; // Taker's sGOR ATA
+      accounts.makerReceiveTokenAccount = makerATA; // Maker's sGOR ATA
     }
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as BridgeOrder[];
-  } catch (error) {
-    console.error('Error fetching active orders:', error);
-    return [];
-  }
-};
+    const tx = await program.methods
+      .fillOrder()
+      .accounts(accounts)
+      .transaction();
 
-/**
- * Get orders by seller address
- */
-export const getSellerOrders = async (seller: string): Promise<BridgeOrder[]> => {
-  try {
-    const q = query(
-      collection(db, ORDERS_COLLECTION),
-      where('seller', '==', seller),
-      orderBy('createdAt', 'desc')
-    );
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    tx.recentBlockhash = latestBlockhash.blockhash;
+    tx.feePayer = wallet.publicKey;
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as BridgeOrder[];
-  } catch (error) {
-    console.error('Error fetching seller orders:', error);
-    return [];
-  }
-};
+    const signedTx = await wallet.signTransaction(tx);
 
-/**
- * Cancel an order
- */
-export const cancelBridgeOrder = async (orderId: string): Promise<void> => {
-  try {
-    const docRef = doc(db, ORDERS_COLLECTION, orderId);
-    await updateDoc(docRef, {
-      status: 'cancelled',
-      updatedAt: Timestamp.now()
+    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
+      skipPreflight: true,
+      maxRetries: 2,
     });
-  } catch (error) {
-    console.error('Error cancelling order:', error);
-    throw error;
-  }
-};
 
-// --- ESCROW MANAGEMENT ---
+    await provider.connection.confirmTransaction({
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+      signature: txid,
+    }, 'confirmed');
 
-/**
- * Create an escrow record for a trade
- */
-export const createEscrow = async (
-  orderId: string,
-  buyerAddress: string,
-  sellerAddress: string,
-  amount: number,
-  token: 'gGOR' | 'sGOR'
-): Promise<string> => {
-  try {
-    const escrow: Omit<EscrowRecord, 'id'> = {
-      orderId,
-      buyerAddress,
-      sellerAddress,
-      amount,
-      token,
-      status: 'locking',
-      createdAt: new Date().toISOString()
+    return txid;
+  };
+
+  // Cancel Order
+  const cancelOrder = async (orderPDA: PublicKey) => {
+    if (!program || !provider) throw new Error('Wallet not connected');
+    const wallet = provider.wallet;
+    const order = await program.account.order.fetch(orderPDA);
+
+    const accounts: any = {
+      maker: wallet.publicKey,
+      order: orderPDA,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
     };
 
-    const docRef = await addDoc(collection(db, ESCROWS_COLLECTION), {
-      ...escrow,
-      createdAt: Timestamp.now()
-    });
+    if (order.direction === 0) {
+      // Direction 0: Maker is selling sGOR. Escrow holds sGOR.
+      const escrowPDA = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from('escrow'),
+          wallet.publicKey.toBuffer(),
+          order.amount.toArrayLike(Buffer, 'le', 8),
+        ],
+        PROGRAM_ID
+      )[0];
+      const makerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey); // Maker's sGOR ATA
 
-    // Mark order as pending
-    await updateDoc(doc(db, ORDERS_COLLECTION, orderId), {
-      status: 'pending',
-      updatedAt: Timestamp.now()
-    });
-
-    return docRef.id;
-  } catch (error) {
-    console.error('Error creating escrow:', error);
-    throw error;
-  }
-};
-
-/**
- * Update escrow status with transaction hash
- */
-export const updateEscrowStatus = async (
-  escrowId: string,
-  status: EscrowRecord['status'],
-  txHash?: string
-): Promise<void> => {
-  try {
-    const updates: any = {
-      status,
-      updatedAt: Timestamp.now()
-    };
-
-    if (status === 'locking' && txHash) updates.lockTx = txHash;
-    if (status === 'verifying' && txHash) updates.verifyTx = txHash;
-    if (status === 'completed' && txHash) {
-      updates.settleTx = txHash;
-      updates.completedAt = Timestamp.now();
+      accounts.escrowTokenAccount = escrowPDA;
+      accounts.makerTokenAccount = makerATA;
     }
+    // For direction 1, the escrow account is not explicitly managed in the same way,
+    // so we don't add it here.
 
-    await updateDoc(doc(db, ESCROWS_COLLECTION, escrowId), updates);
-  } catch (error) {
-    console.error('Error updating escrow:', error);
-    throw error;
-  }
-};
+    const tx = await program.methods
+      .cancelOrder()
+      .accounts(accounts)
+      .transaction();
 
-/**
- * Get active escrows for an address
- */
-export const getActiveEscrows = async (address: string): Promise<EscrowRecord[]> => {
-  try {
-    const q = query(
-      collection(db, ESCROWS_COLLECTION),
-      where('status', 'in', ['locking', 'verifying']),
-      orderBy('createdAt', 'desc')
-    );
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    tx.recentBlockhash = latestBlockhash.blockhash;
+    tx.feePayer = wallet.publicKey;
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as EscrowRecord[]
-      .filter(e => e.buyerAddress === address || e.sellerAddress === address);
-  } catch (error) {
-    console.error('Error fetching active escrows:', error);
-    return [];
-  }
-};
+    const signedTx = await wallet.signTransaction(tx);
 
-// --- HISTORY & ANALYTICS ---
-
-/**
- * Record a completed trade in history
- */
-export const recordTradeHistory = async (
-  escrowId: string,
-  buyerAddress: string,
-  sellerAddress: string,
-  type: 'BUY' | 'SELL',
-  amount: number,
-  token: 'gGOR' | 'sGOR',
-  txHash: string
-): Promise<void> => {
-  try {
-    const history: Omit<TradeHistory, 'id'> = {
-      escrowId,
-      buyerAddress,
-      sellerAddress,
-      type,
-      amount,
-      token,
-      status: 'completed',
-      txHash,
-      timestamp: new Date().toISOString()
-    };
-
-    await addDoc(collection(db, HISTORY_COLLECTION), {
-      ...history,
-      timestamp: Timestamp.now()
+    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
+      skipPreflight: true,
+      maxRetries: 2,
     });
-  } catch (error) {
-    console.error('Error recording trade history:', error);
-    throw error;
-  }
-};
 
-/**
- * Get trade history for an address
- */
-export const getTradeHistory = async (address: string, limit_: number = 50): Promise<TradeHistory[]> => {
-  try {
-    const q = query(
-      collection(db, HISTORY_COLLECTION),
-      where('status', '==', 'completed'),
-      orderBy('timestamp', 'desc'),
-      limit(limit_)
-    );
+    await provider.connection.confirmTransaction({
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+      signature: txid,
+    }, 'confirmed');
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as TradeHistory[]
-      .filter(h => h.buyerAddress === address || h.sellerAddress === address);
-  } catch (error) {
-    console.error('Error fetching trade history:', error);
-    return [];
-  }
-};
+    return txid;
+  };
 
-/**
- * Get bridge statistics
- */
-export const getBridgeStats = async () => {
-  try {
-    const ordersSnapshot = await getDocs(collection(db, ORDERS_COLLECTION));
-    const escrowsSnapshot = await getDocs(collection(db, ESCROWS_COLLECTION));
-    const historySnapshot = await getDocs(collection(db, HISTORY_COLLECTION));
+  // Fetch all orders
+  const fetchAllOrders = async (): Promise<BridgeOrder[]> => {
+    if (!program) return [];
+    const accounts = await program.account.order.all();
+    return accounts.map(acc => ({
+      orderPDA: acc.publicKey,
+      maker: acc.account.maker,
+      amount: acc.account.amount,
+      direction: acc.account.direction,
+      expirationSlot: acc.account.expirationSlot,
+      isFilled: acc.account.isFilled,
+      bump: acc.account.bump,
+    }));
+  };
 
-    const orders = ordersSnapshot.docs.map(d => d.data()) as BridgeOrder[];
-    const escrows = escrowsSnapshot.docs.map(d => d.data()) as EscrowRecord[];
-    const history = historySnapshot.docs.map(d => d.data()) as TradeHistory[];
-
-    const totalVolume = history.reduce((sum, h) => sum + h.amount, 0);
-    const completedTrades = history.filter(h => h.status === 'completed').length;
-    const activeOffers = orders.filter(o => o.status === 'active').length;
-
-    return {
-      activeOffers,
-      totalVolume,
-      completedTrades,
-      totalEscrows: escrows.length,
-      avgTradeSize: completedTrades > 0 ? totalVolume / completedTrades : 0
-    };
-  } catch (error) {
-    console.error('Error getting bridge stats:', error);
-    return {
-      activeOffers: 0,
-      totalVolume: 0,
-      completedTrades: 0,
-      totalEscrows: 0,
-      avgTradeSize: 0
-    };
-  }
-};
-
-// --- REAL-TIME SUBSCRIPTIONS ---
-
-/**
- * Subscribe to active orders in real-time
- */
-export const subscribeToActiveOrders = (
-  callback: (orders: BridgeOrder[]) => void,
-  filter?: 'gGOR' | 'sGOR'
-) => {
-  let q = query(
-    collection(db, ORDERS_COLLECTION),
-    where('status', '==', 'active'),
-    orderBy('createdAt', 'desc'),
-    limit(100)
-  );
-
-  if (filter) {
-    q = query(
-      collection(db, ORDERS_COLLECTION),
-      where('status', '==', 'active'),
-      where('sellToken', '==', filter),
-      orderBy('createdAt', 'desc'),
-      limit(100)
-    );
-  }
-
-  return onSnapshot(q, (snapshot) => {
-    const orders = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as BridgeOrder[];
-    callback(orders);
-  });
-};
-
-/**
- * Subscribe to escrow updates
- */
-export const subscribeToEscrows = (
-  address: string,
-  callback: (escrows: EscrowRecord[]) => void
-) => {
-  const q = query(
-    collection(db, ESCROWS_COLLECTION),
-    where('status', 'in', ['locking', 'verifying']),
-    orderBy('createdAt', 'desc')
-  );
-
-  return onSnapshot(q, (snapshot) => {
-    const escrows = snapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as EscrowRecord[]
-      .filter(e => e.buyerAddress === address || e.sellerAddress === address);
-    callback(escrows);
-  });
-};
-
-export default {
-  createBridgeOrder,
-  getActiveOrders,
-  getSellerOrders,
-  cancelBridgeOrder,
-  createEscrow,
-  updateEscrowStatus,
-  getActiveEscrows,
-  recordTradeHistory,
-  getTradeHistory,
-  getBridgeStats,
-  subscribeToActiveOrders,
-  subscribeToEscrows
+  return {
+    createOrderGGOR,
+    createOrderSGOR,
+    fillOrder,
+    cancelOrder,
+    fetchAllOrders,
+    deriveOrderPDA,
+  };
 };

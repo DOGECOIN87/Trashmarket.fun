@@ -3,10 +3,10 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-gorbagana_bridge = "12SajaEJEKV3K5uqjVYSWkC6RxCiwcfyVT2zMQkzo19M"
+gorbagana_bridge = "FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq"
 
 [programs.mainnet]
-gorbagana_bridge = "12SajaEJEKV3K5uqjVYSWkC6RxCiwcfyVT2zMQkzo19M"
+gorbagana_bridge = "FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq"
 
 [registry]
 url = "https://api.apr.dev"

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Tag, Activity, ShoppingCart, ExternalLink, ArrowRight, Clock, TrendingUp, User, Zap } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
-import { useWallet } from '../contexts/WalletContext';
+import { useWallet } from '@solana/wallet-adapter-react';
 import {
   getListedDomains,
   getRecentSales,
@@ -19,7 +19,8 @@ import {
 
 const Gorid: React.FC = () => {
   const { currency, accentColor, getExplorerLink } = useNetwork();
-  const { connected, address } = useWallet();
+  const { connected, publicKey } = useWallet();
+  const address = publicKey?.toBase58() || null;
 
   // State
   const [listings, setListings] = useState<GoridListing[]>([]);
@@ -199,22 +200,20 @@ const Gorid: React.FC = () => {
                 <div className="flex">
                   <button
                     onClick={() => setViewMode('marketplace')}
-                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border transition-colors ${
-                      viewMode === 'marketplace'
-                        ? 'bg-white text-black border-white'
-                        : 'text-gray-400 border-white/10 hover:border-white/40 hover:text-white'
-                    }`}
+                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border transition-colors ${viewMode === 'marketplace'
+                      ? 'bg-white text-black border-white'
+                      : 'text-gray-400 border-white/10 hover:border-white/40 hover:text-white'
+                      }`}
                   >
                     <ShoppingCart className="w-3 h-3 inline mr-2" />
                     Marketplace
                   </button>
                   <button
                     onClick={() => setViewMode('activity')}
-                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border border-l-0 transition-colors ${
-                      viewMode === 'activity'
-                        ? 'bg-white text-black border-white'
-                        : 'text-gray-400 border-white/10 hover:border-white/40 hover:text-white'
-                    }`}
+                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border border-l-0 transition-colors ${viewMode === 'activity'
+                      ? 'bg-white text-black border-white'
+                      : 'text-gray-400 border-white/10 hover:border-white/40 hover:text-white'
+                      }`}
                   >
                     <Activity className="w-3 h-3 inline mr-2" />
                     Activity
@@ -222,11 +221,10 @@ const Gorid: React.FC = () => {
                   {connected && (
                     <button
                       onClick={() => setViewMode('my-domains')}
-                      className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border border-l-0 transition-colors ${
-                        viewMode === 'my-domains'
-                          ? 'bg-white text-black border-white'
-                          : 'text-gray-400 border-white/10 hover:border-white/40 hover:text-white'
-                      }`}
+                      className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border border-l-0 transition-colors ${viewMode === 'my-domains'
+                        ? 'bg-white text-black border-white'
+                        : 'text-gray-400 border-white/10 hover:border-white/40 hover:text-white'
+                        }`}
                     >
                       <User className="w-3 h-3 inline mr-2" />
                       My Domains

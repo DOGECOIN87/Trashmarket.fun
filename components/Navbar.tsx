@@ -1,101 +1,78 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Menu, X, Wallet, Trash2, Activity, ExternalLink } from 'lucide-react';
+import { Search, Menu, X, Wallet, Trash2, Activity, ExternalLink, Globe } from 'lucide-react';
 import { useNetwork, GORBAGANA_CONFIG } from '../contexts/NetworkContext';
-import { useWallet } from '../contexts/WalletContext';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useConnection } from '@solana/wallet-adapter-react';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
-// Wallet Selection Modal Component
-const WalletModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const { connect, isConnecting, error, availableWallets } = useWallet();
-
-  if (!isOpen) return null;
-
-  const handleConnect = async (walletType: 'backpack' | 'gorbag') => {
-    await connect(walletType);
-    if (!error) {
-      onClose();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="relative bg-magic-dark border border-magic-green/30 p-6 max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-white"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-3 mb-6">
-          <Trash2 className="w-6 h-6 text-magic-green" />
-          <h2 className="text-xl font-bold text-white uppercase tracking-wide">Connect Wallet</h2>
-        </div>
-
-        <p className="text-gray-400 text-sm mb-6 font-mono">
-          Connect your wallet to start trading trash on Gorbagana
-        </p>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-mono">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {availableWallets.map((wallet) => (
-            <button
-              key={wallet.id}
-              onClick={() => handleConnect(wallet.id as 'backpack' | 'gorbag')}
-              disabled={isConnecting}
-              className={`w-full flex items-center justify-between p-4 border transition-all duration-200 group ${
-                wallet.installed
-                  ? 'border-white/20 hover:border-magic-green hover:bg-magic-green/5'
-                  : 'border-white/10 opacity-60'
-              } ${isConnecting ? 'opacity-50 cursor-wait' : ''}`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{wallet.icon}</span>
-                <div className="text-left">
-                  <div className="text-white font-bold uppercase tracking-wide group-hover:text-magic-green transition-colors">
-                    {wallet.name}
-                  </div>
-                  <div className="text-xs text-gray-500 font-mono">
-                    {wallet.installed ? 'Detected' : 'Not Installed'}
-                  </div>
-                </div>
-              </div>
-              {!wallet.installed && (
-                <ExternalLink className="w-4 h-4 text-gray-500" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-6 pt-4 border-t border-white/10">
-          <p className="text-[10px] text-gray-600 font-mono uppercase text-center">
-            Powered by {GORBAGANA_CONFIG.networkLabel}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
+// Detect which network the RPC is connected to
+type DetectedNetwork = 'gorbagana' | 'solana' | 'unknown';
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [gps, setGps] = useState<number>(7842);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [detectedNetwork, setDetectedNetwork] = useState<DetectedNetwork>('unknown');
   const location = useLocation();
   const { networkName, tpsLabel, accentColor, explorerUrl } = useNetwork();
-  const { connected, address, disconnect, formatAddress, balance } = useWallet();
+  const { connected, publicKey, disconnect, wallet } = useWallet();
+  const { setVisible } = useWalletModal();
+  const { connection } = useConnection();
+
+  // Format address for display
+  const formatAddress = (addr: string): string => {
+    if (!addr || addr.length < 8) return addr;
+    return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
+  };
+
+  const address = publicKey?.toBase58() || null;
+
+  // Fetch balance when connected
+  useEffect(() => {
+    if (!publicKey || !connection) {
+      setBalance(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchBal = async () => {
+      try {
+        const lamports = await connection.getBalance(publicKey);
+        if (!cancelled) {
+          setBalance(lamports / LAMPORTS_PER_SOL);
+        }
+      } catch (err) {
+        console.error('Failed to fetch balance:', err);
+        if (!cancelled) setBalance(null);
+      }
+    };
+    fetchBal();
+    const interval = setInterval(fetchBal, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [publicKey, connection]);
+
+  // Detect network from RPC endpoint
+  useEffect(() => {
+    if (!connection) return;
+    let cancelled = false;
+    const detect = async () => {
+      try {
+        // Compare the connected RPC endpoint with the Gorbagana RPC endpoint
+        if (connection.rpcEndpoint === GORBAGANA_CONFIG.rpcEndpoint) {
+          if (!cancelled) setDetectedNetwork('gorbagana');
+        } else {
+          // Assume any other RPC endpoint is Solana
+          if (!cancelled) setDetectedNetwork('solana');
+        }
+      } catch (err) {
+        console.error('Failed to detect network:', err);
+        if (!cancelled) setDetectedNetwork('unknown');
+      }
+    };
+    detect();
+    return () => { cancelled = true; };
+  }, [connection]);
 
   // Simulate Live Network Data (GPS - Gorbagana Per Second)
   useEffect(() => {
@@ -124,7 +101,7 @@ const Navbar: React.FC = () => {
     if (connected) {
       disconnect();
     } else {
-      setIsWalletModalOpen(true);
+      setVisible(true);
     }
   };
 
@@ -174,17 +151,16 @@ const Navbar: React.FC = () => {
                   <Link
                     key={link.name}
                     to={link.path}
-                    className={`text-sm font-bold uppercase tracking-wide transition-colors hover:text-magic-green ${
-                      location.pathname === link.path ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400'
-                    }`}
+                    className={`text-sm font-bold uppercase tracking-wide transition-colors hover:text-magic-green ${location.pathname === link.path ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400'
+                      }`}
                   >
                     {link.name}
                   </Link>
                 ))}
               </div>
-              
+
               {/* Network Indicator (Gorbagana Only) */}
-              <a 
+              <a
                 href={explorerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -206,14 +182,32 @@ const Navbar: React.FC = () => {
                 </div>
               </a>
 
+              {/* Connected Network Badge */}
+              {connected && (
+                <div className="flex items-center gap-1.5 px-3 py-1 border border-white/10 bg-black/50">
+                  <Globe className="w-3 h-3" />
+                  <span className={`text-[10px] font-bold uppercase tracking-widest font-mono ${detectedNetwork === 'gorbagana' ? 'text-magic-green' :
+                    detectedNetwork === 'solana' ? 'text-purple-400' :
+                      'text-gray-500'
+                    }`}>
+                    {detectedNetwork === 'gorbagana' ? '🗑️ GORBAGANA' :
+                      detectedNetwork === 'solana' ? '◎ SOLANA' :
+                        'DETECTING...'}
+                  </span>
+                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${detectedNetwork === 'gorbagana' ? 'bg-magic-green' :
+                    detectedNetwork === 'solana' ? 'bg-purple-400' :
+                      'bg-gray-500'
+                    }`}></span>
+                </div>
+              )}
+
               {/* Wallet Button */}
               <button
                 onClick={handleWalletClick}
-                className={`flex items-center gap-2 px-6 py-2 border font-bold text-sm transition-all duration-200 uppercase tracking-wider ${
-                  connected 
-                    ? 'bg-black border-magic-green text-magic-green hover:bg-white/10' 
-                    : 'bg-magic-green border-magic-green text-black hover:bg-black hover:text-magic-green'
-                }`}
+                className={`flex items-center gap-2 px-6 py-2 border font-bold text-sm transition-all duration-200 uppercase tracking-wider ${connected
+                  ? 'bg-black border-magic-green text-magic-green hover:bg-white/10'
+                  : 'bg-magic-green border-magic-green text-black hover:bg-black hover:text-magic-green'
+                  }`}
               >
                 <Wallet className="w-4 h-4" />
                 {connected && address ? (
@@ -246,7 +240,7 @@ const Navbar: React.FC = () => {
           <div className="md:hidden bg-black border-b border-white/20 animate-in slide-in-from-top-5 duration-200">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               {/* Mobile Network Status */}
-              <a 
+              <a
                 href={explorerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -280,6 +274,22 @@ const Navbar: React.FC = () => {
                   {link.name}
                 </Link>
               ))}
+              {/* Mobile Connected Network Badge */}
+              {connected && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-black border border-white/10 mt-2">
+                  <Globe className="w-4 h-4" />
+                  <span className={`text-xs font-bold uppercase tracking-widest font-mono ${detectedNetwork === 'gorbagana' ? 'text-magic-green' :
+                    detectedNetwork === 'solana' ? 'text-purple-400' : 'text-gray-500'
+                    }`}>
+                    {detectedNetwork === 'gorbagana' ? '🗑️ GORBAGANA' :
+                      detectedNetwork === 'solana' ? '◎ SOLANA' : 'DETECTING...'}
+                  </span>
+                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${detectedNetwork === 'gorbagana' ? 'bg-magic-green' :
+                    detectedNetwork === 'solana' ? 'bg-purple-400' : 'bg-gray-500'
+                    }`}></span>
+                </div>
+              )}
+
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
@@ -294,11 +304,6 @@ const Navbar: React.FC = () => {
         )}
       </nav>
 
-      {/* Wallet Modal */}
-      <WalletModal 
-        isOpen={isWalletModalOpen} 
-        onClose={() => setIsWalletModalOpen(false)} 
-      />
     </>
   );
 };

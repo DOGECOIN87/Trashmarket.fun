@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer as SplTransfer};
 
-declare_id!("12SajaEJEKV3K5uqjVYSWkC6RxCiwcfyVT2zMQkzo19M");
+declare_id!("FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq");
 
 // ── Hardcoded Constants ──────────────────────────────────────────────
 /// sGOR SPL Token mint on Gorbagana
