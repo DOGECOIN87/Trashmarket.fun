@@ -128,11 +128,41 @@ const Bridge: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      await fillOrder(selectedOrder.orderPDA);
-      alert('Order filled successfully!');
-      setIsTradeModalOpen(false);
+      // Pre-check: re-fetch the order to verify it's still available
+      if (program) {
+        try {
+          const currentOrder = await program.account.order.fetch(selectedOrder.orderPDA);
+          if (currentOrder.isFilled) {
+            // Order already filled - remove from UI immediately and notify user
+            setOrders(prev => prev.filter(o => !o.orderPDA.equals(selectedOrder.orderPDA)));
+            setIsTradeModalOpen(false);
+            setSelectedOrder(null);
+            setIsProcessing(false);
+            alert('This order has already been filled by another trader.');
+            return;
+          }
+        } catch (fetchErr) {
+          // If we can't fetch, the order account may have been closed - remove it
+          console.error('Failed to pre-check order:', fetchErr);
+          setOrders(prev => prev.filter(o => !o.orderPDA.equals(selectedOrder.orderPDA)));
+          setIsTradeModalOpen(false);
+          setSelectedOrder(null);
+          setIsProcessing(false);
+          alert('This order is no longer available.');
+          return;
+        }
+      }
 
-      // Wait a bit for the chain to reflect the change before refreshing
+      await fillOrder(selectedOrder.orderPDA);
+
+      // Optimistic UI update: immediately remove the filled order from state
+      const filledOrderKey = selectedOrder.orderPDA.toBase58();
+      setOrders(prev => prev.filter(o => o.orderPDA.toBase58() !== filledOrderKey));
+      setIsTradeModalOpen(false);
+      setSelectedOrder(null);
+      alert('Order filled successfully!');
+
+      // Also do a background refresh to sync with chain state
       setTimeout(async () => {
         try {
           const allOrders = await fetchAllOrders();
@@ -140,15 +170,88 @@ const Bridge: React.FC = () => {
         } catch (refreshErr) {
           console.error('Failed to refresh orders after fill:', refreshErr);
         }
-      }, 2000);
+      }, 3000);
     } catch (err: any) {
       console.error('Fill order error:', err);
-      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Unknown error occurred');
+
+      // Parse Anchor/Solana custom error codes for user-friendly messages
+      const errorMessage = parseOrderError(err);
       alert('Failed to fill order: ' + errorMessage);
+
+      // If the error indicates the order is already filled, remove it from UI
+      if (isOrderAlreadyFilledError(err)) {
+        setOrders(prev => prev.filter(o => !o.orderPDA.equals(selectedOrder.orderPDA)));
+        setIsTradeModalOpen(false);
+      }
     } finally {
       setIsProcessing(false);
       setSelectedOrder(null);
     }
+  };
+
+  // Map Anchor custom error codes to human-readable messages
+  const parseOrderError = (err: any): string => {
+    const errStr = typeof err === 'string' ? err : (err?.message || err?.toString() || '');
+
+    // Anchor custom error codes (0x1770 = 6000 base)
+    const anchorErrorMap: Record<number, string> = {
+      6000: 'Amount must be >= minimum order size.',
+      6001: 'Invalid direction.',
+      6002: 'Invalid token mint for this direction.',
+      6003: 'Order has expired.',
+      6004: 'Order has already been filled.',
+      6005: 'Insufficient funds for swap.',
+      6006: 'Only the maker can perform this action.',
+      6007: 'Expiration slot is in the past.',
+      6008: 'Expiration too far in future (max ~24 hours).',
+      6009: 'Missing escrow token account.',
+      6010: 'Missing maker token account.',
+      6011: 'Missing taker token account.',
+      6012: 'Missing taker receive token account.',
+      6013: 'Missing maker receive token account.',
+    };
+
+    // Check for "Custom:NNNN" pattern in error string
+    const customMatch = errStr.match(/Custom[:\s]+(\d+)/i);
+    if (customMatch) {
+      const code = parseInt(customMatch[1], 10);
+      // Anchor error codes: raw custom code maps as hex offset from 0x1770
+      // e.g., Custom:3012 -> 0xBC4 -> decimal 3012 isn't standard,
+      // but Custom:6004 is direct. Check both.
+      if (anchorErrorMap[code]) {
+        return anchorErrorMap[code];
+      }
+      // Some Solana errors use hex encoding: 0x1774 = 6004
+      return `Transaction failed (error code ${code}).`;
+    }
+
+    // Check for Anchor error code in InstructionError format
+    const instructionMatch = errStr.match(/InstructionError.*?Custom.*?(\d+)/i);
+    if (instructionMatch) {
+      const code = parseInt(instructionMatch[1], 10);
+      if (anchorErrorMap[code]) {
+        return anchorErrorMap[code];
+      }
+    }
+
+    // Fallback
+    if (!errStr || errStr === 'undefined' || errStr === '[object Object]') {
+      return 'Transaction failed. The order may have already been filled or expired.';
+    }
+
+    return errStr;
+  };
+
+  // Check if an error indicates the order was already filled
+  const isOrderAlreadyFilledError = (err: any): boolean => {
+    const errStr = typeof err === 'string' ? err : (err?.message || err?.toString() || '');
+    // Check for error code 6004 or "already filled" text
+    if (/Custom[:\s]+6004/i.test(errStr)) return true;
+    if (/already\s+filled/i.test(errStr)) return true;
+    // Custom:3012 is hex 0xBC4 which doesn't map, but from the user's screenshots
+    // it seems to be the "already filled" constraint error
+    if (/Custom[:\s]+3012/i.test(errStr)) return true;
+    return false;
   };
 
   const handleCancelOrder = async (orderPDA: PublicKey) => {
