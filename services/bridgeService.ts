@@ -1,12 +1,16 @@
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction, Connection } from '@solana/web3.js';
+import { AnchorProvider, Program, BN } from '@coral-xyz/anchor';
 import {
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
-import { useAnchor } from '../contexts/AnchorContext';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useMemo } from 'react';
+import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
+import type { GorbaganaBridge } from '../src/idl/gorbagana_bridge';
+import idl from '../src/idl/gorbagana_bridge.json';
 
 const PROGRAM_ID = new PublicKey('FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq');
 const SGOR_MINT = new PublicKey('71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg');
@@ -21,8 +25,40 @@ export interface BridgeOrder {
   bump: number;
 }
 
+// Dedicated Gorbagana connection — all bridge RPCs go here regardless of wallet network
+const gorbaganaConnection = new Connection(GORBAGANA_CONFIG.rpcEndpoint, 'confirmed');
+
 export const useBridgeService = () => {
-  const { program, provider } = useAnchor();
+  const wallet = useWallet();
+
+  // Create a bridge-specific Anchor program that always targets Gorbagana
+  const { program, provider } = useMemo(() => {
+    if (!wallet.publicKey || !wallet.signTransaction) {
+      return { program: null, provider: null };
+    }
+
+    try {
+      const provider = new AnchorProvider(
+        gorbaganaConnection,
+        wallet as any,
+        {
+          commitment: 'confirmed',
+          preflightCommitment: 'processed',
+          skipPreflight: true,
+        }
+      );
+
+      const program = new Program(
+        idl as any,
+        provider
+      ) as unknown as Program<GorbaganaBridge>;
+
+      return { program, provider };
+    } catch (err) {
+      console.warn('Bridge service: Failed to initialize program:', err);
+      return { program: null, provider: null };
+    }
+  }, [wallet.publicKey, wallet.signTransaction]);
 
   // Derive Order PDA
   const deriveOrderPDA = (maker: PublicKey, amount: BN): PublicKey => {
@@ -39,8 +75,9 @@ export const useBridgeService = () => {
 
   // Create Order (Direction 1: gGOR -> sGOR)
   const createOrderGGOR = async (amount: number, expirationSlot: number) => {
-    if (!program || !provider) throw new Error('Wallet not connected');
-    const wallet = provider.wallet;
+    if (!program || !provider || !wallet.publicKey || !wallet.signTransaction) {
+      throw new Error('Wallet not connected');
+    }
     const amountBN = new BN(amount);
     const orderPDA = deriveOrderPDA(wallet.publicKey, amountBN);
 
@@ -49,27 +86,27 @@ export const useBridgeService = () => {
       .accounts({
         maker: wallet.publicKey,
         order: orderPDA,
-        escrowTokenAccount: null, // This is null for direction 1 during creation
-        makerTokenAccount: null,   // This is null for direction 1 during creation
-        sgorMint: null,           // This is null for direction 1 during creation
+        escrowTokenAccount: null,
+        makerTokenAccount: null,
+        sgorMint: null,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
       })
       .transaction();
 
-    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    const latestBlockhash = await gorbaganaConnection.getLatestBlockhash();
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = wallet.publicKey;
 
     const signedTx = await wallet.signTransaction(tx);
 
-    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
+    const txid = await gorbaganaConnection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       maxRetries: 2,
     });
 
-    await provider.connection.confirmTransaction({
+    await gorbaganaConnection.confirmTransaction({
       blockhash: latestBlockhash.blockhash,
       lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
       signature: txid,
@@ -80,8 +117,9 @@ export const useBridgeService = () => {
 
   // Create Order (Direction 0: sGOR -> gGOR)
   const createOrderSGOR = async (amount: number, expirationSlot: number) => {
-    if (!program || !provider) throw new Error('Wallet not connected');
-    const wallet = provider.wallet;
+    if (!program || !provider || !wallet.publicKey || !wallet.signTransaction) {
+      throw new Error('Wallet not connected');
+    }
     const amountBN = new BN(amount);
     const orderPDA = deriveOrderPDA(wallet.publicKey, amountBN);
 
@@ -110,18 +148,18 @@ export const useBridgeService = () => {
       })
       .transaction();
 
-    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    const latestBlockhash = await gorbaganaConnection.getLatestBlockhash();
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = wallet.publicKey;
 
     const signedTx = await wallet.signTransaction(tx);
 
-    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
+    const txid = await gorbaganaConnection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       maxRetries: 2,
     });
 
-    await provider.connection.confirmTransaction({
+    await gorbaganaConnection.confirmTransaction({
       blockhash: latestBlockhash.blockhash,
       lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
       signature: txid,
@@ -132,10 +170,11 @@ export const useBridgeService = () => {
 
   // Fill Order
   const fillOrder = async (orderPDA: PublicKey) => {
-    if (!program || !provider) throw new Error('Wallet not connected');
-    const wallet = provider.wallet;
+    if (!program || !provider || !wallet.publicKey || !wallet.signTransaction) {
+      throw new Error('Wallet not connected');
+    }
 
-    // Fetch order to get direction and maker
+    // Fetch order from Gorbagana to get direction and maker
     const order = await program.account.order.fetch(orderPDA);
 
     const accounts: any = {
@@ -144,9 +183,6 @@ export const useBridgeService = () => {
       order: orderPDA,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-      // Use null for optional accounts that are not used in the specific direction.
-      // Anchor handles null by providing a dummy account if needed, but the key is that
-      // all accounts defined in the instruction MUST be provided in the object.
       escrowTokenAccount: null,
       takerTokenAccount: null,
       takerReceiveTokenAccount: null,
@@ -156,15 +192,14 @@ export const useBridgeService = () => {
     // Pre-instructions to create ATAs if they don't exist
     const preInstructions: any[] = [];
 
-    // Helper to check if an account exists on-chain
+    // Helper to check if an account exists on Gorbagana
     const accountExists = async (pubkey: PublicKey): Promise<boolean> => {
-      const info = await provider.connection.getAccountInfo(pubkey);
+      const info = await gorbaganaConnection.getAccountInfo(pubkey);
       return info !== null;
     };
 
     if (order.direction === 0) {
       // Direction 0: Taker sends gGOR, receives sGOR
-      // Maker is selling sGOR, so escrow holds sGOR.
       const takerReceiveATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
       const escrowPDA = PublicKey.findProgramAddressSync(
         [
@@ -175,14 +210,14 @@ export const useBridgeService = () => {
         PROGRAM_ID
       )[0];
 
-      // Create taker's sGOR ATA if it doesn't exist
+      // Create taker's sGOR ATA if it doesn't exist on Gorbagana
       if (!(await accountExists(takerReceiveATA))) {
         preInstructions.push(
           createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer
-            takerReceiveATA,  // ata
-            wallet.publicKey, // owner
-            SGOR_MINT,        // mint
+            wallet.publicKey,
+            takerReceiveATA,
+            wallet.publicKey,
+            SGOR_MINT,
           )
         );
       }
@@ -191,18 +226,17 @@ export const useBridgeService = () => {
       accounts.takerReceiveTokenAccount = takerReceiveATA;
     } else {
       // Direction 1: Taker sends sGOR, receives gGOR
-      // Maker is selling gGOR. Taker sends sGOR.
       const takerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
       const makerATA = await getAssociatedTokenAddress(SGOR_MINT, order.maker);
 
-      // Create maker's sGOR receive ATA if it doesn't exist
+      // Create maker's sGOR receive ATA if it doesn't exist on Gorbagana
       if (!(await accountExists(makerATA))) {
         preInstructions.push(
           createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer
-            makerATA,         // ata
-            order.maker,      // owner
-            SGOR_MINT,        // mint
+            wallet.publicKey,
+            makerATA,
+            order.maker,
+            SGOR_MINT,
           )
         );
       }
@@ -224,25 +258,24 @@ export const useBridgeService = () => {
       tx.instructions = fullTx.instructions;
     }
 
-    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    const latestBlockhash = await gorbaganaConnection.getLatestBlockhash();
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = wallet.publicKey;
 
     const signedTx = await wallet.signTransaction(tx);
 
-    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
+    const txid = await gorbaganaConnection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       maxRetries: 2,
     });
 
-    const confirmation = await provider.connection.confirmTransaction({
+    const confirmation = await gorbaganaConnection.confirmTransaction({
       blockhash: latestBlockhash.blockhash,
       lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
       signature: txid,
     }, 'confirmed');
 
     if (confirmation.value.err) {
-      // Extract custom error code if present for better error messages
       const errJson = JSON.stringify(confirmation.value.err);
       const customMatch = errJson.match(/"Custom":(\d+)/);
       if (customMatch) {
@@ -259,8 +292,9 @@ export const useBridgeService = () => {
 
   // Cancel Order
   const cancelOrder = async (orderPDA: PublicKey) => {
-    if (!program || !provider) throw new Error('Wallet not connected');
-    const wallet = provider.wallet;
+    if (!program || !provider || !wallet.publicKey || !wallet.signTransaction) {
+      throw new Error('Wallet not connected');
+    }
     const order = await program.account.order.fetch(orderPDA);
 
     const accounts: any = {
@@ -273,7 +307,6 @@ export const useBridgeService = () => {
     };
 
     if (order.direction === 0) {
-      // Direction 0: Maker is selling sGOR. Escrow holds sGOR.
       const escrowPDA = PublicKey.findProgramAddressSync(
         [
           Buffer.from('escrow'),
@@ -282,31 +315,29 @@ export const useBridgeService = () => {
         ],
         PROGRAM_ID
       )[0];
-      const makerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey); // Maker's sGOR ATA
+      const makerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
 
       accounts.escrowTokenAccount = escrowPDA;
       accounts.makerTokenAccount = makerATA;
     }
-    // For direction 1, the escrow account is not explicitly managed in the same way,
-    // so we don't add it here.
 
     const tx = await program.methods
       .cancelOrder()
       .accounts(accounts)
       .transaction();
 
-    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    const latestBlockhash = await gorbaganaConnection.getLatestBlockhash();
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = wallet.publicKey;
 
     const signedTx = await wallet.signTransaction(tx);
 
-    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
+    const txid = await gorbaganaConnection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       maxRetries: 2,
     });
 
-    const confirmation = await provider.connection.confirmTransaction({
+    const confirmation = await gorbaganaConnection.confirmTransaction({
       blockhash: latestBlockhash.blockhash,
       lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
       signature: txid,
@@ -319,7 +350,7 @@ export const useBridgeService = () => {
     return txid;
   };
 
-  // Fetch all orders
+  // Fetch all orders (always from Gorbagana)
   const fetchAllOrders = async (): Promise<BridgeOrder[]> => {
     if (!program) return [];
     const accounts = await program.account.order.all();

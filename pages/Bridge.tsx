@@ -10,21 +10,17 @@ import {
   Clock,
   Activity
 } from 'lucide-react';
-import { useNetwork, GORBAGANA_CONFIG } from '../contexts/NetworkContext';
-import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { useBridgeService, BridgeOrder } from '../services/bridgeService';
-import { useAnchor } from '../contexts/AnchorContext';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, Connection } from '@solana/web3.js';
+import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
+
+// Dedicated read-only connection for fetching slot (always Gorbagana)
+const gorbaganaConnection = new Connection(GORBAGANA_CONFIG.rpcEndpoint, 'confirmed');
 
 const Bridge: React.FC = () => {
-  const { connected } = useWallet();
-  const { connection } = useConnection();
+  const { connected, publicKey } = useWallet();
   const { fetchAllOrders, createOrderGGOR, createOrderSGOR, fillOrder, cancelOrder } = useBridgeService();
-  const { program } = useAnchor();
-  const { rpcEndpoint: currentRpcEndpoint } = useNetwork(); // Get current RPC endpoint from NetworkContext
-
-  // Detect if the wallet is actually connected to Gorbagana
-  const isOnGorbagana = connection.rpcEndpoint === GORBAGANA_CONFIG.rpcEndpoint;
 
   // --- STATE ---
   const [viewMode, setViewMode] = useState<'trade' | 'orders' | 'escrow' | 'history'>('trade');
@@ -39,16 +35,14 @@ const Bridge: React.FC = () => {
   const [createAmount, setCreateAmount] = useState<string>('');
   const [createDirection, setCreateDirection] = useState<'gGOR' | 'sGOR'>('gGOR'); // Token to sell
 
-  // Fetch real orders from blockchain
+  // Fetch real orders from Gorbagana blockchain
   useEffect(() => {
-    if (!program) return;
+    if (!connected) return;
 
     const loadOrders = async () => {
       setLoading(true);
       try {
         const allOrders = await fetchAllOrders();
-        // Filter active orders (not filled)
-        // Note: In a real app you might want to check expiration too
         const activeOrders = allOrders.filter(o => !o.isFilled);
         setOrders(activeOrders);
       } catch (err) {
@@ -63,13 +57,11 @@ const Bridge: React.FC = () => {
     // Refresh every 30 seconds
     const interval = setInterval(loadOrders, 30000);
     return () => clearInterval(interval);
-  }, [program]);
+  }, [connected]);
 
   // --- LOGIC ---
   const filteredOrders = useMemo(() => {
     if (filter === 'all') return orders;
-    // If filter is gGOR, show orders selling gGOR (direction 1)
-    // If filter is sGOR, show orders selling sGOR (direction 0)
     const targetDirection = filter === 'gGOR' ? 1 : 0;
     return orders.filter(o => o.direction === targetDirection);
   }, [orders, filter]);
@@ -77,10 +69,6 @@ const Bridge: React.FC = () => {
   const handleTradeClick = (order: BridgeOrder) => {
     if (!connected) {
       alert('Please connect your wallet first');
-      return;
-    }
-    if (!isOnGorbagana) {
-      alert('Please switch your wallet to Gorbagana network. The bridge program is deployed on Gorbagana only.');
       return;
     }
     setSelectedOrder(order);
@@ -92,10 +80,6 @@ const Bridge: React.FC = () => {
       alert('Please connect wallet first');
       return;
     }
-    if (!isOnGorbagana) {
-      alert('Please switch your wallet to Gorbagana network. The bridge program is deployed on Gorbagana only.');
-      return;
-    }
 
     const amount = parseFloat(createAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -105,11 +89,8 @@ const Bridge: React.FC = () => {
 
     setIsProcessing(true);
     try {
-      if (!program || !program.provider) {
-        alert('Program not initialized. Please connect your wallet.');
-        return;
-      }
-      const currentSlot = await program.provider.connection.getSlot();
+      // Get current slot from Gorbagana
+      const currentSlot = await gorbaganaConnection.getSlot();
       const expirationSlot = currentSlot + 216000; // ~24 hours
 
       if (createDirection === 'gGOR') {
@@ -129,7 +110,7 @@ const Bridge: React.FC = () => {
       setOrders(allOrders.filter(o => !o.isFilled));
     } catch (err: any) {
       console.error(err);
-      alert('Failed to create order: ' + err.message);
+      alert('Failed to create order: ' + (err.message || 'Unknown error'));
     } finally {
       setIsProcessing(false);
     }
@@ -140,31 +121,6 @@ const Bridge: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // Pre-check: re-fetch the order to verify it's still available
-      if (program) {
-        try {
-          const currentOrder = await program.account.order.fetch(selectedOrder.orderPDA);
-          if (currentOrder.isFilled) {
-            // Order already filled - remove from UI immediately and notify user
-            setOrders(prev => prev.filter(o => !o.orderPDA.equals(selectedOrder.orderPDA)));
-            setIsTradeModalOpen(false);
-            setSelectedOrder(null);
-            setIsProcessing(false);
-            alert('This order has already been filled by another trader.');
-            return;
-          }
-        } catch (fetchErr) {
-          // If we can't fetch, the order account may have been closed - remove it
-          console.error('Failed to pre-check order:', fetchErr);
-          setOrders(prev => prev.filter(o => !o.orderPDA.equals(selectedOrder.orderPDA)));
-          setIsTradeModalOpen(false);
-          setSelectedOrder(null);
-          setIsProcessing(false);
-          alert('This order is no longer available.');
-          return;
-        }
-      }
-
       await fillOrder(selectedOrder.orderPDA);
 
       // Optimistic UI update: immediately remove the filled order from state
@@ -287,7 +243,6 @@ const Bridge: React.FC = () => {
   // Check if an error indicates the order was already filled
   const isOrderAlreadyFilledError = (err: any): boolean => {
     const errStr = typeof err === 'string' ? err : (err?.message || err?.toString() || '');
-    // Check for error code 6004 or "already filled" text
     if (/Custom"?\s*[:]\s*6004/i.test(errStr)) return true;
     if (/already\s+filled/i.test(errStr)) return true;
     return false;
@@ -295,10 +250,6 @@ const Bridge: React.FC = () => {
 
   const handleCancelOrder = async (orderPDA: PublicKey) => {
     if (!connected) return;
-    if (!isOnGorbagana) {
-      alert('Please switch your wallet to Gorbagana network to cancel orders.');
-      return;
-    }
 
     if (!confirm('Are you sure you want to cancel this order?')) return;
 
@@ -312,7 +263,7 @@ const Bridge: React.FC = () => {
       setOrders(allOrders.filter(o => !o.isFilled));
     } catch (err: any) {
       console.error(err);
-      alert('Failed to cancel order: ' + err.message);
+      alert('Failed to cancel order: ' + (err.message || 'Unknown error'));
     } finally {
       setIsProcessing(false);
     }
@@ -386,20 +337,6 @@ const Bridge: React.FC = () => {
           </button>
         </div>
 
-        {/* Wrong Network Warning */}
-        {connected && !isOnGorbagana && (
-          <div className="mb-6 p-4 border border-yellow-500/50 bg-yellow-500/10 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
-            <div>
-              <p className="text-yellow-500 text-sm font-bold uppercase">Wrong Network Detected</p>
-              <p className="text-yellow-500/80 text-xs mt-1">
-                You are connected to Solana. The bridge program is deployed on Gorbagana only.
-                Please switch your wallet to Gorbagana network to create or fill orders.
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* View: Market */}
         {viewMode === 'trade' && (
           <div className="space-y-6">
@@ -429,7 +366,7 @@ const Bridge: React.FC = () => {
                   ) : (
                     filteredOrders.map(order => {
                       const { sell, buy } = getTokenInfo(order.direction);
-                      const isMyOrder = program?.provider.publicKey?.equals(order.maker);
+                      const isMyOrder = publicKey?.equals(order.maker);
 
                       return (
                         <tr key={order.orderPDA.toBase58()} className="border-b border-white/5 hover:bg-white/5 transition-colors">
@@ -442,7 +379,7 @@ const Bridge: React.FC = () => {
                           <td className="p-4 font-bold">{formatAmount(order.amount)} {sell}</td>
                           <td className="p-4 text-gray-400 text-xs">{buy}</td>
                           <td className="p-4 text-right">
-                            {isMyOrder && isOnGorbagana && (
+                            {isMyOrder && (
                               <button
                                 onClick={() => handleCancelOrder(order.orderPDA)}
                                 disabled={isProcessing}
@@ -454,8 +391,8 @@ const Bridge: React.FC = () => {
                             {!isMyOrder && (
                               <button
                                 onClick={() => handleTradeClick(order)}
-                                disabled={isProcessing || !isOnGorbagana}
-                                className={`px-4 py-1 text-xs font-bold transition-colors ${isOnGorbagana ? 'bg-magic-green text-black hover:bg-white' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
+                                disabled={isProcessing}
+                                className="px-4 py-1 bg-magic-green text-black text-xs font-bold hover:bg-white transition-colors"
                               >
                                 TRADE
                               </button>
@@ -537,11 +474,11 @@ const Bridge: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 mb-8 flex gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
-              <p className="text-[10px] text-yellow-500 leading-relaxed">
-                WARNING: This is a cross-chain trade. Ensure you have the correct wallet connected for the receiving network.
-                Funds will be locked in escrow until verification is complete.
+            <div className="bg-magic-green/10 border border-magic-green/20 p-4 mb-8 flex gap-3">
+              <Info className="w-5 h-5 text-magic-green shrink-0" />
+              <p className="text-[10px] text-magic-green leading-relaxed">
+                All bridge transactions are executed on the Gorbagana network.
+                Your wallet will sign the transaction and it will be submitted to Gorbagana automatically.
               </p>
             </div>
 
