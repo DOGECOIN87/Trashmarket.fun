@@ -143,7 +143,7 @@ Trashmarket.fun/
 | **RPC** | `https://rpc.trashscan.io` |
 | **Explorer** | [trashscan.io](https://trashscan.io) |
 | **Native Token** | gGOR |
-| **SPL Token** | sGOR |
+| **SPL Token (on Solana)** | sGOR |
 
 ---
 
