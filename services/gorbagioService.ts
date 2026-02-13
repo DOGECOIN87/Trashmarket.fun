@@ -1,6 +1,6 @@
 import { Collection, NFT } from '../types';
 
-const GORBAGIO_API_URL = 'https://gorapi.onrender.com/api/gorbagios';
+const GORBAGIO_API_URL = 'https://gorapi.trashscan.io/api/gorbagios';
 
 interface GorbagioAttribute {
   trait_type: string;
