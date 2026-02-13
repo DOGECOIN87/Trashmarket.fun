@@ -191,10 +191,26 @@ const Bridge: React.FC = () => {
 
   // Map Anchor custom error codes to human-readable messages
   const parseOrderError = (err: any): string => {
-    const errStr = typeof err === 'string' ? err : (err?.message || err?.toString() || '');
+    // Try multiple ways to extract an error string
+    let errStr = '';
+    if (typeof err === 'string') {
+      errStr = err;
+    } else if (err?.message && err.message !== 'undefined') {
+      errStr = err.message;
+    } else if (err?.logs) {
+      // Anchor SendTransactionError often has logs but no message
+      errStr = err.logs.join(' ');
+    } else if (err?.toString && err.toString() !== '[object Object]') {
+      errStr = err.toString();
+    }
 
-    // Anchor custom error codes (0x1770 = 6000 base)
-    const anchorErrorMap: Record<number, string> = {
+    // Also check err.error or err.err for nested error objects
+    if (!errStr && err?.error) {
+      errStr = JSON.stringify(err.error);
+    }
+
+    // Anchor program custom error codes (6000+)
+    const programErrorMap: Record<number, string> = {
       6000: 'Amount must be >= minimum order size.',
       6001: 'Invalid direction.',
       6002: 'Invalid token mint for this direction.',
@@ -211,17 +227,24 @@ const Bridge: React.FC = () => {
       6013: 'Missing maker receive token account.',
     };
 
-    // Check for "Custom:NNNN" pattern in error string
-    const customMatch = errStr.match(/Custom[:\s]+(\d+)/i);
+    // Anchor framework error codes (below 6000)
+    const frameworkErrorMap: Record<number, string> = {
+      2006: 'Account owner mismatch.',
+      2014: 'Token mint mismatch — wrong SPL token.',
+      2015: 'Token account owner mismatch.',
+      3007: 'Account owned by wrong program.',
+      3012: 'Required token account not initialized. Please ensure you have an sGOR token account.',
+    };
+
+    const allErrors: Record<number, string> = { ...frameworkErrorMap, ...programErrorMap };
+
+    // Check for "Custom":NNNN or Custom:NNNN patterns (handles JSON and plain formats)
+    const customMatch = errStr.match(/Custom"?\s*[:]\s*(\d+)/i);
     if (customMatch) {
       const code = parseInt(customMatch[1], 10);
-      // Anchor error codes: raw custom code maps as hex offset from 0x1770
-      // e.g., Custom:3012 -> 0xBC4 -> decimal 3012 isn't standard,
-      // but Custom:6004 is direct. Check both.
-      if (anchorErrorMap[code]) {
-        return anchorErrorMap[code];
+      if (allErrors[code]) {
+        return allErrors[code];
       }
-      // Some Solana errors use hex encoding: 0x1774 = 6004
       return `Transaction failed (error code ${code}).`;
     }
 
@@ -229,8 +252,15 @@ const Bridge: React.FC = () => {
     const instructionMatch = errStr.match(/InstructionError.*?Custom.*?(\d+)/i);
     if (instructionMatch) {
       const code = parseInt(instructionMatch[1], 10);
-      if (anchorErrorMap[code]) {
-        return anchorErrorMap[code];
+      if (allErrors[code]) {
+        return allErrors[code];
+      }
+    }
+
+    // Check for Anchor error code number directly from error object
+    if (err?.code !== undefined && typeof err.code === 'number') {
+      if (allErrors[err.code]) {
+        return allErrors[err.code];
       }
     }
 
@@ -246,11 +276,8 @@ const Bridge: React.FC = () => {
   const isOrderAlreadyFilledError = (err: any): boolean => {
     const errStr = typeof err === 'string' ? err : (err?.message || err?.toString() || '');
     // Check for error code 6004 or "already filled" text
-    if (/Custom[:\s]+6004/i.test(errStr)) return true;
+    if (/Custom"?\s*[:]\s*6004/i.test(errStr)) return true;
     if (/already\s+filled/i.test(errStr)) return true;
-    // Custom:3012 is hex 0xBC4 which doesn't map, but from the user's screenshots
-    // it seems to be the "already filled" constraint error
-    if (/Custom[:\s]+3012/i.test(errStr)) return true;
     return false;
   };
 

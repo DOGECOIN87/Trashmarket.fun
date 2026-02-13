@@ -1,6 +1,11 @@
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+  getAssociatedTokenAddress,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
+} from '@solana/spl-token';
 import { useAnchor } from '../contexts/AnchorContext';
 
 const PROGRAM_ID = new PublicKey('FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq');
@@ -148,10 +153,19 @@ export const useBridgeService = () => {
       makerReceiveTokenAccount: null,
     };
 
+    // Pre-instructions to create ATAs if they don't exist
+    const preInstructions: any[] = [];
+
+    // Helper to check if an account exists on-chain
+    const accountExists = async (pubkey: PublicKey): Promise<boolean> => {
+      const info = await provider.connection.getAccountInfo(pubkey);
+      return info !== null;
+    };
+
     if (order.direction === 0) {
       // Direction 0: Taker sends gGOR, receives sGOR
       // Maker is selling sGOR, so escrow holds sGOR.
-      const takerReceiveATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey); // Taker receives sGOR
+      const takerReceiveATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
       const escrowPDA = PublicKey.findProgramAddressSync(
         [
           Buffer.from('escrow'),
@@ -161,13 +175,37 @@ export const useBridgeService = () => {
         PROGRAM_ID
       )[0];
 
+      // Create taker's sGOR ATA if it doesn't exist
+      if (!(await accountExists(takerReceiveATA))) {
+        preInstructions.push(
+          createAssociatedTokenAccountInstruction(
+            wallet.publicKey, // payer
+            takerReceiveATA,  // ata
+            wallet.publicKey, // owner
+            SGOR_MINT,        // mint
+          )
+        );
+      }
+
       accounts.escrowTokenAccount = escrowPDA;
       accounts.takerReceiveTokenAccount = takerReceiveATA;
     } else {
       // Direction 1: Taker sends sGOR, receives gGOR
       // Maker is selling gGOR. Taker sends sGOR.
-      const takerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey); // Taker sends sGOR
-      const makerATA = await getAssociatedTokenAddress(SGOR_MINT, order.maker); // Maker receives sGOR
+      const takerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
+      const makerATA = await getAssociatedTokenAddress(SGOR_MINT, order.maker);
+
+      // Create maker's sGOR receive ATA if it doesn't exist
+      if (!(await accountExists(makerATA))) {
+        preInstructions.push(
+          createAssociatedTokenAccountInstruction(
+            wallet.publicKey, // payer
+            makerATA,         // ata
+            order.maker,      // owner
+            SGOR_MINT,        // mint
+          )
+        );
+      }
 
       accounts.takerTokenAccount = takerATA;
       accounts.makerReceiveTokenAccount = makerATA;
@@ -177,6 +215,14 @@ export const useBridgeService = () => {
       .fillOrder()
       .accounts(accounts)
       .transaction();
+
+    // Prepend ATA creation instructions if needed
+    if (preInstructions.length > 0) {
+      const fullTx = new Transaction();
+      preInstructions.forEach(ix => fullTx.add(ix));
+      fullTx.add(...tx.instructions);
+      tx.instructions = fullTx.instructions;
+    }
 
     const latestBlockhash = await provider.connection.getLatestBlockhash();
     tx.recentBlockhash = latestBlockhash.blockhash;
@@ -200,7 +246,10 @@ export const useBridgeService = () => {
       const errJson = JSON.stringify(confirmation.value.err);
       const customMatch = errJson.match(/"Custom":(\d+)/);
       if (customMatch) {
-        throw new Error(`Transaction failed with Custom:${customMatch[1]}`);
+        const code = parseInt(customMatch[1], 10);
+        const err = new Error(`Transaction failed with Custom:${code}`);
+        (err as any).code = code;
+        throw err;
       }
       throw new Error(`Transaction failed: ${errJson}`);
     }
