@@ -196,7 +196,13 @@ export const useBridgeService = () => {
     }, 'confirmed');
 
     if (confirmation.value.err) {
-      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      // Extract custom error code if present for better error messages
+      const errJson = JSON.stringify(confirmation.value.err);
+      const customMatch = errJson.match(/"Custom":(\d+)/);
+      if (customMatch) {
+        throw new Error(`Transaction failed with Custom:${customMatch[1]}`);
+      }
+      throw new Error(`Transaction failed: ${errJson}`);
     }
 
     return txid;
