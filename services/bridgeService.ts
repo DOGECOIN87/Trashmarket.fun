@@ -189,11 +189,15 @@ export const useBridgeService = () => {
       maxRetries: 2,
     });
 
-    await provider.connection.confirmTransaction({
+    const confirmation = await provider.connection.confirmTransaction({
       blockhash: latestBlockhash.blockhash,
       lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
       signature: txid,
     }, 'confirmed');
+
+    if (confirmation.value.err) {
+      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+    }
 
     return txid;
   };
@@ -247,11 +251,15 @@ export const useBridgeService = () => {
       maxRetries: 2,
     });
 
-    await provider.connection.confirmTransaction({
+    const confirmation = await provider.connection.confirmTransaction({
       blockhash: latestBlockhash.blockhash,
       lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
       signature: txid,
     }, 'confirmed');
+
+    if (confirmation.value.err) {
+      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+    }
 
     return txid;
   };

@@ -132,12 +132,19 @@ const Bridge: React.FC = () => {
       alert('Order filled successfully!');
       setIsTradeModalOpen(false);
 
-      // Refresh orders
-      const allOrders = await fetchAllOrders();
-      setOrders(allOrders.filter(o => !o.isFilled));
+      // Wait a bit for the chain to reflect the change before refreshing
+      setTimeout(async () => {
+        try {
+          const allOrders = await fetchAllOrders();
+          setOrders(allOrders.filter(o => !o.isFilled));
+        } catch (refreshErr) {
+          console.error('Failed to refresh orders after fill:', refreshErr);
+        }
+      }, 2000);
     } catch (err: any) {
-      console.error(err);
-      alert('Failed to fill order: ' + err.message);
+      console.error('Fill order error:', err);
+      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Unknown error occurred');
+      alert('Failed to fill order: ' + errorMessage);
     } finally {
       setIsProcessing(false);
       setSelectedOrder(null);
