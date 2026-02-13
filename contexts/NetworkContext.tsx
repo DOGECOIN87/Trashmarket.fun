@@ -4,7 +4,7 @@ import React, { createContext, useContext } from 'react';
 export const GORBAGANA_CONFIG = {
   name: 'Gorbagana',
   chainId: 'gorbagana-mainnet',
-  rpcEndpoint: 'https://rpc.gorbagana.wtf',
+  rpcEndpoint: 'https://rpc.trashscan.io',
   explorerUrl: 'https://trashscan.io',
   currency: {
     symbol: 'GOR',
