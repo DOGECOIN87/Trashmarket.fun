@@ -11,16 +11,20 @@ import {
   Activity
 } from 'lucide-react';
 import { useNetwork, GORBAGANA_CONFIG } from '../contexts/NetworkContext';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useBridgeService, BridgeOrder } from '../services/bridgeService';
 import { useAnchor } from '../contexts/AnchorContext';
 import { PublicKey } from '@solana/web3.js';
 
 const Bridge: React.FC = () => {
   const { connected } = useWallet();
+  const { connection } = useConnection();
   const { fetchAllOrders, createOrderGGOR, createOrderSGOR, fillOrder, cancelOrder } = useBridgeService();
   const { program } = useAnchor();
   const { rpcEndpoint: currentRpcEndpoint } = useNetwork(); // Get current RPC endpoint from NetworkContext
+
+  // Detect if the wallet is actually connected to Gorbagana
+  const isOnGorbagana = connection.rpcEndpoint === GORBAGANA_CONFIG.rpcEndpoint;
 
   // --- STATE ---
   const [viewMode, setViewMode] = useState<'trade' | 'orders' | 'escrow' | 'history'>('trade');
@@ -75,6 +79,10 @@ const Bridge: React.FC = () => {
       alert('Please connect your wallet first');
       return;
     }
+    if (!isOnGorbagana) {
+      alert('Please switch your wallet to Gorbagana network. The bridge program is deployed on Gorbagana only.');
+      return;
+    }
     setSelectedOrder(order);
     setIsTradeModalOpen(true);
   };
@@ -82,6 +90,10 @@ const Bridge: React.FC = () => {
   const handleCreateOrder = async () => {
     if (!connected) {
       alert('Please connect wallet first');
+      return;
+    }
+    if (!isOnGorbagana) {
+      alert('Please switch your wallet to Gorbagana network. The bridge program is deployed on Gorbagana only.');
       return;
     }
 
@@ -283,10 +295,8 @@ const Bridge: React.FC = () => {
 
   const handleCancelOrder = async (orderPDA: PublicKey) => {
     if (!connected) return;
-    // Check if the current network is Gorbagana before allowing cancellation
-    // Orders are created on Gorbagana, so cancellation should only be possible there.
-    if (currentRpcEndpoint !== GORBAGANA_CONFIG.rpcEndpoint) {
-      alert('You can only cancel orders when connected to the Gorbagana network.');
+    if (!isOnGorbagana) {
+      alert('Please switch your wallet to Gorbagana network to cancel orders.');
       return;
     }
 
@@ -376,6 +386,20 @@ const Bridge: React.FC = () => {
           </button>
         </div>
 
+        {/* Wrong Network Warning */}
+        {connected && !isOnGorbagana && (
+          <div className="mb-6 p-4 border border-yellow-500/50 bg-yellow-500/10 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
+            <div>
+              <p className="text-yellow-500 text-sm font-bold uppercase">Wrong Network Detected</p>
+              <p className="text-yellow-500/80 text-xs mt-1">
+                You are connected to Solana. The bridge program is deployed on Gorbagana only.
+                Please switch your wallet to Gorbagana network to create or fill orders.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* View: Market */}
         {viewMode === 'trade' && (
           <div className="space-y-6">
@@ -418,7 +442,7 @@ const Bridge: React.FC = () => {
                           <td className="p-4 font-bold">{formatAmount(order.amount)} {sell}</td>
                           <td className="p-4 text-gray-400 text-xs">{buy}</td>
                           <td className="p-4 text-right">
-                            {isMyOrder && currentRpcEndpoint === GORBAGANA_CONFIG.rpcEndpoint && ( // Conditionally render CANCEL button
+                            {isMyOrder && isOnGorbagana && (
                               <button
                                 onClick={() => handleCancelOrder(order.orderPDA)}
                                 disabled={isProcessing}
@@ -427,11 +451,11 @@ const Bridge: React.FC = () => {
                                 CANCEL
                               </button>
                             )}
-                            {!isMyOrder && ( // Render TRADE button for other users' orders
+                            {!isMyOrder && (
                               <button
                                 onClick={() => handleTradeClick(order)}
-                                disabled={isProcessing}
-                                className="px-4 py-1 bg-magic-green text-black text-xs font-bold hover:bg-white transition-colors"
+                                disabled={isProcessing || !isOnGorbagana}
+                                className={`px-4 py-1 text-xs font-bold transition-colors ${isOnGorbagana ? 'bg-magic-green text-black hover:bg-white' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
                               >
                                 TRADE
                               </button>
