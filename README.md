@@ -66,6 +66,7 @@ The bridge is an Anchor program that implements a **P2P escrow-based order book*
 > **Design note:** gGOR is native gas and is never wrapped. Direction 1 deposits lamports directly into the order PDA and releases them via direct lamport manipulation.
 
 **Program:** [`FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq`](https://trashscan.io)
+
 **sGOR Mint:** `71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg`
 
 For the full security model, see [BRIDGE_SECURITY.md](./BRIDGE_SECURITY.md).
