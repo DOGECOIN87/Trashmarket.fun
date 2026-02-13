@@ -2,15 +2,13 @@
 
 # TRASHMARKET.FUN
 
-### The NFT Marketplace & DeFi Hub for the Gorbagana Chain
+### The Future Marketplace & DeFi Hub being Built for the Gorbagana Chain
 
 [![Live](https://img.shields.io/badge/LIVE-trashmarket.fun-adff02?style=for-the-badge&labelColor=000000)](https://trashmarket.fun)
-[![Explorer](https://img.shields.io/badge/EXPLORER-trashscan.io-adff02?style=for-the-badge&labelColor=000000)](https://trashscan.io)
-[![License: MIT](https://img.shields.io/badge/LICENSE-MIT-adff02?style=for-the-badge&labelColor=000000)](#license)
 
 <br/>
 
-**Browse NFTs. Swap tokens. Register domains. Generate art with AI.**
+**Coming Soon - Browse NFTs. Trade GorIDs. P2P OTC Bridge**
 **All on Gorbagana.**
 
 <br/>
@@ -21,7 +19,7 @@
 
 ## What is Trashmarket?
 
-Trashmarket is the all-in-one platform for the Gorbagana ecosystem — a Solana-compatible L2 chain. It combines an NFT marketplace, a trustless P2P token bridge, a domain name service, and an AI-powered art generator into a single brutalist, terminal-inspired interface.
+Trashmarket is building an all-in-one platform for the Gorbagana ecosystem — a Solana-compatible L2 chain. It combines an NFT marketplace, a trustless P2P token bridge, a GorID trading platform, into a single brutalist, terminal-inspired interface.
 
 ---
 
@@ -30,14 +28,12 @@ Trashmarket is the all-in-one platform for the Gorbagana ecosystem — a Solana-
 ### NFT Marketplace
 Browse, buy, and sweep NFT collections on Gorbagana. Live activity feeds, floor price charts, and collection-level stats — all in real time.
 
-### P2P Bridge
+### P2P OTC Bridge
 Swap between **sGOR** (SPL token) and **gGOR** (native gas) through a fully on-chain escrow order book. No custodians, no wrapping — just atomic peer-to-peer settlement.
 
 ### GorID Domains
 Register and trade **.gor** domain names. Look up any address, browse listed domains, or list your own for sale.
 
-### AI Launchpad
-Generate NFT artwork from text prompts using Google Gemini. Type a description, get an image, download it.
 
 ### Collection Submissions
 Submit your own NFT collection to be listed on the marketplace. Track your submission status from pending to approved.
@@ -53,9 +49,6 @@ Submit your own NFT collection to be listed on the marketplace. Track your submi
 | Blockchain | Solana Web3.js + Anchor Framework |
 | Smart Contract | Rust / Anchor (deployed on Gorbagana) |
 | Wallets | Backpack, Gorbag Wallet |
-| AI | Google Gemini API |
-| Backend | Firebase |
-| Hosting | GitHub Pages |
 
 ---
 
