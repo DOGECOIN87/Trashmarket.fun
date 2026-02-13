@@ -139,10 +139,13 @@ export const useBridgeService = () => {
       order: orderPDA,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-      // Initialize escrowTokenAccount with a default PublicKey.
-      // This is necessary because the instruction might expect it to be present,
-      // even if it's not directly used for all directions.
-      escrowTokenAccount: PublicKey.default,
+      // Use null for optional accounts that are not used in the specific direction.
+      // Anchor handles null by providing a dummy account if needed, but the key is that
+      // all accounts defined in the instruction MUST be provided in the object.
+      escrowTokenAccount: null,
+      takerTokenAccount: null,
+      takerReceiveTokenAccount: null,
+      makerReceiveTokenAccount: null,
     };
 
     if (order.direction === 0) {
@@ -158,20 +161,16 @@ export const useBridgeService = () => {
         PROGRAM_ID
       )[0];
 
-      accounts.escrowTokenAccount = escrowPDA; // Set the actual escrow PDA for direction 0
+      accounts.escrowTokenAccount = escrowPDA;
       accounts.takerReceiveTokenAccount = takerReceiveATA;
     } else {
       // Direction 1: Taker sends sGOR, receives gGOR
       // Maker is selling gGOR. Taker sends sGOR.
-      // The escrow account for direction 1 is not explicitly derived in createOrderGGOR (it's null).
-      // However, the fillOrder instruction might still expect it.
-      // We've initialized it to PublicKey.default above.
-      // If the program logic for direction 1 requires a specific account, this might need adjustment.
       const takerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey); // Taker sends sGOR
       const makerATA = await getAssociatedTokenAddress(SGOR_MINT, order.maker); // Maker receives sGOR
 
-      accounts.takerTokenAccount = takerATA; // Taker's sGOR ATA
-      accounts.makerReceiveTokenAccount = makerATA; // Maker's sGOR ATA
+      accounts.takerTokenAccount = takerATA;
+      accounts.makerReceiveTokenAccount = makerATA;
     }
 
     const tx = await program.methods
@@ -210,6 +209,8 @@ export const useBridgeService = () => {
       order: orderPDA,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
+      escrowTokenAccount: null,
+      makerTokenAccount: null,
     };
 
     if (order.direction === 0) {
