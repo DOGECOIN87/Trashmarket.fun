@@ -1,6 +1,7 @@
 import { Collection, NFT } from '../types';
 
-const GORBAGIO_API_URL = 'https://gorapi.onrender.com/api/gorbagios';
+// Gorbagio API temporarily disabled - will be re-enabled when NFTs are minted on Gorbagana
+// Currently bridging from Solana, will use live data once minting is complete
 
 interface GorbagioAttribute {
   trait_type: string;
@@ -44,29 +45,15 @@ const normalizeWhitespace = (value?: string): string => {
   return value ? value.replace(/\s+/g, ' ').trim() : '';
 };
 
-let gorbagioCache: GorbagioApiResponse | null = null;
-let gorbagioFetchPromise: Promise<GorbagioApiResponse> | null = null;
-
+// Temporary: Return empty data while NFTs are being minted
 const fetchGorbagios = async (): Promise<GorbagioApiResponse> => {
-  if (gorbagioCache) return gorbagioCache;
-  if (gorbagioFetchPromise) return gorbagioFetchPromise;
-
-  gorbagioFetchPromise = fetch(GORBAGIO_API_URL)
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`Failed to fetch Gorbagios (${response.status})`);
-      }
-      return response.json();
-    })
-    .then((data: GorbagioApiResponse) => {
-      gorbagioCache = data;
-      return data;
-    })
-    .finally(() => {
-      gorbagioFetchPromise = null;
-    });
-
-  return gorbagioFetchPromise;
+  // Return empty response for now
+  return {
+    success: true,
+    count: 0,
+    total: 0,
+    data: []
+  };
 };
 
 const getSupplyFromResponse = (response: GorbagioApiResponse): number => {
