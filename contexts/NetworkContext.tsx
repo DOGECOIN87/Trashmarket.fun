@@ -50,7 +50,8 @@ export const SOLANA_DEVNET_CONFIG = {
   networkLabel: 'Solana_Devnet',
   tpsLabel: 'TPS',
   programId: '66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M', // Deployed for testing
-  sgorMint: '71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg', // Same on devnet for reference
+  sgorMint: '5b2P7TQTDQG4nUzrUUSAuv92NT85Ka4oBFXWcTs9A5zk', // Test sGOR token on devnet (6 decimals)
+  testTokenAccount: 'B7HJE8XsmZmvAAts7yvFoeEuTP2T5LJVg7cMWYVZKtCB', // Test token account
 };
 
 interface NetworkContextType {
