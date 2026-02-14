@@ -1,14 +1,20 @@
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import { BN, Program } from '@coral-xyz/anchor';
 import {
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { useAnchor } from '../contexts/AnchorContext';
+import { useNetwork } from '../contexts/NetworkContext';
 
-const PROGRAM_ID = new PublicKey('FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq');
-const SGOR_MINT = new PublicKey('71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg');
+// Gorbagana Bridge Program
+const GORBAGANA_PROGRAM_ID = new PublicKey('FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq');
+const SGOR_MINT_MAINNET = new PublicKey('71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg');
+
+// Solana Devnet Bridge Program
+const SOLANA_DEVNET_PROGRAM_ID = new PublicKey('66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M');
+const SGOR_MINT_DEVNET = new PublicKey('5b2P7TQTDQG4nUzrUUSAuv92NT85Ka4oBFXWcTs9A5zk');
 
 export interface BridgeOrder {
   orderPDA: PublicKey;
@@ -21,7 +27,13 @@ export interface BridgeOrder {
 }
 
 export const useBridgeService = () => {
-  const { program, gorbaganaProvider: provider } = useAnchor();
+  const { program, gorbaganaProvider: provider, solanaProgram } = useAnchor();
+  const { isDevnet, currentNetwork } = useNetwork();
+
+  // Select the correct program, program ID, and mint based on network
+  const activeProgram = isDevnet ? solanaProgram : program;
+  const PROGRAM_ID = isDevnet ? SOLANA_DEVNET_PROGRAM_ID : GORBAGANA_PROGRAM_ID;
+  const SGOR_MINT = isDevnet ? SGOR_MINT_DEVNET : SGOR_MINT_MAINNET;
 
   // Derive Order PDA
   const deriveOrderPDA = (maker: PublicKey, amount: BN): PublicKey => {
@@ -77,9 +89,14 @@ export const useBridgeService = () => {
   };
 
   // Create Order (Direction 0: sGOR -> gGOR)
-  const createOrderSGOR = async (amount: number, expirationSlot: number) => {
-    if (!program || !provider) throw new Error('Wallet not connected');
-    const wallet = provider.wallet;
+  // On Solana devnet: Creates order locking sGOR, expecting gGOR on Gorbagana
+  const createOrderSGOR = async (amount: number, expirationSlot: number, gorbaganaRecipient?: PublicKey) => {
+    const currentProvider = isDevnet ? (solanaProgram?.provider as any) : provider;
+    const currentProgram = isDevnet ? solanaProgram : program;
+
+    if (!currentProgram || !currentProvider) throw new Error('Wallet not connected');
+
+    const wallet = currentProvider.wallet;
     const amountBN = new BN(amount);
     const orderPDA = deriveOrderPDA(wallet.publicKey, amountBN);
 
@@ -94,31 +111,48 @@ export const useBridgeService = () => {
 
     const makerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
 
-    const tx = await program.methods
-      .createOrder(amountBN, 0, new BN(expirationSlot))
-      .accounts({
-        maker: wallet.publicKey,
-        order: orderPDA,
-        escrowTokenAccount: escrowPDA,
-        makerTokenAccount: makerATA,
-        sgorMint: SGOR_MINT,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: SYSVAR_RENT_PUBKEY,
-      })
-      .transaction();
+    // Gorbagana recipient defaults to maker's wallet if not specified
+    const gorRecipient = gorbaganaRecipient || wallet.publicKey;
 
-    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    const tx = isDevnet
+      ? await currentProgram.methods
+          .createOrder(amountBN, new BN(expirationSlot), gorRecipient)
+          .accounts({
+            maker: wallet.publicKey,
+            order: orderPDA,
+            escrowTokenAccount: escrowPDA,
+            makerTokenAccount: makerATA,
+            sgorMint: SGOR_MINT,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY,
+          })
+          .transaction()
+      : await currentProgram.methods
+          .createOrder(amountBN, 0, new BN(expirationSlot))
+          .accounts({
+            maker: wallet.publicKey,
+            order: orderPDA,
+            escrowTokenAccount: escrowPDA,
+            makerTokenAccount: makerATA,
+            sgorMint: SGOR_MINT,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY,
+          })
+          .transaction();
+
+    const latestBlockhash = await currentProvider.connection.getLatestBlockhash();
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = wallet.publicKey;
 
     const signedTx = await wallet.signTransaction(tx);
-    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
-      skipPreflight: true,
+    const txid = await currentProvider.connection.sendRawTransaction(signedTx.serialize(), {
+      skipPreflight: false,
       maxRetries: 2,
     });
 
-    await provider.connection.confirmTransaction({
+    await currentProvider.connection.confirmTransaction({
       blockhash: latestBlockhash.blockhash,
       lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
       signature: txid,
