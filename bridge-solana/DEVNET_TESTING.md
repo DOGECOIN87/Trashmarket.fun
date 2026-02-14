@@ -19,26 +19,22 @@
 - [x] Program size: 267 KB
 - [x] IDL generated successfully
 
-### Phase 2: Create Test Token (Next Step)
+### Phase 2: Test Token Created ✅
 
-Since the program references sGOR (`71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg`) which only exists on mainnet, we need to create a test token on devnet.
+A test sGOR token has been created on Solana devnet for bridge testing.
 
-**Option A: Create Devnet Test Token**
-```bash
-# Create a test SPL token to simulate sGOR on devnet
-spl-token create-token --decimals 6
-# Example output: Creating token ABC123...
+**Test Token Details:**
+- **Mint:** `5b2P7TQTDQG4nUzrUUSAuv92NT85Ka4oBFXWcTs9A5zk`
+- **Decimals:** 6 (matching mainnet sGOR)
+- **Supply:** 1,000,000 tokens
+- **Explorer:** https://explorer.solana.com/address/5b2P7TQTDQG4nUzrUUSAuv92NT85Ka4oBFXWcTs9A5zk?cluster=devnet
 
-# Create token account
-spl-token create-account <TOKEN_MINT_ADDRESS>
+See [DEVNET_TEST_TOKEN.md](./DEVNET_TEST_TOKEN.md) for complete details on getting and using test tokens.
 
-# Mint test tokens
-spl-token mint <TOKEN_MINT_ADDRESS> 1000
-```
-
-**Option B: Test Basic Functionality Without Token**
-
-Test the program's account initialization and PDA derivation without actual token transfers.
+**Important:** The deployed program currently expects the mainnet sGOR mint. To test with the devnet token:
+1. Update the `SGOR_MINT` constant in `lib.rs` to the test token mint
+2. Rebuild and redeploy the program
+3. Or test with the mainnet mint address (which won't have tokens on devnet)
 
 ### Phase 3: Test Instructions
 
