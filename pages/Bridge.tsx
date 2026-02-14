@@ -8,7 +8,8 @@ import {
   Info,
   CheckCircle2,
   Clock,
-  Activity
+  Activity,
+  Beaker
 } from 'lucide-react';
 import { useNetwork, GORBAGANA_CONFIG } from '../contexts/NetworkContext';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -20,7 +21,7 @@ const Bridge: React.FC = () => {
   const { connected } = useWallet();
   const { fetchAllOrders, createOrderGGOR, createOrderSGOR, fillOrder, cancelOrder } = useBridgeService();
   const { program } = useAnchor();
-  const { rpcEndpoint: currentRpcEndpoint } = useNetwork(); // Get current RPC endpoint from NetworkContext
+  const { rpcEndpoint: currentRpcEndpoint, isDevnet, currentNetwork } = useNetwork(); // Get current RPC endpoint from NetworkContext
 
   // --- STATE ---
   const [viewMode, setViewMode] = useState<'trade' | 'orders' | 'escrow' | 'history'>('trade');
@@ -335,18 +336,20 @@ const Bridge: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black text-white font-mono">
-      {/* Status Banner */}
-      <div className="bg-blue-500/20 border-b border-blue-500/50">
-        <div className="max-w-[1600px] mx-auto px-4 py-3">
-          <div className="flex items-center justify-center gap-3">
-            <Activity className="w-5 h-5 text-blue-400" />
-            <p className="text-blue-400 text-sm font-bold uppercase tracking-wider">
-              ⚙️ DEVNET TESTING — Solana program deployed | Mainnet deployment requires 2 SOL
-            </p>
-            <Activity className="w-5 h-5 text-blue-400" />
+      {/* Status Banner - Only show on devnet */}
+      {isDevnet && (
+        <div className="bg-blue-500/20 border-b border-blue-500/50 animate-pulse">
+          <div className="max-w-[1600px] mx-auto px-4 py-3">
+            <div className="flex items-center justify-center gap-3">
+              <Beaker className="w-5 h-5 text-blue-400" />
+              <p className="text-blue-400 text-sm font-bold uppercase tracking-wider">
+                ⚠️ DEVNET TESTING MODE — Using test sGOR | Get tokens from <a href="#/faucet" className="underline hover:text-blue-300">faucet</a>
+              </p>
+              <Beaker className="w-5 h-5 text-blue-400" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Hero / Header */}
       <div className="border-b border-white/20 bg-gradient-to-b from-magic-green/5 to-transparent">
@@ -468,18 +471,40 @@ const Bridge: React.FC = () => {
         {/* View: Create Offer */}
         {viewMode === 'orders' && (
           <div className="max-w-xl mx-auto border border-white/10 p-8 bg-white/5">
-            <h2 className="text-xl font-bold mb-6 uppercase tracking-widest">Create_OTC_Offer</h2>
+            <h2 className="text-xl font-bold mb-6 uppercase tracking-widest flex items-center gap-2">
+              Create_OTC_Offer
+              {isDevnet && <span className="text-[10px] px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500 flex items-center gap-1"><Beaker className="w-3 h-3" />DEVNET TEST</span>}
+            </h2>
+
+            {/* Devnet Notice */}
+            {isDevnet && (
+              <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30">
+                <div className="flex gap-2 text-blue-400 text-xs items-start">
+                  <Beaker className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold mb-1">⚠️ SOLANA DEVNET TESTING MODE</p>
+                    <p className="text-blue-300">You can only create orders selling <span className="font-bold">test sGOR → gGOR</span>. Get test sGOR from the <a href="#/faucet" className="underline">faucet</a>.</p>
+                    <p className="text-blue-300 mt-2 text-[10px]">Program: 66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="block text-[10px] text-gray-500 uppercase mb-1">I want to sell</label>
                 <select
-                  value={createDirection}
-                  onChange={(e) => setCreateDirection(e.target.value as 'gGOR' | 'sGOR')}
-                  className="w-full bg-black border border-white/20 p-3 text-sm outline-none focus:border-magic-green"
+                  value={isDevnet ? 'sGOR' : createDirection}
+                  onChange={(e) => !isDevnet && setCreateDirection(e.target.value as 'gGOR' | 'sGOR')}
+                  disabled={isDevnet}
+                  className="w-full bg-black border border-white/20 p-3 text-sm outline-none focus:border-magic-green disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="gGOR">gGOR (Gorbagana)</option>
-                  <option value="sGOR">sGOR (Solana)</option>
+                  <option value="sGOR">sGOR (Solana{isDevnet ? ' Devnet' : ''})</option>
                 </select>
+                {isDevnet && (
+                  <p className="text-[10px] text-blue-400 mt-1">Only sGOR orders available on devnet</p>
+                )}
               </div>
               <div>
                 <label className="block text-[10px] text-gray-500 uppercase mb-1">Amount</label>
@@ -487,14 +512,18 @@ const Bridge: React.FC = () => {
                   type="number"
                   value={createAmount}
                   onChange={(e) => setCreateAmount(e.target.value)}
-                  placeholder="0.00"
+                  placeholder={isDevnet ? "5.0 (test sGOR)" : "0.00"}
+                  step={isDevnet ? "0.000001" : "0.01"}
                   className="w-full bg-black border border-white/20 p-3 text-sm outline-none focus:border-magic-green"
                 />
+                {isDevnet && (
+                  <p className="text-[10px] text-gray-500 mt-1">Test sGOR has 6 decimals (1 sGOR = 1,000,000 base units)</p>
+                )}
               </div>
-              <div className="p-4 bg-magic-green/10 border border-magic-green/20 rounded">
-                <div className="flex gap-2 text-magic-green text-xs">
-                  <Info className="w-4 h-4" />
-                  <span>Your tokens will be locked in a secure escrow contract until a buyer completes the trade.</span>
+              <div className={`p-4 border rounded ${isDevnet ? 'bg-blue-500/10 border-blue-500/20' : 'bg-magic-green/10 border-magic-green/20'}`}>
+                <div className={`flex gap-2 text-xs ${isDevnet ? 'text-blue-400' : 'text-magic-green'}`}>
+                  <Info className="w-4 h-4 flex-shrink-0" />
+                  <span>{isDevnet ? 'Test tokens will be locked in escrow on Solana devnet for testing.' : 'Your tokens will be locked in a secure escrow contract until a buyer completes the trade.'}</span>
                 </div>
               </div>
               <button

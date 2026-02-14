@@ -3,14 +3,21 @@ import { PublicKey, Connection } from '@solana/web3.js';
 import { AnchorProvider as AnchorAnchorProvider, Program } from '@coral-xyz/anchor';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import type { GorbaganaBridge } from '../src/idl/gorbagana_bridge';
-import idl from '../src/idl/gorbagana_bridge.json';
+import gorbaganaIdl from '../src/idl/gorbagana_bridge.json';
+import solanaIdl from '../bridge-solana/target/idl/solana_bridge.json';
 
-const PROGRAM_ID = new PublicKey('FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq');
-const SGOR_MINT = new PublicKey('71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg');
+// Gorbagana Program
+const GORBAGANA_PROGRAM_ID = new PublicKey('FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq');
+const SGOR_MINT_MAINNET = new PublicKey('71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg');
 const GORBAGANA_RPC = 'https://rpc.trashscan.io';
 
+// Solana Devnet Program
+const SOLANA_DEVNET_PROGRAM_ID = new PublicKey('66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M');
+const SGOR_MINT_DEVNET = new PublicKey('5b2P7TQTDQG4nUzrUUSAuv92NT85Ka4oBFXWcTs9A5zk');
+
 interface AnchorContextType {
-    program: Program<GorbaganaBridge> | null;
+    program: Program<GorbaganaBridge> | null; // Gorbagana program
+    solanaProgram: Program | null; // Solana devnet program
     provider: AnchorAnchorProvider | null;
     gorbaganaProvider: AnchorAnchorProvider | null;
     programId: PublicKey;
@@ -19,10 +26,11 @@ interface AnchorContextType {
 
 const AnchorContext = createContext<AnchorContextType>({
     program: null,
+    solanaProgram: null,
     provider: null,
     gorbaganaProvider: null,
-    programId: PROGRAM_ID,
-    sgorMint: SGOR_MINT,
+    programId: GORBAGANA_PROGRAM_ID,
+    sgorMint: SGOR_MINT_MAINNET,
 });
 
 export const AnchorContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -31,14 +39,14 @@ export const AnchorContextProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const value = useMemo<AnchorContextType>(() => {
         try {
-            // Standard provider (uses current wallet connection)
+            // Standard provider (uses current wallet connection - dynamically switched)
             const provider = new AnchorAnchorProvider(
                 connection,
                 wallet as any,
                 {
                     commitment: 'confirmed',
                     preflightCommitment: 'processed',
-                    skipPreflight: true,
+                    skipPreflight: false,
                 }
             );
 
@@ -50,31 +58,39 @@ export const AnchorContextProvider: React.FC<{ children: React.ReactNode }> = ({
                 {
                     commitment: 'confirmed',
                     preflightCommitment: 'processed',
-                    skipPreflight: true,
+                    skipPreflight: false,
                 }
             );
 
-            // The Bridge program MUST always use the Gorbagana provider
+            // Gorbagana bridge program
             const program = new Program(
-                idl as any,
+                gorbaganaIdl as any,
                 gorbaganaProvider
             ) as unknown as Program<GorbaganaBridge>;
 
+            // Solana devnet bridge program (uses dynamic connection from provider)
+            const solanaProgram = new Program(
+                solanaIdl as any,
+                provider
+            );
+
             return {
                 program,
+                solanaProgram,
                 provider,
                 gorbaganaProvider,
-                programId: PROGRAM_ID,
-                sgorMint: SGOR_MINT,
+                programId: GORBAGANA_PROGRAM_ID,
+                sgorMint: SGOR_MINT_MAINNET,
             };
         } catch (err) {
             console.warn('AnchorContext: Failed to initialize program:', err);
             return {
                 program: null,
+                solanaProgram: null,
                 provider: null,
                 gorbaganaProvider: null,
-                programId: PROGRAM_ID,
-                sgorMint: SGOR_MINT,
+                programId: GORBAGANA_PROGRAM_ID,
+                sgorMint: SGOR_MINT_MAINNET,
             };
         }
     }, [connection, wallet]);
