@@ -130,6 +130,30 @@ export const useBridgeService = () => {
     return { tx: txid, orderPDA, escrowPDA };
   };
 
+  // Helper to check if an account exists on-chain
+  const accountExists = async (pubkey: PublicKey): Promise<boolean> => {
+    if (!provider) return false;
+    const info = await provider.connection.getAccountInfo(pubkey);
+    return info !== null;
+  };
+
+  // Helper to ensure ATA exists by adding instruction to transaction if needed
+  const ensureATA = async (transaction: Transaction, mint: PublicKey, owner: PublicKey) => {
+    if (!provider) return null;
+    const ata = await getAssociatedTokenAddress(mint, owner);
+    if (!(await accountExists(ata))) {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          provider.wallet.publicKey, // payer
+          ata,
+          owner,
+          mint
+        )
+      );
+    }
+    return ata;
+  };
+
   // Fill Order
   const fillOrder = async (orderPDA: PublicKey) => {
     if (!program || !provider) throw new Error('Wallet not connected');
@@ -137,6 +161,7 @@ export const useBridgeService = () => {
 
     // Fetch order to get direction and maker
     const order = await program.account.order.fetch(orderPDA);
+    const tx = new Transaction();
 
     const accounts: any = {
       taker: wallet.publicKey,
@@ -144,28 +169,15 @@ export const useBridgeService = () => {
       order: orderPDA,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-      // Use null for optional accounts that are not used in the specific direction.
-      // Anchor handles null by providing a dummy account if needed, but the key is that
-      // all accounts defined in the instruction MUST be provided in the object.
       escrowTokenAccount: null,
       takerTokenAccount: null,
       takerReceiveTokenAccount: null,
       makerReceiveTokenAccount: null,
     };
 
-    // Pre-instructions to create ATAs if they don't exist
-    const preInstructions: any[] = [];
-
-    // Helper to check if an account exists on-chain
-    const accountExists = async (pubkey: PublicKey): Promise<boolean> => {
-      const info = await provider.connection.getAccountInfo(pubkey);
-      return info !== null;
-    };
-
     if (order.direction === 0) {
       // Direction 0: Taker sends gGOR, receives sGOR
-      // Maker is selling sGOR, so escrow holds sGOR.
-      const takerReceiveATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
+      const takerReceiveATA = await ensureATA(tx, SGOR_MINT, wallet.publicKey);
       const escrowPDA = PublicKey.findProgramAddressSync(
         [
           Buffer.from('escrow'),
@@ -175,54 +187,23 @@ export const useBridgeService = () => {
         PROGRAM_ID
       )[0];
 
-      // Create taker's sGOR ATA if it doesn't exist
-      if (!(await accountExists(takerReceiveATA))) {
-        preInstructions.push(
-          createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer
-            takerReceiveATA,  // ata
-            wallet.publicKey, // owner
-            SGOR_MINT,        // mint
-          )
-        );
-      }
-
       accounts.escrowTokenAccount = escrowPDA;
       accounts.takerReceiveTokenAccount = takerReceiveATA;
     } else {
       // Direction 1: Taker sends sGOR, receives gGOR
-      // Maker is selling gGOR. Taker sends sGOR.
-      const takerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
-      const makerATA = await getAssociatedTokenAddress(SGOR_MINT, order.maker);
-
-      // Create maker's sGOR receive ATA if it doesn't exist
-      if (!(await accountExists(makerATA))) {
-        preInstructions.push(
-          createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer
-            makerATA,         // ata
-            order.maker,      // owner
-            SGOR_MINT,        // mint
-          )
-        );
-      }
+      const takerATA = await ensureATA(tx, SGOR_MINT, wallet.publicKey);
+      const makerATA = await ensureATA(tx, SGOR_MINT, order.maker);
 
       accounts.takerTokenAccount = takerATA;
       accounts.makerReceiveTokenAccount = makerATA;
     }
 
-    const tx = await program.methods
+    const fillInstruction = await program.methods
       .fillOrder()
       .accounts(accounts)
-      .transaction();
-
-    // Prepend ATA creation instructions if needed
-    if (preInstructions.length > 0) {
-      const fullTx = new Transaction();
-      preInstructions.forEach(ix => fullTx.add(ix));
-      fullTx.add(...tx.instructions);
-      tx.instructions = fullTx.instructions;
-    }
+      .instruction();
+    
+    tx.add(fillInstruction);
 
     const latestBlockhash = await provider.connection.getLatestBlockhash();
     tx.recentBlockhash = latestBlockhash.blockhash;
@@ -262,6 +243,7 @@ export const useBridgeService = () => {
     if (!program || !provider) throw new Error('Wallet not connected');
     const wallet = provider.wallet;
     const order = await program.account.order.fetch(orderPDA);
+    const tx = new Transaction();
 
     const accounts: any = {
       maker: wallet.publicKey,
@@ -282,18 +264,18 @@ export const useBridgeService = () => {
         ],
         PROGRAM_ID
       )[0];
-      const makerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey); // Maker's sGOR ATA
+      const makerATA = await ensureATA(tx, SGOR_MINT, wallet.publicKey);
 
       accounts.escrowTokenAccount = escrowPDA;
       accounts.makerTokenAccount = makerATA;
     }
-    // For direction 1, the escrow account is not explicitly managed in the same way,
-    // so we don't add it here.
 
-    const tx = await program.methods
+    const cancelInstruction = await program.methods
       .cancelOrder()
       .accounts(accounts)
-      .transaction();
+      .instruction();
+    
+    tx.add(cancelInstruction);
 
     const latestBlockhash = await provider.connection.getLatestBlockhash();
     tx.recentBlockhash = latestBlockhash.blockhash;
