@@ -202,15 +202,33 @@ export const useBridgeService = () => {
     
     tx.add(fillInstruction);
 
-    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    // Get latest blockhash specifically from Gorbagana
+    const latestBlockhash = await provider.connection.getLatestBlockhash('confirmed');
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = wallet.publicKey;
 
-    const signedTx = await wallet.signTransaction(tx);
-    const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
-      skipPreflight: true,
-      maxRetries: 2,
+    console.log('Sending transaction to Gorbagana...', {
+      recentBlockhash: tx.recentBlockhash,
+      feePayer: tx.feePayer.toBase58(),
+      instructions: tx.instructions.length
     });
+
+    const signedTx = await wallet.signTransaction(tx);
+    
+    // Use sendRawTransaction with more descriptive error catching
+    let txid: string;
+    try {
+      txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false, // Set to false to get better error messages from RPC
+        preflightCommitment: 'confirmed',
+      });
+    } catch (sendErr: any) {
+      console.error('sendRawTransaction error:', sendErr);
+      if (sendErr?.logs) {
+        throw new Error(`Transaction failed during preflight: ${sendErr.message}. Logs: ${sendErr.logs.join('\n')}`);
+      }
+      throw sendErr;
+    }
 
     const confirmation = await provider.connection.confirmTransaction({
       blockhash: latestBlockhash.blockhash,
