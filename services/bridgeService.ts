@@ -3,7 +3,6 @@ import { BN } from '@coral-xyz/anchor';
 import {
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { useAnchor } from '../contexts/AnchorContext';
@@ -22,7 +21,7 @@ export interface BridgeOrder {
 }
 
 export const useBridgeService = () => {
-  const { program, provider } = useAnchor();
+  const { program, gorbaganaProvider: provider } = useAnchor();
 
   // Derive Order PDA
   const deriveOrderPDA = (maker: PublicKey, amount: BN): PublicKey => {
@@ -49,9 +48,9 @@ export const useBridgeService = () => {
       .accounts({
         maker: wallet.publicKey,
         order: orderPDA,
-        escrowTokenAccount: null, // This is null for direction 1 during creation
-        makerTokenAccount: null,   // This is null for direction 1 during creation
-        sgorMint: null,           // This is null for direction 1 during creation
+        escrowTokenAccount: null,
+        makerTokenAccount: null,
+        sgorMint: null,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -63,7 +62,6 @@ export const useBridgeService = () => {
     tx.feePayer = wallet.publicKey;
 
     const signedTx = await wallet.signTransaction(tx);
-
     const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       maxRetries: 2,
@@ -115,7 +113,6 @@ export const useBridgeService = () => {
     tx.feePayer = wallet.publicKey;
 
     const signedTx = await wallet.signTransaction(tx);
-
     const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       maxRetries: 2,
@@ -210,7 +207,6 @@ export const useBridgeService = () => {
     tx.feePayer = wallet.publicKey;
 
     const signedTx = await wallet.signTransaction(tx);
-
     const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       maxRetries: 2,
@@ -223,7 +219,6 @@ export const useBridgeService = () => {
     }, 'confirmed');
 
     if (confirmation.value.err) {
-      // Extract custom error code if present for better error messages
       const errJson = JSON.stringify(confirmation.value.err);
       const customMatch = errJson.match(/"Custom":(\d+)/);
       if (customMatch) {
@@ -282,7 +277,6 @@ export const useBridgeService = () => {
     tx.feePayer = wallet.publicKey;
 
     const signedTx = await wallet.signTransaction(tx);
-
     const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
       skipPreflight: true,
       maxRetries: 2,
