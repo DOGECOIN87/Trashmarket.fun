@@ -54,22 +54,43 @@ Submit your own NFT collection to be listed on the marketplace. Track your submi
 
 ## Bridge Architecture
 
-The bridge is an Anchor program that implements a **P2P escrow-based order book** — no intermediary, no token wrapping.
+The bridge uses **dual-program escrow architecture** for trustless P2P cross-chain trading between Solana and Gorbagana.
 
-**How it works:**
+### Current Status: 🚧 In Progress
 
-| Swap | Maker locks | Taker sends | Settlement |
-|------|------------|-------------|------------|
-| sGOR → gGOR | sGOR into escrow PDA | gGOR (native) to maker | Atomic |
-| gGOR → sGOR | gGOR (native) into order PDA | sGOR to maker | Atomic |
+✅ **Gorbagana Program:** Deployed and operational
+⏳ **Solana Program:** Code complete, deployment pending (final step)
 
-> **Design note:** gGOR is native gas and is never wrapped. Direction 1 deposits lamports directly into the order PDA and releases them via direct lamport manipulation.
+### How It Works
 
-**Program:** [`FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq`](https://trashscan.io)
+The bridge requires **two separate programs** (one per chain):
 
-**sGOR Mint:** `71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg`
+| Chain | Program | Token | Status |
+|-------|---------|-------|--------|
+| **Gorbagana** | `FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq` | gGOR (native) | ✅ Deployed |
+| **Solana** | *TBD after deployment* | sGOR (SPL) | 📦 Ready to deploy |
 
-For the full security model, see [BRIDGE_SECURITY.md](./BRIDGE_SECURITY.md).
+**sGOR Mint (Solana mainnet):** `71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg`
+
+### Trading Flow
+
+| Direction | Step 1 | Step 2 | Step 3 |
+|-----------|--------|--------|--------|
+| **sGOR → gGOR** | Maker locks sGOR on Solana | Taker locks gGOR on Gorbagana | Atomic settlement |
+| **gGOR → sGOR** | Maker locks gGOR on Gorbagana | Taker locks sGOR on Solana | Atomic settlement |
+
+> **Architecture note:** Each blockchain has its own escrow program. The Gorbagana program handles gGOR (native gas), while the Solana program handles sGOR (SPL token). Cross-chain coordination ensures both sides settle atomically.
+
+### Final Deployment Step
+
+The Solana-side bridge program is fully implemented and ready for deployment:
+- **Location:** `/bridge-solana/` (complete Anchor workspace)
+- **Cost:** ~2 SOL for deployment
+- **Next steps:** See [bridge-solana/DEPLOYMENT_GUIDE.md](./bridge-solana/DEPLOYMENT_GUIDE.md)
+
+Once the Solana program is deployed and the program ID is configured, the bridge will be fully operational.
+
+For the complete security model and implementation details, see [BRIDGE_SECURITY.md](./BRIDGE_SECURITY.md).
 
 ---
 
