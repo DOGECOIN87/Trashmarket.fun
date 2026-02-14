@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Menu, X, Wallet, Trash2, Activity, ExternalLink, Globe } from 'lucide-react';
-import { useNetwork, GORBAGANA_CONFIG } from '../contexts/NetworkContext';
+import { Search, Menu, X, Wallet, Trash2, Activity, ExternalLink, Globe, ChevronDown } from 'lucide-react';
+import { useNetwork, GORBAGANA_CONFIG, NetworkType } from '../contexts/NetworkContext';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useConnection } from '@solana/wallet-adapter-react';
@@ -12,11 +12,12 @@ type DetectedNetwork = 'gorbagana' | 'solana' | 'unknown';
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
   const [gps, setGps] = useState<number>(7842);
   const [balance, setBalance] = useState<number | null>(null);
   const [detectedNetwork, setDetectedNetwork] = useState<DetectedNetwork>('unknown');
   const location = useLocation();
-  const { networkName, tpsLabel, accentColor, explorerUrl } = useNetwork();
+  const { networkName, tpsLabel, accentColor, explorerUrl, currentNetwork, setNetwork, isDevnet } = useNetwork();
   const { connected, publicKey, disconnect, wallet } = useWallet();
   const { setVisible } = useWalletModal();
   const { connection } = useConnection();
@@ -181,6 +182,80 @@ const Navbar: React.FC = () => {
                   </div>
                 </div>
               </a>
+
+              {/* Network Switcher Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsNetworkMenuOpen(!isNetworkMenuOpen)}
+                  className="flex items-center gap-2 px-4 py-2 border border-white/20 bg-black hover:bg-white/5 transition-colors"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span className={`text-xs font-bold uppercase tracking-wider font-mono ${currentNetwork === 'GORBAGANA' ? 'text-magic-green' :
+                    isDevnet ? 'text-blue-400' : 'text-purple-400'
+                  }`}>
+                    {currentNetwork === 'GORBAGANA' ? '🗑️ GOR' :
+                     isDevnet ? '◎ SOL-DEV' : '◎ SOL'}
+                  </span>
+                  <ChevronDown className={`w-3 h-3 text-gray-500 transition-transform ${isNetworkMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isNetworkMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-magic-dark border border-white/20 shadow-lg z-50">
+                    <div className="p-2">
+                      <button
+                        onClick={() => {
+                          setNetwork('GORBAGANA');
+                          setIsNetworkMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${currentNetwork === 'GORBAGANA' ? 'bg-magic-green/10 border border-magic-green/30' : 'border border-transparent'
+                          }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="text-magic-green font-bold">🗑️</span>
+                          <span className="text-white font-mono">Gorbagana</span>
+                        </span>
+                        {currentNetwork === 'GORBAGANA' && (
+                          <span className="w-2 h-2 rounded-full bg-magic-green animate-pulse"></span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setNetwork('SOLANA_DEVNET');
+                          setIsNetworkMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${currentNetwork === 'SOLANA_DEVNET' ? 'bg-blue-500/10 border border-blue-500/30' : 'border border-transparent'
+                          }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="text-blue-400 font-bold">◎</span>
+                          <span className="text-white font-mono">Solana Devnet</span>
+                          <span className="text-[9px] text-blue-400 bg-blue-500/20 px-1 py-0.5 uppercase">test</span>
+                        </span>
+                        {currentNetwork === 'SOLANA_DEVNET' && (
+                          <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          alert('Solana mainnet bridge requires deployment (2 SOL). Currently testing on devnet.');
+                          setIsNetworkMenuOpen(false);
+                        }}
+                        disabled
+                        className="w-full flex items-center justify-between px-3 py-2 text-left text-sm opacity-50 cursor-not-allowed border border-transparent"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="text-purple-400 font-bold">◎</span>
+                          <span className="text-gray-400 font-mono">Solana Mainnet</span>
+                          <span className="text-[9px] text-yellow-500 bg-yellow-500/20 px-1 py-0.5 uppercase">soon</span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Connected Network Badge */}
               {connected && (
