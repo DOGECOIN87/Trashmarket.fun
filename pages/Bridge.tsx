@@ -266,7 +266,12 @@ const Bridge: React.FC = () => {
 
     // Fallback
     if (!errStr || errStr === 'undefined' || errStr === '[object Object]') {
-      return 'Transaction failed. The order may have already been filled or expired.';
+      // If we can't find a good string, stringify the whole error for debugging
+      try {
+        const fullErr = JSON.stringify(err);
+        if (fullErr !== '{}') return `Transaction failed: ${fullErr}`;
+      } catch (e) {}
+      return `Transaction failed: ${String(err)}. The order may have already been filled or expired.`;
     }
 
     return errStr;
