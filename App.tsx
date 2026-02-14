@@ -6,6 +6,7 @@ import { NetworkProvider } from './contexts/NetworkContext';
 import { WalletProvider } from './contexts/WalletContext';
 import { DynamicConnectionProvider } from './contexts/DynamicConnectionProvider';
 import Navbar from './components/Navbar';
+import PriceTicker from './components/PriceTicker';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Collection from './pages/Collection';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
             <Router>
               <div className="flex flex-col min-h-screen bg-magic-dark text-white font-mono antialiased selection:bg-magic-green selection:text-black">
                 <Navbar />
+                <PriceTicker />
                 <main className="flex-grow">
                   <Routes>
                     <Route path="/" element={<Home />} />
