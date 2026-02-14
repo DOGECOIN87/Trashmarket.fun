@@ -38,24 +38,38 @@ export const getTokens = async (): Promise<Token[]> => {
     if (!response.ok) {
       throw new Error(`Failed to fetch tokens: ${response.status}`);
     }
-    const data: TokenApiResponse = await response.json();
+    const apiData = await response.json();
 
-    // Handle various possible response formats
-    const tokens = data.tokens || data.data || data.items || (Array.isArray(data) ? data : []);
+    // Handle Trashscan API response format
+    const tokens = apiData.data || [];
 
-    return tokens.map((token: any) => ({
-      symbol: token.symbol || token.ticker || 'UNKNOWN',
-      name: token.name || token.symbol || 'Unknown Token',
-      price: parseFloat(token.price || token.priceGor || '0'),
-      priceUsd: parseFloat(token.priceUsd || token.price_usd || '0'),
-      change24h: parseFloat(token.change24h || token.priceChange24h || token.change_24h || '0'),
-      volume24h: parseFloat(token.volume24h || token.volume_24h || '0'),
-      marketCap: parseFloat(token.marketCap || token.market_cap || '0'),
-      holders: parseInt(token.holders || token.holderCount || '0'),
-      contractAddress: token.contractAddress || token.address || token.contract,
-      logoUrl: token.logoUrl || token.logo || token.image,
-      decimals: token.decimals || 9,
-    }));
+    if (!Array.isArray(tokens)) {
+      throw new Error('Invalid API response format');
+    }
+
+    // Map and filter tokens
+    return tokens
+      .filter((token: any) => {
+        // Only include tokens with valid price data and liquidity
+        return token.price?.native > 0 &&
+               token.marketData?.liquidity > 0 &&
+               token.metadata?.symbol;
+      })
+      .map((token: any) => ({
+        symbol: token.metadata?.symbol || 'UNKNOWN',
+        name: token.metadata?.name || token.metadata?.symbol || 'Unknown Token',
+        price: parseFloat(token.price?.native || '0'),
+        priceUsd: parseFloat(token.price?.usd || '0'),
+        change24h: parseFloat(token.price?.change24h || '0'),
+        volume24h: parseFloat(token.marketData?.volume24h || '0'),
+        marketCap: parseFloat(token.marketData?.marketCap || '0'),
+        holders: parseInt(token.marketData?.holderCount || '0'),
+        contractAddress: token.mint,
+        logoUrl: token.metadata?.logo,
+        decimals: token.metadata?.decimals || 6,
+      }))
+      .sort((a, b) => b.marketCap - a.marketCap) // Sort by market cap
+      .slice(0, 20); // Take top 20 verified tokens
   } catch (error) {
     console.error('Error fetching tokens:', error);
     throw error;
@@ -132,11 +146,15 @@ export const getMockTokenMetrics = (): MarketMetric[] => [
  */
 export const getMarketMetrics = async (): Promise<MarketMetric[]> => {
   try {
+    console.log('Fetching live token data from Trashscan API...');
     const tokens = await getTokens();
-    if (tokens.length === 0) {
+
+    if (!tokens || tokens.length === 0) {
+      console.warn('No tokens received from API, using mock data');
       return getMockTokenMetrics();
     }
 
+    console.log(`Successfully fetched ${tokens.length} verified tokens from Trashscan`);
     const metrics = transformTokensToMetrics(tokens);
 
     // Add network stats at the end
@@ -147,7 +165,8 @@ export const getMarketMetrics = async (): Promise<MarketMetric[]> => {
 
     return metrics;
   } catch (error) {
-    console.error('Failed to fetch market metrics, using fallback:', error);
+    console.error('Failed to fetch market metrics from API:', error);
+    console.warn('Falling back to mock token data');
     return getMockTokenMetrics();
   }
 };
