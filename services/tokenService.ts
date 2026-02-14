@@ -1,6 +1,4 @@
-import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
-
-const TRASHSCAN_API_BASE = `${GORBAGANA_CONFIG.explorerUrl}`;
+const TRASHSCAN_API_BASE = 'https://gorapi.trashscan.io';
 
 export interface Token {
   symbol: string;

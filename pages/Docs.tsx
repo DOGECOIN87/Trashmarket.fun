@@ -262,7 +262,7 @@ const Docs: React.FC = () => {
                       <div>
                           <div className="flex items-center gap-4 mb-2">
                               <span className="px-2 py-1 bg-magic-green text-black text-xs font-bold font-mono">GET</span>
-                              <span className="text-white font-mono text-sm">https://gorapi.onrender.com/api/gorbagios</span>
+                              <span className="text-white font-mono text-sm">https://gorapi.trashscan.io/api/gorbagios</span>
                           </div>
                           <div className="bg-black border border-white/10 p-4 font-mono text-xs overflow-x-auto">
 <pre className="text-gray-400">
