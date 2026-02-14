@@ -183,11 +183,25 @@ const Navbar: React.FC = () => {
                 </div>
               </a>
 
+              {/* Devnet Warning Badge (Prominent) */}
+              {isDevnet && (
+                <div className="flex items-center gap-2 px-3 py-1.5 border border-blue-500 bg-blue-500/10 animate-pulse">
+                  <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 font-mono">
+                    ⚠️ DEVNET MODE
+                  </span>
+                </div>
+              )}
+
               {/* Network Switcher Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setIsNetworkMenuOpen(!isNetworkMenuOpen)}
-                  className="flex items-center gap-2 px-4 py-2 border border-white/20 bg-black hover:bg-white/5 transition-colors"
+                  className={`flex items-center gap-2 px-4 py-2 border transition-colors ${
+                    isDevnet
+                      ? 'border-blue-500 bg-blue-500/10 hover:bg-blue-500/20'
+                      : 'border-white/20 bg-black hover:bg-white/5'
+                  }`}
                 >
                   <Globe className="w-4 h-4" />
                   <span className={`text-xs font-bold uppercase tracking-wider font-mono ${currentNetwork === 'GORBAGANA' ? 'text-magic-green' :
