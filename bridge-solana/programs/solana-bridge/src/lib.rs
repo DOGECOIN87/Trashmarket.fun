@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer as SplTransfer};
 
 // TODO: Replace with actual program ID after `anchor keys list`
-declare_id!("11111111111111111111111111111111");
+declare_id!("66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M");
 
 // ── Hardcoded Constants ──────────────────────────────────────────────
 /// sGOR SPL Token mint on Solana Mainnet
@@ -315,7 +315,7 @@ pub struct CancelOrder<'info> {
 
     /// Escrow sGOR token account
     #[account(mut)]
-    pub escrow_token_account: Account<'info, TokenAccount>>,
+    pub escrow_token_account: Account<'info, TokenAccount>,
 
     /// Maker's sGOR token account (receives refund)
     #[account(mut)]
