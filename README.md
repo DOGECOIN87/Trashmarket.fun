@@ -175,6 +175,18 @@ Trashmarket.fun/
 3. Commit your changes
 4. Push and open a PR
 
+## Want to help bootstrap progress?  
+
+The Goal is 2 SOL to deploy our Solana Program - Anything helps thank you for any donations made!
+
+## Solana Wallet Address:  
+
+Hn1i7bLb7oHpAL5AoyGvkn7YgwmWrVTbVsjXA1LYnELo  
+
+or  
+
+mattrick.sol
+
 ---
 
 ## License
