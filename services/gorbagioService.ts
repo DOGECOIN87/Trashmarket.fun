@@ -25,6 +25,7 @@ interface GorbagioMetadata {
   };
   isCompressed?: boolean;
   listStatus?: string;
+  price_SOL?: number;
 }
 
 interface GorbagioApiItem {
@@ -45,15 +46,54 @@ const normalizeWhitespace = (value?: string): string => {
   return value ? value.replace(/\s+/g, ' ').trim() : '';
 };
 
-// Temporary: Return empty data while NFTs are being minted
+// Fetch Gorbagios data from local scraped data or API
 const fetchGorbagios = async (): Promise<GorbagioApiResponse> => {
-  // Return empty response for now
-  return {
-    success: true,
-    count: 0,
-    total: 0,
-    data: []
-  };
+  try {
+    // Try fetching from local data first (scraped from Magic Eden)
+    const response = await fetch('/data/gorbagios_nfts_full.json');
+    if (!response.ok) {
+      throw new Error(`Failed to fetch: ${response.status}`);
+    }
+
+    const nfts = await response.json();
+
+    // Transform the scraped data to our API format
+    const transformedData: GorbagioApiItem[] = nfts.map((nft: any) => ({
+      solana_mint: nft.mintAddress,
+      gorbagana_mint: null, // Not bridged yet
+      current_owner: nft.owner,
+      metadata: {
+        mintAddress: nft.mintAddress,
+        supply: nft.supply,
+        collection: nft.collection,
+        collectionName: nft.collectionName,
+        name: nft.name,
+        updateAuthority: nft.updateAuthority,
+        primarySaleHappened: nft.primarySaleHappened,
+        sellerFeeBasisPoints: nft.sellerFeeBasisPoints,
+        image: nft.image,
+        attributes: nft.attributes,
+        listStatus: nft.listStatus,
+        price_SOL: nft.price_SOL,
+      }
+    }));
+
+    return {
+      success: true,
+      count: transformedData.length,
+      total: transformedData.length,
+      data: transformedData
+    };
+  } catch (error) {
+    console.error('Error fetching Gorbagios:', error);
+    // Return empty data on error
+    return {
+      success: false,
+      count: 0,
+      total: 0,
+      data: []
+    };
+  }
 };
 
 const getSupplyFromResponse = (response: GorbagioApiResponse): number => {
@@ -62,10 +102,10 @@ const getSupplyFromResponse = (response: GorbagioApiResponse): number => {
   return response.data?.length ?? 0;
 };
 
-const buildGorbagioCollection = (
+const buildGorbagioCollection = async (
   response: GorbagioApiResponse,
   fallback?: Partial<Collection>
-): Collection => {
+): Promise<Collection> => {
   const items = response.data ?? [];
   const first = items[0];
   const supply = getSupplyFromResponse(response);
@@ -79,16 +119,33 @@ const buildGorbagioCollection = (
   const image = first?.metadata?.image || fallback?.image || '';
   const banner = fallback?.banner || image;
 
+  // Try to fetch collection stats from scraped data
+  let floorPrice = fallback?.floorPrice ?? 0;
+  let totalVolume = fallback?.totalVolume ?? 0;
+  let listedCount = items.length ? listedFromApi : fallback?.listedCount ?? 0;
+
+  try {
+    const statsResponse = await fetch('/data/gorbagios_collection_stats.json');
+    if (statsResponse.ok) {
+      const stats = await statsResponse.json();
+      floorPrice = stats.floorPrice_SOL || floorPrice;
+      totalVolume = stats.volumeAll_SOL || totalVolume;
+      listedCount = stats.listedCount || listedCount;
+    }
+  } catch (error) {
+    console.warn('Could not fetch collection stats, using fallback');
+  }
+
   return {
     id: fallback?.id || 'gorbagios',
     name,
-    description: fallback?.description || 'The Gorbagio collection on Gorbagana.',
+    description: fallback?.description || 'The Gorbagio collection - 4,444 unique NFTs on Solana.',
     image,
     banner,
-    floorPrice: fallback?.floorPrice ?? 0,
-    totalVolume: fallback?.totalVolume ?? 0,
-    listedCount: items.length ? listedFromApi : fallback?.listedCount ?? 0,
-    supply: supply || fallback?.supply || 0,
+    floorPrice,
+    totalVolume,
+    listedCount,
+    supply: supply || fallback?.supply || 4444,
     isVerified: fallback?.isVerified ?? true,
     change24h: fallback?.change24h ?? 0,
   };
@@ -106,18 +163,21 @@ const mapGorbagioNFTs = (
 ): NFT[] => {
   const offset = options.offset ?? 0;
   const limit = options.limit ?? items.length;
-  const price = Number.isFinite(options.defaultPrice) ? options.defaultPrice : 0;
+  const defaultPrice = Number.isFinite(options.defaultPrice) ? options.defaultPrice : 0;
 
   return items.slice(offset, offset + limit).map((item, index) => {
     const name =
       normalizeWhitespace(item.metadata?.name) ||
       `${options.collectionName} #${offset + index + 1}`;
 
+    // Use the actual price from metadata if available, otherwise use default
+    const price = item.metadata?.price_SOL ?? defaultPrice;
+
     return {
       id: item.gorbagana_mint || item.solana_mint || `${options.collectionId}-${offset + index}`,
       name,
       image: item.metadata?.image || '',
-      price,
+      price: typeof price === 'number' ? price : defaultPrice,
       collectionId: options.collectionId,
     };
   });
@@ -127,7 +187,7 @@ export const getGorbagioCollection = async (
   fallback?: Partial<Collection>
 ): Promise<Collection> => {
   const response = await fetchGorbagios();
-  return buildGorbagioCollection(response, fallback);
+  return await buildGorbagioCollection(response, fallback);
 };
 
 export const getGorbagioNFTs = async (options?: {
@@ -158,7 +218,7 @@ export const getGorbagioCollectionWithNFTs = async (options?: {
   offset?: number;
 }): Promise<{ collection: Collection; nfts: NFT[]; total: number }> => {
   const response = await fetchGorbagios();
-  const collection = buildGorbagioCollection(response, options?.collectionFallback);
+  const collection = await buildGorbagioCollection(response, options?.collectionFallback);
   const nfts = mapGorbagioNFTs(response.data ?? [], {
     collectionId: collection.id,
     collectionName: collection.name,
