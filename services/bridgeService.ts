@@ -477,17 +477,25 @@ export const useBridgeService = () => {
 
   // Fetch all orders
   const fetchAllOrders = async (): Promise<BridgeOrder[]> => {
-    if (!program) return [];
-    const accounts = await program.account.order.all();
-    return accounts.map(acc => ({
-      orderPDA: acc.publicKey,
-      maker: acc.account.maker,
-      amount: acc.account.amount,
-      direction: acc.account.direction,
-      expirationSlot: acc.account.expirationSlot,
-      isFilled: acc.account.isFilled,
-      bump: acc.account.bump,
-    }));
+    // Use the correct program based on current network
+    const currentProgram = activeProgram;
+    if (!currentProgram) return [];
+
+    try {
+      const accounts = await currentProgram.account.order.all();
+      return accounts.map(acc => ({
+        orderPDA: acc.publicKey,
+        maker: acc.account.maker,
+        amount: acc.account.amount,
+        direction: acc.account.direction || 0, // Solana devnet program doesn't have direction field
+        expirationSlot: acc.account.expirationSlot,
+        isFilled: acc.account.isFilled,
+        bump: acc.account.bump,
+      }));
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+      return [];
+    }
   };
 
   return {

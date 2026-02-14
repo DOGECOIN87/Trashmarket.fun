@@ -38,8 +38,6 @@ const Bridge: React.FC = () => {
 
   // Fetch real orders from blockchain
   useEffect(() => {
-    if (!program) return;
-
     const loadOrders = async () => {
       setLoading(true);
       try {
@@ -48,8 +46,9 @@ const Bridge: React.FC = () => {
         // Note: In a real app you might want to check expiration too
         const activeOrders = allOrders.filter(o => !o.isFilled);
         setOrders(activeOrders);
+        console.log(`[Bridge] Loaded ${activeOrders.length} active orders on ${currentNetwork}`);
       } catch (err) {
-        console.error('Failed to fetch orders:', err);
+        console.error('[Bridge] Failed to fetch orders:', err);
       } finally {
         setLoading(false);
       }
@@ -60,7 +59,7 @@ const Bridge: React.FC = () => {
     // Refresh every 30 seconds
     const interval = setInterval(loadOrders, 30000);
     return () => clearInterval(interval);
-  }, [program]);
+  }, [currentNetwork, connected, fetchAllOrders]); // Reload when network changes or wallet connects
 
   // --- LOGIC ---
   const filteredOrders = useMemo(() => {
