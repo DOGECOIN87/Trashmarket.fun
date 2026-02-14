@@ -335,15 +335,15 @@ const Bridge: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black text-white font-mono">
-      {/* Under Construction Banner */}
-      <div className="bg-yellow-500/20 border-b border-yellow-500/50">
+      {/* Status Banner */}
+      <div className="bg-blue-500/20 border-b border-blue-500/50">
         <div className="max-w-[1600px] mx-auto px-4 py-3">
           <div className="flex items-center justify-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-500" />
-            <p className="text-yellow-500 text-sm font-bold uppercase tracking-wider">
-              ⚠️ UNDER CONSTRUCTION — Solana bridge program deployment pending
+            <Activity className="w-5 h-5 text-blue-400" />
+            <p className="text-blue-400 text-sm font-bold uppercase tracking-wider">
+              ⚙️ DEVNET TESTING — Solana program deployed | Mainnet deployment requires 2 SOL
             </p>
-            <AlertTriangle className="w-5 h-5 text-yellow-500" />
+            <Activity className="w-5 h-5 text-blue-400" />
           </div>
         </div>
       </div>

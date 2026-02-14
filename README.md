@@ -56,19 +56,19 @@ Submit your own NFT collection to be listed on the marketplace. Track your submi
 
 The bridge uses **dual-program escrow architecture** for trustless P2P cross-chain trading between Solana and Gorbagana.
 
-### Current Status: 🚧 In Progress
+### Current Status: 🧪 Testing Phase
 
-✅ **Gorbagana Program:** Deployed and operational
-⏳ **Solana Program:** Code complete, deployment pending (final step)
+✅ **Gorbagana Program:** Deployed on mainnet
+🧪 **Solana Program:** Deployed on devnet for testing
 
 ### How It Works
 
 The bridge requires **two separate programs** (one per chain):
 
-| Chain | Program | Token | Status |
-|-------|---------|-------|--------|
-| **Gorbagana** | `FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq` | gGOR (native) | ✅ Deployed |
-| **Solana** | *TBD after deployment* | sGOR (SPL) | 📦 Ready to deploy |
+| Chain | Program | Token | Network | Status |
+|-------|---------|-------|---------|--------|
+| **Gorbagana** | `FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq` | gGOR (native, 9 decimals) | Mainnet | ✅ Live |
+| **Solana** | `66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M` | sGOR (SPL, 6 decimals) | Devnet | 🧪 Testing |
 
 **sGOR Mint (Solana mainnet):** `71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg`
 
@@ -81,14 +81,19 @@ The bridge requires **two separate programs** (one per chain):
 
 > **Architecture note:** Each blockchain has its own escrow program. The Gorbagana program handles gGOR (native gas), while the Solana program handles sGOR (SPL token). Cross-chain coordination ensures both sides settle atomically.
 
-### Final Deployment Step
+### Deployment Status
 
-The Solana-side bridge program is fully implemented and ready for deployment:
-- **Location:** `/bridge-solana/` (complete Anchor workspace)
+**Devnet (Testing):**
+- ✅ Program deployed: `66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M`
+- 🧪 Testing in progress
+- 📊 [View on Explorer](https://explorer.solana.com/address/66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M?cluster=devnet)
+
+**Mainnet (Pending):**
 - **Cost:** ~2 SOL for deployment
+- **Location:** `/bridge-solana/` (complete Anchor workspace)
 - **Next steps:** See [bridge-solana/DEPLOYMENT_GUIDE.md](./bridge-solana/DEPLOYMENT_GUIDE.md)
 
-Once the Solana program is deployed and the program ID is configured, the bridge will be fully operational.
+Once mainnet deployment is complete and coordination mechanism is implemented, the bridge will be fully operational.
 
 For the complete security model and implementation details, see [BRIDGE_SECURITY.md](./BRIDGE_SECURITY.md).
 
