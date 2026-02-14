@@ -14,6 +14,7 @@ import Launchpad from './pages/Launchpad';
 import Docs from './pages/Docs';
 import Gorid from './pages/Gorid';
 import Bridge from './pages/Bridge';
+import Faucet from './pages/Faucet';
 
 const RPC_URL = 'https://rpc.trashscan.io';
 
@@ -38,6 +39,7 @@ const App: React.FC = () => {
                         <Route path="/gorid" element={<Gorid />} />
                         <Route path="/docs" element={<Docs />} />
                         <Route path="/bridge" element={<Bridge />} />
+                        <Route path="/faucet" element={<Faucet />} />
                       </Routes>
                     </main>
                     <Footer />
