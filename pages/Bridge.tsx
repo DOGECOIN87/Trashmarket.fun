@@ -335,6 +335,19 @@ const Bridge: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black text-white font-mono">
+      {/* Under Construction Banner */}
+      <div className="bg-yellow-500/20 border-b border-yellow-500/50">
+        <div className="max-w-[1600px] mx-auto px-4 py-3">
+          <div className="flex items-center justify-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-500" />
+            <p className="text-yellow-500 text-sm font-bold uppercase tracking-wider">
+              ⚠️ UNDER CONSTRUCTION — Solana bridge program deployment pending
+            </p>
+            <AlertTriangle className="w-5 h-5 text-yellow-500" />
+          </div>
+        </div>
+      </div>
+
       {/* Hero / Header */}
       <div className="border-b border-white/20 bg-gradient-to-b from-magic-green/5 to-transparent">
         <div className="max-w-[1600px] mx-auto px-4 py-8 md:py-12">
