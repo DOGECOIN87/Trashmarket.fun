@@ -15,6 +15,7 @@ import Docs from './pages/Docs';
 import Gorid from './pages/Gorid';
 import Bridge from './pages/Bridge';
 import Faucet from './pages/Faucet';
+import CoinPushaPage from './src/pages/coin-pusha/CoinPushaPage';
 
 const App: React.FC = () => {
   const wallets = useMemo(() => [new BackpackWalletAdapter()], []);
@@ -37,6 +38,7 @@ const App: React.FC = () => {
                     <Route path="/docs" element={<Docs />} />
                     <Route path="/bridge" element={<Bridge />} />
                     <Route path="/faucet" element={<Faucet />} />
+                    <Route path="/coin-pusha" element={<CoinPushaPage />} />
                   </Routes>
                 </main>
                 <Footer />
