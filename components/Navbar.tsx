@@ -112,7 +112,7 @@ const Navbar: React.FC = () => {
     { name: 'Launchpad', path: '/launchpad' },
     { name: 'Bridge', path: '/bridge' },
     { name: 'Faucet', path: '/faucet' },
-    { name: '🎮 Coin Pusha', path: '/coin-pusha' },
+    { name: '🎮 Junk Pusher', path: '/junk-pusher' },
     { name: 'Docs / Brand', path: '/docs' },
   ];
 
@@ -199,18 +199,17 @@ const Navbar: React.FC = () => {
               <div className="relative">
                 <button
                   onClick={() => setIsNetworkMenuOpen(!isNetworkMenuOpen)}
-                  className={`flex items-center gap-2 px-4 py-2 border transition-colors ${
-                    isDevnet
+                  className={`flex items-center gap-2 px-4 py-2 border transition-colors ${isDevnet
                       ? 'border-blue-500 bg-blue-500/10 hover:bg-blue-500/20'
                       : 'border-white/20 bg-black hover:bg-white/5'
-                  }`}
+                    }`}
                 >
                   <Globe className="w-4 h-4" />
                   <span className={`text-xs font-bold uppercase tracking-wider font-mono ${currentNetwork === 'GORBAGANA' ? 'text-magic-green' :
                     isDevnet ? 'text-blue-400' : 'text-purple-400'
-                  }`}>
+                    }`}>
                     {currentNetwork === 'GORBAGANA' ? '🗑️ GOR' :
-                     isDevnet ? '◎ SOL-DEV' : '◎ SOL'}
+                      isDevnet ? '◎ SOL-DEV' : '◎ SOL'}
                   </span>
                   <ChevronDown className={`w-3 h-3 text-gray-500 transition-transform ${isNetworkMenuOpen ? 'rotate-180' : ''}`} />
                 </button>

@@ -1,18 +1,18 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { GameEngine } from './game/GameEngine';
-import { Overlay } from './components/Overlay';
-import { PegboardCanvas } from './components/PegboardCanvas';
-import { GameState } from './types';
-import { WalletProvider, useWallet } from './context/WalletContext';
-import { setupAutoSave, loadGameState, clearGameState, hasRecoverableState, getRecoveryMessage } from './services/statePersistence';
-import { soundManager } from './services/soundManager';
-import { BackgroundDecorations } from './components/BackgroundDecorations';
+import { GameEngine } from '../../../lib/coin-pusha/GameEngine';
+import { Overlay } from './Overlay';
+import { PegboardCanvas } from './PegboardCanvas';
+import { GameState } from '../../../types/coin-pusha/types';
+import { WalletProvider, useWallet } from './WalletContext';
+import { setupAutoSave, loadGameState, clearGameState, hasRecoverableState, getRecoveryMessage } from '../../../lib/coin-pusha/statePersistence';
+import { soundManager } from '../../../lib/coin-pusha/soundManager';
+import { BackgroundDecorations } from './BackgroundDecorations';
 
 const AppContent: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const wallet = useWallet();
-  
+
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     balance: 100,
@@ -29,7 +29,7 @@ const AppContent: React.FC = () => {
   // Check for recoverable state on mount
   useEffect(() => {
     if (hasCheckedRecovery) return;
-    
+
     const walletAddress = wallet.publicKey;
     if (hasRecoverableState(walletAddress)) {
       const message = getRecoveryMessage(walletAddress);
@@ -42,7 +42,7 @@ const AppContent: React.FC = () => {
             score: recovered.score,
             netProfit: recovered.netProfit,
           }));
-          
+
           // Update engine state if it exists
           if (engineRef.current) {
             engineRef.current.reset();
@@ -67,28 +67,28 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    
+
     // Initialize Engine
     const engine = new GameEngine({
-        debugControls: true, 
-        debugFps: true
+      debugControls: true,
+      debugFps: true
     });
-    
+
     engine.initialize(canvasRef.current, handleUpdate).then(() => {
-        engineRef.current = engine;
+      engineRef.current = engine;
     });
 
     // Resize Observer
     const handleResize = () => {
-        if (canvasRef.current && engineRef.current) {
-            engineRef.current.resize(window.innerWidth, window.innerHeight);
-        }
+      if (canvasRef.current && engineRef.current) {
+        engineRef.current.resize(window.innerWidth, window.innerHeight);
+      }
     };
     window.addEventListener('resize', handleResize);
 
     return () => {
-        window.removeEventListener('resize', handleResize);
-        engine.cleanup();
+      window.removeEventListener('resize', handleResize);
+      engine.cleanup();
     };
   }, [handleUpdate]);
 
@@ -96,10 +96,10 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const handleBeforeUnload = () => {
       // Save final state before closing
-      const { saveGameState } = require('./services/statePersistence');
+      const { saveGameState } = require('../../../lib/coin-pusha/statePersistence');
       saveGameState(gameState, wallet.publicKey);
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [handleUpdate]);
@@ -107,9 +107,9 @@ const AppContent: React.FC = () => {
   const handlePointerDown = (e: React.PointerEvent) => {
     // Initialize sound on first user interaction
     soundManager.initialize();
-    
+
     if (!engineRef.current || gameState.isPaused) return;
-    
+
     // Calculate normalized device coordinates (-1 to +1) for x, y
     // We only care about X for drop position really, but let's pass both to engine raycaster
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -123,7 +123,7 @@ const AppContent: React.FC = () => {
     <div className="relative w-full h-screen overflow-hidden bg-black">
       {/* Background Decorations */}
       <BackgroundDecorations />
-      
+
       {/* Lumia Pegboard background */}
       <PegboardCanvas />
       {/* Three.js game canvas (transparent background) */}

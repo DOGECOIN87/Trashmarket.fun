@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { generateInitialLayout, Shape, getImageElement, initializeShapeCache } from '../utils/shapeMath';
+import { generateInitialLayout, Shape, getImageElement, initializeShapeCache } from '../../../lib/coin-pusha/shapeMath';
 
 interface PegboardCanvasProps {
   gridSize?: number;
