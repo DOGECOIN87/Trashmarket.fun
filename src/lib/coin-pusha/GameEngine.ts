@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS, DIMENSIONS, COLORS, TRASHCOIN } from './constants';
-import { GameConfig, GameEventCallback } from '../types';
-import { soundManager } from '../services/soundManager';
+import { GameConfig, GameEventCallback } from '../../types/coin-pusha/types';
+import { soundManager } from './soundManager';
 
 export class GameEngine {
   // Config

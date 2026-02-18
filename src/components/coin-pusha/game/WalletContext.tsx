@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import * as SolanaService from '../services/solanaService';
+import * as SolanaService from '../../../lib/coin-pusha/solanaService';
 
 interface WalletContextType {
   publicKey: string | null;

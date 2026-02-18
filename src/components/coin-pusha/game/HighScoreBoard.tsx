@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useWallet } from '../context/WalletContext';
-import { getConnection, getProgramId } from '../services/solanaService';
-import { getHighScores, getPlayerRank, HighScoreEntry } from '../services/highScoreService';
-import { soundManager } from '../services/soundManager';
+import { PublicKey } from '@solana/web3.js';
+import { useWallet } from './WalletContext';
+import { getConnection, getProgramId } from '../../../lib/coin-pusha/solanaService';
+import { getHighScores, getTopProfits, getPlayerRank, HighScoreEntry } from '../../../lib/coin-pusha/highScoreService';
+import { soundManager } from '../../../lib/coin-pusha/soundManager';
 
 interface HighScoreBoardProps {
   isOpen: boolean;
@@ -28,16 +29,21 @@ export const HighScoreBoard: React.FC<HighScoreBoardProps> = ({ isOpen, onClose 
       const connection = getConnection();
       const programId = getProgramId();
 
-      // Fetch high scores
-      const highScores = await getHighScores(connection, programId, 100);
-      setScores(highScores);
+      // Fetch data based on active tab
+      let data: HighScoreEntry[] = [];
+      if (activeTab === 'score') {
+        data = await getHighScores(connection, programId, 100);
+      } else {
+        data = await getTopProfits(connection, programId, 100);
+      }
+      setScores(data);
 
       // Fetch player rank if wallet is connected
       if (wallet.isConnected && wallet.publicKey) {
         const { rank, total } = await getPlayerRank(
           connection,
           programId,
-          new (await import('@solana/web3.js')).PublicKey(wallet.publicKey)
+          new PublicKey(wallet.publicKey)
         );
         setPlayerRank({ rank, total });
       }
@@ -62,7 +68,7 @@ export const HighScoreBoard: React.FC<HighScoreBoardProps> = ({ isOpen, onClose 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
       <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0d3d24] border-2 border-green-500/60 rounded-lg overflow-hidden shadow-[0_0_50px_rgba(0,255,0,0.3)]">
-        
+
         {/* Header */}
         <div className="relative bg-gradient-to-r from-[#1a5f3f] to-[#0d3d24] border-b-2 border-green-500/40 p-6">
           {/* Close Button */}
@@ -107,11 +113,10 @@ export const HighScoreBoard: React.FC<HighScoreBoardProps> = ({ isOpen, onClose 
               soundManager.play('button_click');
               setActiveTab('score');
             }}
-            className={`flex-1 py-3 px-4 font-heading text-sm uppercase tracking-wider transition-all ${
-              activeTab === 'score'
-                ? 'bg-green-900/50 text-green-300 border-b-2 border-green-400'
-                : 'text-green-500/50 hover:text-green-400 hover:bg-green-900/20'
-            }`}
+            className={`flex-1 py-3 px-4 font-heading text-sm uppercase tracking-wider transition-all ${activeTab === 'score'
+              ? 'bg-green-900/50 text-green-300 border-b-2 border-green-400'
+              : 'text-green-500/50 hover:text-green-400 hover:bg-green-900/20'
+              }`}
           >
             Top Scores
           </button>
@@ -120,11 +125,10 @@ export const HighScoreBoard: React.FC<HighScoreBoardProps> = ({ isOpen, onClose 
               soundManager.play('button_click');
               setActiveTab('profit');
             }}
-            className={`flex-1 py-3 px-4 font-heading text-sm uppercase tracking-wider transition-all ${
-              activeTab === 'profit'
-                ? 'bg-green-900/50 text-green-300 border-b-2 border-green-400'
-                : 'text-green-500/50 hover:text-green-400 hover:bg-green-900/20'
-            }`}
+            className={`flex-1 py-3 px-4 font-heading text-sm uppercase tracking-wider transition-all ${activeTab === 'profit'
+              ? 'bg-green-900/50 text-green-300 border-b-2 border-green-400'
+              : 'text-green-500/50 hover:text-green-400 hover:bg-green-900/20'
+              }`}
           >
             Top Profits
           </button>
@@ -151,20 +155,18 @@ export const HighScoreBoard: React.FC<HighScoreBoardProps> = ({ isOpen, onClose 
               {scores.map((entry, index) => (
                 <div
                   key={entry.player}
-                  className={`flex items-center gap-4 p-3 rounded border transition-all ${
-                    wallet.publicKey === entry.player
-                      ? 'bg-green-900/40 border-green-400 shadow-[0_0_15px_rgba(0,255,0,0.2)]'
-                      : 'bg-black/20 border-green-500/20 hover:border-green-500/40 hover:bg-black/30'
-                  }`}
+                  className={`flex items-center gap-4 p-3 rounded border transition-all ${wallet.publicKey === entry.player
+                    ? 'bg-green-900/40 border-green-400 shadow-[0_0_15px_rgba(0,255,0,0.2)]'
+                    : 'bg-black/20 border-green-500/20 hover:border-green-500/40 hover:bg-black/30'
+                    }`}
                 >
                   {/* Rank */}
                   <div className="flex-shrink-0 w-12 text-center">
                     {entry.rank <= 3 ? (
-                      <div className={`font-heading text-2xl ${
-                        entry.rank === 1 ? 'text-yellow-400' :
+                      <div className={`font-heading text-2xl ${entry.rank === 1 ? 'text-yellow-400' :
                         entry.rank === 2 ? 'text-gray-300' :
-                        'text-orange-400'
-                      }`}>
+                          'text-orange-400'
+                        }`}>
                         {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
                       </div>
                     ) : (
@@ -192,9 +194,8 @@ export const HighScoreBoard: React.FC<HighScoreBoardProps> = ({ isOpen, onClose 
                     </div>
                     <div>
                       <div className="text-xs text-green-400/60 uppercase font-[Inter]">Profit</div>
-                      <div className={`font-heading text-lg ${
-                        entry.netProfit >= 0 ? 'text-green-400' : 'text-red-400'
-                      }`}>
+                      <div className={`font-heading text-lg ${entry.netProfit >= 0 ? 'text-green-400' : 'text-red-400'
+                        }`}>
                         {entry.netProfit > 0 ? '+' : ''}{entry.netProfit}
                       </div>
                     </div>

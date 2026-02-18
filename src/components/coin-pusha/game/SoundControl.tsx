@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { soundManager } from '../services/soundManager';
+import { soundManager } from '../../../lib/coin-pusha/soundManager';
 
 export const SoundControl: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
