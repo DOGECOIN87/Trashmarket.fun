@@ -15,7 +15,7 @@ import Docs from './pages/Docs';
 import Gorid from './pages/Gorid';
 import Bridge from './pages/Bridge';
 import Faucet from './pages/Faucet';
-import CoinPushaPage from './src/pages/coin-pusha/CoinPushaPage';
+import CoinPushaPage from './pages/coin-pusha/CoinPushaPage';
 
 const App: React.FC = () => {
   const wallets = useMemo(() => [new BackpackWalletAdapter()], []);
