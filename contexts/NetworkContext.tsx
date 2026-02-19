@@ -83,8 +83,8 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Default to Gorbagana for main site experience
   const [currentNetwork, setCurrentNetwork] = useState<NetworkType>('GORBAGANA');
 
-  // Get current config based on selected network
-  const getConfig = () => {
+  // Get current config based on selected network — memoized to prevent new object every render
+  const config = useMemo(() => {
     switch (currentNetwork) {
       case 'SOLANA_MAINNET':
         return SOLANA_MAINNET_CONFIG;
@@ -94,9 +94,7 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ child
       default:
         return GORBAGANA_CONFIG;
     }
-  };
-
-  const config = getConfig();
+  }, [currentNetwork]);
 
   const network = currentNetwork === 'GORBAGANA' ? 'GOR' : 'SOL';
   const currency = config.currency.displaySymbol;

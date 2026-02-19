@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { GORBAGANA_CONFIG } from './NetworkContext';
 
 // Wallet Types
@@ -60,8 +60,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Available wallets configuration
-  const availableWallets: WalletContextType['availableWallets'] = [
+  // Available wallets configuration — memoized so it doesn't recreate on every render
+  const availableWallets = useMemo<WalletContextType['availableWallets']>(() => [
     {
       id: 'backpack',
       name: 'Backpack',
@@ -74,7 +74,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       icon: '🗑️',
       installed: checkWalletInstalled('gorbag'),
     },
-  ];
+  ], []);
 
   // Format address for display (e.g., "5Gh7...xZ9k")
   const formatAddress = useCallback((address: string): string => {
@@ -163,9 +163,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [fetchBalance]);
 
+  // Keep a ref to walletType so disconnect doesn't need walletState in its deps
+  const walletTypeRef = useRef<WalletType>(null);
+  walletTypeRef.current = walletState.walletType;
+
   // Disconnect wallet
   const disconnect = useCallback(() => {
-    const provider = getWalletProvider(walletState.walletType);
+    const provider = getWalletProvider(walletTypeRef.current);
     
     if (provider?.disconnect) {
       try {
@@ -184,7 +188,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     localStorage.removeItem('gorbagana_last_wallet');
     setError(null);
-  }, [walletState.walletType]);
+  }, []); // stable — uses ref instead of walletState
 
   // Auto-reconnect on mount if previously connected
   useEffect(() => {

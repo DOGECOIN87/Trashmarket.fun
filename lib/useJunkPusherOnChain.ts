@@ -10,7 +10,7 @@
  *  - Fetch high scores from the blockchain
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { JunkPusherClient, PROGRAM_ID } from './JunkPusherClient';
@@ -49,7 +49,10 @@ export function useJunkPusherOnChain() {
     error: null,
   });
 
-  const client = new JunkPusherClient();
+  // Stable client reference — never recreated on re-render
+  const clientRef = useRef<JunkPusherClient | null>(null);
+  if (!clientRef.current) clientRef.current = new JunkPusherClient();
+  const client = clientRef.current;
 
   // ─── Fetch on-chain balances ──────────────────────────────────────────
 
@@ -77,12 +80,19 @@ export function useJunkPusherOnChain() {
     }
   }, [publicKey, connection]);
 
-  // Auto-refresh balances on wallet connect
+  // Keep a stable ref to refreshBalances so the effect below doesn't re-fire
+  // every time the connection object identity changes.
+  const refreshBalancesRef = useRef(refreshBalances);
+  useEffect(() => { refreshBalancesRef.current = refreshBalances; }, [refreshBalances]);
+
+  // Auto-refresh balances on wallet connect — only re-run when connected/publicKey changes
+  const publicKeyStr = publicKey?.toBase58() ?? null;
   useEffect(() => {
-    if (connected && publicKey) {
-      refreshBalances();
+    if (connected && publicKeyStr) {
+      refreshBalancesRef.current();
     }
-  }, [connected, publicKey, refreshBalances]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, publicKeyStr]);
 
   // ─── Send a transaction helper ────────────────────────────────────────
 
