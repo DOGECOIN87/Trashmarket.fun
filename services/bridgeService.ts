@@ -5,6 +5,7 @@ import {
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
+import { useCallback } from 'react';
 import { useAnchor } from '../contexts/AnchorContext';
 import { useNetwork } from '../contexts/NetworkContext';
 
@@ -475,8 +476,8 @@ export const useBridgeService = () => {
     return txid;
   };
 
-  // Fetch all orders
-  const fetchAllOrders = async (): Promise<BridgeOrder[]> => {
+  // Fetch all orders — memoized so Bridge.tsx useEffect doesn't loop
+  const fetchAllOrders = useCallback(async (): Promise<BridgeOrder[]> => {
     // Use the correct program based on current network
     const currentProgram = activeProgram;
     if (!currentProgram) return [];
@@ -496,7 +497,7 @@ export const useBridgeService = () => {
       console.error('Failed to fetch orders:', error);
       return [];
     }
-  };
+  }, [activeProgram]);
 
   return {
     createOrderGGOR,
