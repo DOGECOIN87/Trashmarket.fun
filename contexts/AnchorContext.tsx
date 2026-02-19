@@ -2,14 +2,14 @@ import React, { createContext, useContext, useMemo } from 'react';
 import { PublicKey, Connection } from '@solana/web3.js';
 import { AnchorProvider as AnchorAnchorProvider, Program } from '@coral-xyz/anchor';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import type { GorbaganaBridge } from '../src/idl/gorbagana_bridge';
-import gorbaganaIdl from '../src/idl/gorbagana_bridge.json';
-import solanaIdl from '../bridge-solana/target/idl/solana_bridge.json';
+import { GORBAGANA_CONFIG } from './NetworkContext';
+import type { GorbaganaBridge } from '../idl/gorbagana_bridge';
+import gorbaganaIdl from '../idl/gorbagana_bridge.json';
+import solanaIdl from '../idl/solana_bridge.json';
 
 // Gorbagana Program
 const GORBAGANA_PROGRAM_ID = new PublicKey('FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq');
 const SGOR_MINT_MAINNET = new PublicKey('71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg');
-const GORBAGANA_RPC = 'https://rpc.trashscan.io';
 
 // Solana Devnet Program
 const SOLANA_DEVNET_PROGRAM_ID = new PublicKey('66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M');
@@ -51,7 +51,7 @@ export const AnchorContextProvider: React.FC<{ children: React.ReactNode }> = ({
             );
 
             // Dedicated Gorbagana provider for Bridge interactions
-            const gorbaganaConnection = new Connection(GORBAGANA_RPC, 'confirmed');
+            const gorbaganaConnection = new Connection(GORBAGANA_CONFIG.rpcEndpoint, 'confirmed');
             const gorbaganaProvider = new AnchorAnchorProvider(
                 gorbaganaConnection,
                 wallet as any,

@@ -146,10 +146,10 @@ anchor test
 ```
 Trashmarket.fun/
 ├── src/
-│   ├── pages/             # Home, Bridge, Collection, Gorid, Launchpad, Docs
+│   ├── pages/             # Home, Bridge, Collection, Gorid, Docs
 │   ├── components/        # Navbar, Footer, NFTCard, PriceChart
 │   ├── contexts/          # Wallet, Network, Anchor providers
-│   ├── services/          # Bridge, GorID, Gemini, Magic Eden integrations
+│   ├── services/          # Bridge, GorID, Magic Eden integrations
 │   └── utils/             # RPC helpers
 ├── bridge/
 │   └── programs/bridge/

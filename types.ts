@@ -40,13 +40,6 @@ export interface ActivityItem {
   name: string;
 }
 
-export enum LaunchpadStatus {
-  IDLE,
-  GENERATING,
-  SUCCESS,
-  ERROR
-}
-
 export enum SubmissionStatus {
   PENDING = 'pending',
   APPROVED = 'approved',

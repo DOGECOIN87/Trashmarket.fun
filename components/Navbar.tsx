@@ -109,11 +109,11 @@ const Navbar: React.FC = () => {
   const navLinks = [
     { name: 'Collections', path: '/' },
     { name: 'GorID', path: '/gorid' },
-    { name: 'Launchpad', path: '/launchpad' },
     { name: 'Bridge', path: '/bridge' },
-    { name: 'Faucet', path: '/faucet' },
-    { name: '🎮 Junk Pusher', path: '/junk-pusher' },
-    { name: 'Docs / Brand', path: '/docs' },
+    { name: 'JUNKPUSHER', path: '/junk-pusher' },
+    { name: 'DEX', path: '/dex' },
+    { name: 'Vanity', path: '/vanity' },
+    { name: 'Docs', path: '/docs' },
   ];
 
   return (

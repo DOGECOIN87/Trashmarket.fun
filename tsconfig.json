@@ -13,7 +13,8 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "types": [
-      "node"
+      "node",
+      "vite/client"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,
@@ -27,5 +28,11 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "bridge/tests",
+    "bridge-solana",
+    "bridge.ts"
+  ]
 }

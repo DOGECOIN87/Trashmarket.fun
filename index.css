@@ -1,0 +1,44 @@
+/* Gorbagana Brand — Custom Animations & Utilities */
+
+@keyframes scan {
+  0% { transform: translateY(0); opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0.5; }
+}
+
+/* Font heading utility (backup for inline class) */
+.font-heading {
+  font-family: 'Pusia', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+/* Floating animation for background assets */
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px) rotate(5deg);
+  }
+  50% {
+    transform: translateY(-10px) translateX(-10px) rotate(-5deg);
+  }
+  75% {
+    transform: translateY(-30px) translateX(5px) rotate(3deg);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 30s ease-in-out infinite;
+}
+
+/* Glow effects for Gorbagana branding */
+.glow-green {
+  text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
+}
+
+.glow-cyan {
+  text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff;
+}

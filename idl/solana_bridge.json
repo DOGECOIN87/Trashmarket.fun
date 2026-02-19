@@ -1,0 +1,115 @@
+{
+  "address": "9CGxVdboSmVnQYn8vLwK7mTSo7Qd62DFGFxPjxjQPRez",
+  "metadata": {
+    "name": "solana_bridge",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Solana-side sGOR escrow bridge for Gorbagana cross-chain trading"
+  },
+  "instructions": [
+    {
+      "name": "create_order",
+      "discriminator": [141, 54, 37, 207, 237, 210, 250, 215],
+      "accounts": [
+        { "name": "maker", "writable": true, "signer": true },
+        { "name": "order", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [111, 114, 100, 101, 114] }, { "kind": "account", "path": "maker" }, { "kind": "arg", "path": "amount" }] } },
+        { "name": "escrow_token_account", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [101, 115, 99, 114, 111, 119] }, { "kind": "account", "path": "maker" }, { "kind": "arg", "path": "amount" }] } },
+        { "name": "maker_token_account", "writable": true },
+        { "name": "sgor_mint" },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "system_program", "address": "11111111111111111111111111111111" },
+        { "name": "rent", "address": "SysvarRent111111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" },
+        { "name": "expiration_slot", "type": "u64" },
+        { "name": "gorbagana_recipient", "type": "publicKey" }
+      ]
+    },
+    {
+      "name": "fill_order",
+      "discriminator": [232, 43, 187, 21, 52, 88, 220, 242],
+      "accounts": [
+        { "name": "taker", "writable": true, "signer": true },
+        { "name": "maker", "writable": true },
+        { "name": "order", "writable": true },
+        { "name": "escrow_token_account", "writable": true },
+        { "name": "taker_token_account", "writable": true },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_order",
+      "discriminator": [95, 129, 237, 240, 8, 49, 223, 132],
+      "accounts": [
+        { "name": "maker", "writable": true, "signer": true },
+        { "name": "order", "writable": true },
+        { "name": "escrow_token_account", "writable": true },
+        { "name": "maker_token_account", "writable": true },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Order",
+      "discriminator": [134, 173, 223, 185, 77, 86, 28, 51],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "maker", "type": "publicKey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "gorbagana_recipient", "type": "publicKey" },
+          { "name": "expiration_slot", "type": "u64" },
+          { "name": "is_filled", "type": "bool" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "OrderCreated",
+      "discriminator": [56, 87, 13, 145, 64, 234, 79, 97],
+      "fields": [
+        { "name": "order_key", "type": "publicKey" },
+        { "name": "maker", "type": "publicKey" },
+        { "name": "amount", "type": "u64" },
+        { "name": "gorbagana_recipient", "type": "publicKey" },
+        { "name": "expiration_slot", "type": "u64" }
+      ]
+    },
+    {
+      "name": "OrderFilled",
+      "discriminator": [175, 198, 142, 42, 212, 192, 32, 110],
+      "fields": [
+        { "name": "order_key", "type": "publicKey" },
+        { "name": "maker", "type": "publicKey" },
+        { "name": "taker", "type": "publicKey" },
+        { "name": "amount", "type": "u64" }
+      ]
+    },
+    {
+      "name": "OrderCancelled",
+      "discriminator": [214, 75, 19, 99, 128, 46, 220, 181],
+      "fields": [
+        { "name": "order_key", "type": "publicKey" },
+        { "name": "maker", "type": "publicKey" },
+        { "name": "amount", "type": "u64" }
+      ]
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InvalidAmount", "msg": "Amount must be >= minimum order size." },
+    { "code": 6001, "name": "InvalidMint", "msg": "Invalid token mint. Must be sGOR." },
+    { "code": 6002, "name": "OrderExpired", "msg": "Order has expired." },
+    { "code": 6003, "name": "OrderAlreadyFilled", "msg": "Order has already been filled." },
+    { "code": 6004, "name": "Unauthorized", "msg": "Unauthorized — only the maker can perform this action." },
+    { "code": 6005, "name": "ExpirationInPast", "msg": "Expiration slot is in the past." },
+    { "code": 6006, "name": "ExpirationTooFar", "msg": "Expiration too far in the future (max ~24 hours)." }
+  ]
+}

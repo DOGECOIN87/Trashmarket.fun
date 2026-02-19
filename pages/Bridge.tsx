@@ -342,7 +342,7 @@ const Bridge: React.FC = () => {
             <div className="flex items-center justify-center gap-3">
               <Beaker className="w-5 h-5 text-blue-400" />
               <p className="text-blue-400 text-sm font-bold uppercase tracking-wider">
-                ⚠️ DEVNET TESTING MODE — Using test sGOR | Get tokens from <a href="#/faucet" className="underline hover:text-blue-300">faucet</a>
+                ⚠️ DEVNET TESTING MODE — Using test sGOR
               </p>
               <Beaker className="w-5 h-5 text-blue-400" />
             </div>
@@ -482,7 +482,7 @@ const Bridge: React.FC = () => {
                   <Beaker className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-bold mb-1">⚠️ SOLANA DEVNET TESTING MODE</p>
-                    <p className="text-blue-300">You can only create orders selling <span className="font-bold">test sGOR → gGOR</span>. Get test sGOR from the <a href="#/faucet" className="underline">faucet</a>.</p>
+                    <p className="text-blue-300">You can only create orders selling <span className="font-bold">test sGOR → gGOR</span>.</p>
                     <p className="text-blue-300 mt-2 text-[10px]">Program: 66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M</p>
                   </div>
                 </div>
