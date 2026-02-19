@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { RPC_ENDPOINTS, EXPLORER_URLS } from '../lib/rpcConfig';
 
 // Network type
@@ -112,7 +112,7 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const isSolana = currentNetwork === 'SOLANA_MAINNET' || currentNetwork === 'SOLANA_DEVNET';
   const isDevnet = currentNetwork === 'SOLANA_DEVNET';
 
-  const getExplorerLink = (type: 'tx' | 'address' | 'token', value: string): string => {
+  const getExplorerLink = useCallback((type: 'tx' | 'address' | 'token', value: string): string => {
     const baseUrl = config.explorerUrl;
 
     if (currentNetwork === 'GORBAGANA') {
@@ -141,25 +141,41 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return baseUrl;
       }
     }
-  };
+  }, [currentNetwork, config.explorerUrl, isDevnet]);
+
+  const value = useMemo(() => ({
+    currentNetwork,
+    network,
+    currency,
+    networkName,
+    tpsLabel,
+    accentColor,
+    rpcEndpoint,
+    explorerUrl,
+    programId,
+    setNetwork: setCurrentNetwork,
+    isGorbagana,
+    isSolana,
+    isDevnet,
+    getExplorerLink
+  }), [
+    currentNetwork,
+    network,
+    currency,
+    networkName,
+    tpsLabel,
+    accentColor,
+    rpcEndpoint,
+    explorerUrl,
+    programId,
+    isGorbagana,
+    isSolana,
+    isDevnet,
+    getExplorerLink
+  ]);
 
   return (
-    <NetworkContext.Provider value={{
-      currentNetwork,
-      network,
-      currency,
-      networkName,
-      tpsLabel,
-      accentColor,
-      rpcEndpoint,
-      explorerUrl,
-      programId,
-      setNetwork: setCurrentNetwork,
-      isGorbagana,
-      isSolana,
-      isDevnet,
-      getExplorerLink
-    }}>
+    <NetworkContext.Provider value={value}>
       {children}
     </NetworkContext.Provider>
   );

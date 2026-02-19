@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
 import { NetworkProvider } from './contexts/NetworkContext';
 import { WalletProvider } from './contexts/WalletContext';
 import { DynamicConnectionProvider } from './contexts/DynamicConnectionProvider';
@@ -20,7 +19,8 @@ import Submit from './pages/Submit';
 import Notifications from './components/Notifications';
 
 const App: React.FC = () => {
-  const wallets = useMemo(() => [new BackpackWalletAdapter()], []);
+  // Use empty array - Standard Wallets (Phantom, Backpack, Solflare, etc.) are auto-detected
+  const wallets = useMemo(() => [], []);
 
   return (
     <NetworkProvider>

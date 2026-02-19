@@ -23,7 +23,7 @@
       "args": [
         { "name": "amount", "type": "u64" },
         { "name": "expiration_slot", "type": "u64" },
-        { "name": "gorbagana_recipient", "type": "publicKey" }
+        { "name": "gorbagana_recipient", "type": "pubkey" }
       ]
     },
     {
@@ -61,9 +61,9 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "maker", "type": "publicKey" },
+          { "name": "maker", "type": "pubkey" },
           { "name": "amount", "type": "u64" },
-          { "name": "gorbagana_recipient", "type": "publicKey" },
+          { "name": "gorbagana_recipient", "type": "pubkey" },
           { "name": "expiration_slot", "type": "u64" },
           { "name": "is_filled", "type": "bool" },
           { "name": "bump", "type": "u8" }
@@ -76,10 +76,10 @@
       "name": "OrderCreated",
       "discriminator": [56, 87, 13, 145, 64, 234, 79, 97],
       "fields": [
-        { "name": "order_key", "type": "publicKey" },
-        { "name": "maker", "type": "publicKey" },
+        { "name": "order_key", "type": "pubkey" },
+        { "name": "maker", "type": "pubkey" },
         { "name": "amount", "type": "u64" },
-        { "name": "gorbagana_recipient", "type": "publicKey" },
+        { "name": "gorbagana_recipient", "type": "pubkey" },
         { "name": "expiration_slot", "type": "u64" }
       ]
     },
@@ -87,9 +87,9 @@
       "name": "OrderFilled",
       "discriminator": [175, 198, 142, 42, 212, 192, 32, 110],
       "fields": [
-        { "name": "order_key", "type": "publicKey" },
-        { "name": "maker", "type": "publicKey" },
-        { "name": "taker", "type": "publicKey" },
+        { "name": "order_key", "type": "pubkey" },
+        { "name": "maker", "type": "pubkey" },
+        { "name": "taker", "type": "pubkey" },
         { "name": "amount", "type": "u64" }
       ]
     },
@@ -97,10 +97,62 @@
       "name": "OrderCancelled",
       "discriminator": [214, 75, 19, 99, 128, 46, 220, 181],
       "fields": [
-        { "name": "order_key", "type": "publicKey" },
-        { "name": "maker", "type": "publicKey" },
+        { "name": "order_key", "type": "pubkey" },
+        { "name": "maker", "type": "pubkey" },
         { "name": "amount", "type": "u64" }
       ]
+    }
+  ],
+  "types": [
+    {
+      "name": "Order",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "maker", "type": "pubkey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "gorbagana_recipient", "type": "pubkey" },
+          { "name": "expiration_slot", "type": "u64" },
+          { "name": "is_filled", "type": "bool" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "OrderCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "order_key", "type": "pubkey" },
+          { "name": "maker", "type": "pubkey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "gorbagana_recipient", "type": "pubkey" },
+          { "name": "expiration_slot", "type": "u64" }
+        ]
+      }
+    },
+    {
+      "name": "OrderFilled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "order_key", "type": "pubkey" },
+          { "name": "maker", "type": "pubkey" },
+          { "name": "taker", "type": "pubkey" },
+          { "name": "amount", "type": "u64" }
+        ]
+      }
+    },
+    {
+      "name": "OrderCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "order_key", "type": "pubkey" },
+          { "name": "maker", "type": "pubkey" },
+          { "name": "amount", "type": "u64" }
+        ]
+      }
     }
   ],
   "errors": [
