@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { RPC_ENDPOINTS, EXPLORER_URLS } from '../lib/rpcConfig';
 
 // Network type
 export type NetworkType = 'GORBAGANA' | 'SOLANA_MAINNET' | 'SOLANA_DEVNET';
@@ -7,8 +8,8 @@ export type NetworkType = 'GORBAGANA' | 'SOLANA_MAINNET' | 'SOLANA_DEVNET';
 export const GORBAGANA_CONFIG = {
   name: 'Gorbagana',
   chainId: 'gorbagana-mainnet',
-  rpcEndpoint: 'https://rpc.trashscan.io',
-  explorerUrl: 'https://trashscan.io',
+  rpcEndpoint: RPC_ENDPOINTS.GORBAGANA,
+  explorerUrl: EXPLORER_URLS.GORBAGANA,
   currency: {
     symbol: 'GOR',
     decimals: 9,
@@ -23,8 +24,8 @@ export const GORBAGANA_CONFIG = {
 export const SOLANA_MAINNET_CONFIG = {
   name: 'Solana',
   chainId: 'solana-mainnet',
-  rpcEndpoint: 'https://api.mainnet-beta.solana.com',
-  explorerUrl: 'https://explorer.solana.com',
+  rpcEndpoint: RPC_ENDPOINTS.SOLANA_MAINNET,
+  explorerUrl: EXPLORER_URLS.SOLANA_MAINNET,
   currency: {
     symbol: 'SOL',
     decimals: 9,
@@ -40,8 +41,8 @@ export const SOLANA_MAINNET_CONFIG = {
 export const SOLANA_DEVNET_CONFIG = {
   name: 'Solana Devnet',
   chainId: 'solana-devnet',
-  rpcEndpoint: 'https://api.devnet.solana.com',
-  explorerUrl: 'https://explorer.solana.com',
+  rpcEndpoint: RPC_ENDPOINTS.SOLANA_DEVNET,
+  explorerUrl: EXPLORER_URLS.SOLANA_DEVNET,
   currency: {
     symbol: 'SOL',
     decimals: 9,

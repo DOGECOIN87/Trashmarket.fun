@@ -233,3 +233,29 @@ export const getGorbagioCollectionWithNFTs = async (options?: {
     total: getSupplyFromResponse(response),
   };
 };
+
+/**
+ * Merge scraped NFT data with live marketplace listings.
+ * Listings from Firestore override the scraped price and mark the NFT as "listed on Trashmarket".
+ */
+export const mergeWithMarketplaceListings = (
+  nfts: NFT[],
+  listings: Array<{ mintAddress: string; priceSol: number; seller: string }>,
+): (NFT & { isTrashmarketListed?: boolean; seller?: string })[] => {
+  const listingMap = new Map(
+    listings.map((l) => [l.mintAddress, l]),
+  );
+
+  return nfts.map((nft) => {
+    const listing = listingMap.get(nft.id);
+    if (listing) {
+      return {
+        ...nft,
+        price: listing.priceSol,
+        isTrashmarketListed: true,
+        seller: listing.seller,
+      };
+    }
+    return { ...nft, isTrashmarketListed: false };
+  });
+};

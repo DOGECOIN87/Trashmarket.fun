@@ -17,6 +17,7 @@ import JunkPusherPage from './pages/JunkPusher';
 import Dex from './pages/Dex';
 import VanityGenerator from './pages/VanityGenerator';
 import Submit from './pages/Submit';
+import Notifications from './components/Notifications';
 
 const App: React.FC = () => {
   const wallets = useMemo(() => [new BackpackWalletAdapter()], []);
@@ -45,6 +46,7 @@ const App: React.FC = () => {
                 </main>
                 <ActivityTicker />
                 <Footer />
+                <Notifications />
               </div>
             </Router>
           </WalletModalProvider>
