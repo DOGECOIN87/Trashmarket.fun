@@ -18,9 +18,9 @@ export const JUNK_DECIMALS = 9;
 
 export const TREASURY_WALLET = new PublicKey('77hDeRmTFa7WVPqTvDtD9qg9D73DdqU3WeaHTxUnQ8wb');
 
-export const GORBAGANA_RPC = 'https://rpc.gorbagana.wtf';
+export const GORBAGANA_RPC = 'https://rpc.trashscan.io';
 export const GORBAGANA_API = 'https://gorapi.trashscan.io';
-export const GORBAGANA_WS = 'wss://rpc.gorbagana.wtf';
+export const GORBAGANA_WS = 'wss://rpc.trashscan.io';
 
 export const LAMPORTS_PER_TOKEN = 1_000_000_000; // 10^9 for all tokens
 
