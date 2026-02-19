@@ -97,7 +97,7 @@ const Home: React.FC = () => {
         <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20">
           <div className="absolute inset-0">
             <img
-              src="/edu_srch_celebrate_the_50th_anniversary_apollo11.webp"
+              src="/images/hero-bg.webp"
               alt="Hero"
               className="w-full h-full object-cover opacity-20 grayscale contrast-150"
             />

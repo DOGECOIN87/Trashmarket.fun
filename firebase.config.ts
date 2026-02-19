@@ -22,12 +22,6 @@ export const storage = getStorage(app);
 
 export default app;
 
-// Admin wallet addresses - loaded from environment for security
-// Set VITE_ADMIN_WALLETS as a comma-separated string in .env
-export const ADMIN_WALLETS: string[] = (import.meta.env.VITE_ADMIN_WALLETS || "")
-  .split(",")
-  .map((w: string) => w.trim())
-  .filter(Boolean);
-
-// Admin password - MUST be set via environment variable, never hardcoded
-export const ADMIN_PASSWORD: string = import.meta.env.VITE_ADMIN_PASSWORD || "";
+// Admin authentication is now handled server-side via the Trashmarket API backend.
+// See services/adminAuthService.ts for the secure wallet-signature-based auth flow.
+// ADMIN_WALLETS and ADMIN_PASSWORD have been removed from the client bundle.

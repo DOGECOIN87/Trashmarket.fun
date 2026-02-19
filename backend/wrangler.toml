@@ -1,0 +1,19 @@
+name = "trashmarket-api"
+main = "src/index.ts"
+compatibility_date = "2024-02-08"
+compatibility_flags = ["nodejs_compat"]
+
+# KV namespace for session tokens and rate limiting
+# Will be created on first deploy or manually via: wrangler kv:namespace create "SESSIONS"
+# [[kv_namespaces]]
+# binding = "SESSIONS"
+# id = "<YOUR_KV_NAMESPACE_ID>"
+
+# Environment variables (set via wrangler secret put)
+# ADMIN_WALLETS - comma-separated admin wallet addresses
+# JWT_SECRET - secret for signing session tokens
+# FIREBASE_API_KEY - Firebase API key (moved from client)
+
+[vars]
+CORS_ORIGIN = "https://trashmarket.fun"
+GORBAGANA_RPC = "https://rpc.trashscan.io"
