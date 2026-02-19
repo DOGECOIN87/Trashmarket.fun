@@ -191,17 +191,8 @@ export const useBridgeService = () => {
     if (!program || !provider) throw new Error('Wallet not connected');
     const wallet = provider.wallet;
 
-    console.log('[fillOrder] Starting fill order process for:', orderPDA.toBase58());
-
     // Fetch order to get direction and maker
     const order = await program.account.order.fetch(orderPDA);
-    console.log('[fillOrder] Order fetched:', {
-      maker: order.maker.toBase58(),
-      amount: order.amount.toString(),
-      direction: order.direction,
-      isFilled: order.isFilled,
-      expirationSlot: order.expirationSlot.toString()
-    });
 
     // Check if order is already filled
     if (order.isFilled) {
@@ -210,7 +201,6 @@ export const useBridgeService = () => {
 
     // Check SOL balance for fees
     const solBalance = await provider.connection.getBalance(wallet.publicKey);
-    console.log('[fillOrder] Taker SOL balance:', solBalance / 1e9, 'SOL');
 
     // Require at least 0.01 SOL for fees and rent
     if (solBalance < 0.01 * 1e9) {
@@ -232,8 +222,6 @@ export const useBridgeService = () => {
 
     if (order.direction === 0) {
       // Direction 0: Maker sold sGOR. Taker sends gGOR (native), receives sGOR (SPL)
-      console.log('[fillOrder] Direction 0: Taker sends gGOR, receives sGOR');
-
       const escrowPDA = PublicKey.findProgramAddressSync(
         [
           Buffer.from('escrow'),
@@ -242,21 +230,18 @@ export const useBridgeService = () => {
         ],
         PROGRAM_ID
       )[0];
-      console.log('[fillOrder] Escrow PDA:', escrowPDA.toBase58());
 
       // Verify escrow exists and has funds
       const escrowInfo = await provider.connection.getAccountInfo(escrowPDA);
       if (!escrowInfo) {
         throw new Error('Escrow account does not exist. The order may be invalid.');
       }
-      console.log('[fillOrder] Escrow account exists');
 
       // Ensure taker's receive ATA exists (where taker will receive sGOR)
       const takerReceiveATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
       const takerReceiveExists = await accountExists(takerReceiveATA);
 
       if (!takerReceiveExists) {
-        console.log('[fillOrder] Creating taker receive ATA:', takerReceiveATA.toBase58());
         tx.add(
           createAssociatedTokenAccountInstruction(
             wallet.publicKey, // payer
@@ -265,8 +250,6 @@ export const useBridgeService = () => {
             SGOR_MINT
           )
         );
-      } else {
-        console.log('[fillOrder] Taker receive ATA exists:', takerReceiveATA.toBase58());
       }
 
       accounts.escrowTokenAccount = escrowPDA;
@@ -280,14 +263,11 @@ export const useBridgeService = () => {
 
     } else {
       // Direction 1: Maker sold gGOR. Taker sends sGOR (SPL), receives gGOR (native)
-      console.log('[fillOrder] Direction 1: Taker sends sGOR, receives gGOR');
-
       // Ensure taker's send ATA exists (where taker sends FROM)
       const takerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
       const takerATAExists = await accountExists(takerATA);
 
       if (!takerATAExists) {
-        console.log('[fillOrder] Creating taker send ATA:', takerATA.toBase58());
         tx.add(
           createAssociatedTokenAccountInstruction(
             wallet.publicKey, // payer
@@ -299,14 +279,10 @@ export const useBridgeService = () => {
         // If we just created the ATA, taker won't have sGOR in it yet
         throw new Error('You do not have an sGOR token account. Please create one and fund it with sGOR first.');
       } else {
-        console.log('[fillOrder] Taker send ATA exists:', takerATA.toBase58());
-
         // Verify taker has enough sGOR tokens
         const takerTokenBalance = await provider.connection.getTokenAccountBalance(takerATA);
         const requiredSGOR = order.amount.toNumber();
         const takerBalance = BigInt(takerTokenBalance.value.amount);
-
-        console.log('[fillOrder] Taker sGOR balance:', takerBalance.toString(), 'required:', requiredSGOR.toString());
 
         if (takerBalance < BigInt(requiredSGOR)) {
           throw new Error(`Insufficient sGOR balance. You have ${Number(takerBalance) / 1e9} sGOR but need ${requiredSGOR / 1e9} sGOR.`);
@@ -318,7 +294,6 @@ export const useBridgeService = () => {
       const makerATAExists = await accountExists(makerATA);
 
       if (!makerATAExists) {
-        console.log('[fillOrder] Creating maker receive ATA:', makerATA.toBase58());
         tx.add(
           createAssociatedTokenAccountInstruction(
             wallet.publicKey, // payer (taker pays for maker's ATA creation)
@@ -327,8 +302,6 @@ export const useBridgeService = () => {
             SGOR_MINT
           )
         );
-      } else {
-        console.log('[fillOrder] Maker receive ATA exists:', makerATA.toBase58());
       }
 
       accounts.takerTokenAccount = takerATA;
@@ -348,49 +321,33 @@ export const useBridgeService = () => {
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = wallet.publicKey;
 
-    console.log('[fillOrder] Transaction prepared:', {
-      recentBlockhash: tx.recentBlockhash,
-      feePayer: tx.feePayer.toBase58(),
-      instructions: tx.instructions.length
-    });
-
     // Simulate transaction before signing
     try {
-      console.log('[fillOrder] Simulating transaction...');
       const simulation = await provider.connection.simulateTransaction(tx);
       if (simulation.value.err) {
-        console.error('[fillOrder] Simulation failed:', simulation.value);
         throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
       }
-      console.log('[fillOrder] Simulation successful. Logs:', simulation.value.logs);
     } catch (simErr: any) {
-      console.error('[fillOrder] Simulation error:', simErr);
       throw new Error(`Transaction simulation failed: ${simErr.message}`);
     }
 
-    console.log('[fillOrder] Requesting wallet signature...');
     const signedTx = await wallet.signTransaction(tx);
 
     // Use sendRawTransaction with better error handling
     let txid: string;
     try {
-      console.log('[fillOrder] Sending transaction to Gorbagana RPC...');
       txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
         maxRetries: 3,
       });
-      console.log('[fillOrder] Transaction sent. Signature:', txid);
     } catch (sendErr: any) {
-      console.error('[fillOrder] sendRawTransaction error:', sendErr);
       if (sendErr?.logs) {
-        console.error('[fillOrder] Transaction logs:', sendErr.logs);
         throw new Error(`Transaction failed: ${sendErr.message}\n\nLogs:\n${sendErr.logs.join('\n')}`);
       }
       throw new Error(`Failed to send transaction: ${sendErr.message || sendErr}`);
     }
 
-    console.log('[fillOrder] Confirming transaction...');
     const confirmation = await provider.connection.confirmTransaction({
       blockhash: latestBlockhash.blockhash,
       lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
@@ -398,7 +355,6 @@ export const useBridgeService = () => {
     }, 'confirmed');
 
     if (confirmation.value.err) {
-      console.error('[fillOrder] Confirmation error:', confirmation.value.err);
       const errJson = JSON.stringify(confirmation.value.err);
       const customMatch = errJson.match(/"Custom":(\d+)/);
       if (customMatch) {
@@ -410,7 +366,6 @@ export const useBridgeService = () => {
       throw new Error(`Transaction failed: ${errJson}`);
     }
 
-    console.log('[fillOrder] Order filled successfully! Transaction:', txid);
     return txid;
   };
 

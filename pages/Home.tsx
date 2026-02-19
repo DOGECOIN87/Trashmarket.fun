@@ -226,7 +226,7 @@ const Home: React.FC = () => {
                                     <Link to={`/collection/${collection.id}`} className="flex items-center gap-4">
                                         <span className="text-gray-700 font-mono text-sm w-4 text-center group-hover:text-white transition-colors">0{idx + 1}</span>
                                         <div className={`w-8 h-8 border border-white/20 overflow-hidden bg-gray-900 group-hover:border-${accentColor === 'text-magic-purple' ? 'magic-purple' : 'magic-green'} transition-colors`}>
-                                            <img src={collection.image} alt="" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                                            <img src={collection.image} alt={collection.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
                                         </div>
                                         <div>
                                             <div className="font-bold text-gray-300 group-hover:text-white flex items-center gap-2 uppercase tracking-tight text-sm transition-colors">

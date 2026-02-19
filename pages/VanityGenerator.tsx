@@ -509,8 +509,8 @@ const VanityGenerator: React.FC = () => {
               ) : (
                 <div className="space-y-3 max-h-[400px] overflow-y-auto">
                   {matches.map((match, idx) => (
-                    <div 
-                      key={idx}
+                    <div
+                      key={match.address}
                       className={`p-4 border ${match.unlocked ? accentBorder : 'border-gray-700'} bg-gray-900/50`}
                     >
                       <div className="flex items-start justify-between gap-4">

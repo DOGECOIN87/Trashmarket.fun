@@ -609,7 +609,7 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             {data.sampleFiles.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {data.sampleFiles.map((file, index) => (
-                  <div key={index} className="relative">
+                  <div key={`${file.name}-${file.size}`} className="relative">
                     {samplePreviews[index] && (
                       <img
                         src={samplePreviews[index]}
