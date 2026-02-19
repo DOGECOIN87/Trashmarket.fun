@@ -37,8 +37,38 @@ export const AnchorContextProvider: React.FC<{ children: React.ReactNode }> = ({
     const wallet = useWallet();
     const { connection } = useConnection();
 
+    // Use stable references to prevent infinite re-renders
+    const walletPublicKey = wallet.publicKey?.toBase58() ?? null;
+    const walletConnected = wallet.connected;
+
     const value = useMemo<AnchorContextType>(() => {
         try {
+            // Wait until connection and wallet are ready
+            // Connection must have a valid RPC endpoint
+            if (!connection || !connection.rpcEndpoint || connection.rpcEndpoint === '') {
+                return {
+                    program: null,
+                    solanaProgram: null,
+                    provider: null,
+                    gorbaganaProvider: null,
+                    programId: GORBAGANA_PROGRAM_ID,
+                    sgorMint: SGOR_MINT_MAINNET,
+                };
+            }
+
+            // Don't initialize programs until wallet is connected
+            // Use stable string comparison instead of object reference
+            if (!walletConnected || !walletPublicKey) {
+                return {
+                    program: null,
+                    solanaProgram: null,
+                    provider: null,
+                    gorbaganaProvider: null,
+                    programId: GORBAGANA_PROGRAM_ID,
+                    sgorMint: SGOR_MINT_MAINNET,
+                };
+            }
+
             // Standard provider (uses current wallet connection - dynamically switched)
             const provider = new AnchorAnchorProvider(
                 connection,
@@ -93,7 +123,7 @@ export const AnchorContextProvider: React.FC<{ children: React.ReactNode }> = ({
                 sgorMint: SGOR_MINT_MAINNET,
             };
         }
-    }, [connection, wallet]);
+    }, [connection, walletPublicKey, walletConnected]);
 
     return (
         <AnchorContext.Provider value={value}>

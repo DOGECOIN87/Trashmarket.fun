@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Gorbagana Brand — Custom Animations & Utilities */
 
 @keyframes scan {
