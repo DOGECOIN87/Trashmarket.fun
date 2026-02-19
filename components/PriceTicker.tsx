@@ -15,8 +15,10 @@ const Marquee = ({ children, reverse = false, className = "" }: { children?: Rea
   );
 };
 
+/**
+ * Top ticker — token prices, sits below the Navbar
+ */
 const PriceTicker: React.FC = () => {
-  const { currency, accentColor } = useNetwork();
   const [marketMetrics, setMarketMetrics] = useState<MarketMetric[]>(getMockTokenMetrics());
 
   useEffect(() => {
@@ -26,17 +28,42 @@ const PriceTicker: React.FC = () => {
         setMarketMetrics(metrics);
       } catch (error) {
         console.error('Failed to fetch market metrics:', error);
-        // Keep using mock data on error
       }
     };
 
     fetchMetrics();
-
-    // Refresh every 30 seconds
     const interval = setInterval(fetchMetrics, 30000);
-
     return () => clearInterval(interval);
   }, []);
+
+  return (
+    <div className="border-b border-white/20 bg-[#050505] overflow-hidden relative py-1 sticky top-16 z-30">
+      <div className="absolute top-0 left-0 w-24 h-full bg-gradient-to-r from-[#050505] to-transparent z-20 pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-[#050505] to-transparent z-20 pointer-events-none"></div>
+
+      <div className="bg-black/50 backdrop-blur-sm relative z-10">
+        <Marquee reverse={true}>
+          {marketMetrics.map((item, idx) => (
+            <div key={`m-${idx}`} className="flex items-center gap-3 mx-8 py-2 text-xs uppercase tracking-wider font-mono whitespace-nowrap">
+              <span className="text-gray-600 font-bold">{item.label}</span>
+              <span className={`font-bold ${item.color}`}>{item.value}</span>
+              <span className={`text-[10px] ${item.change.startsWith('+') ? 'text-magic-green' : item.change.startsWith('-') ? 'text-magic-red' : 'text-gray-400'}`}>
+                {item.change}
+              </span>
+              <span className="text-gray-800 ml-4">/</span>
+            </div>
+          ))}
+        </Marquee>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Bottom ticker — live activity feed, sits above the Footer
+ */
+export const ActivityTicker: React.FC = () => {
+  const { currency, accentColor } = useNetwork();
 
   const LIVE_ACTIVITIES = [
     { type: "SALE", text: `Mad Lads #2912 sold for 145.5 ${currency}`, time: "1s" },
@@ -54,28 +81,10 @@ const PriceTicker: React.FC = () => {
   ];
 
   return (
-    <div className="border-b border-white/20 bg-[#050505] overflow-hidden relative flex flex-col py-2 gap-1 sticky top-16 z-30">
-      {/* Gradient Masks */}
+    <div className="border-t border-white/20 bg-[#050505] overflow-hidden relative py-1 z-30">
       <div className="absolute top-0 left-0 w-24 h-full bg-gradient-to-r from-[#050505] to-transparent z-20 pointer-events-none"></div>
       <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-[#050505] to-transparent z-20 pointer-events-none"></div>
 
-      {/* Top Row: Token Prices from Trashscan (Slightly Faster) */}
-      <div className="border-b border-white/5 bg-black/50 backdrop-blur-sm relative z-10">
-        <Marquee reverse={true}>
-          {marketMetrics.map((item, idx) => (
-            <div key={`m-${idx}`} className="flex items-center gap-3 mx-8 py-2 text-xs uppercase tracking-wider font-mono whitespace-nowrap">
-              <span className="text-gray-600 font-bold">{item.label}</span>
-              <span className={`font-bold ${item.color}`}>{item.value}</span>
-              <span className={`text-[10px] ${item.change.startsWith('+') ? 'text-magic-green' : item.change.startsWith('-') ? 'text-magic-red' : 'text-gray-400'}`}>
-                {item.change}
-              </span>
-              <span className="text-gray-800 ml-4">/</span>
-            </div>
-          ))}
-        </Marquee>
-      </div>
-
-      {/* Bottom Row: Live Activities (Slightly Slower) */}
       <div className="bg-black relative z-10">
         <Marquee reverse={false}>
           {LIVE_ACTIVITIES.map((item, idx) => (

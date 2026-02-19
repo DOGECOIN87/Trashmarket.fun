@@ -96,9 +96,9 @@ const Home: React.FC = () => {
       {featuredCollection ? (
         <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20">
           <div className="absolute inset-0">
-            <img 
-              src={featuredCollection.banner || featuredCollection.image} 
-              alt="Hero" 
+            <img
+              src="/edu_srch_celebrate_the_50th_anniversary_apollo11.webp"
+              alt="Hero"
               className="w-full h-full object-cover opacity-20 grayscale contrast-150"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
@@ -118,9 +118,9 @@ const Home: React.FC = () => {
                               <Radio className={`w-3 h-3 ${accentColor} animate-pulse`} />
                               SYSTEM_ONLINE
                           </span>
-                          <Link to="/launchpad" className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest font-mono">
-                              [ AI_LAUNCHPAD_ACTIVE ]
-                          </Link>
+                          <span className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">
+                              [ MARKET_LIVE ]
+                          </span>
                      </div>
                 </div>
                 

@@ -24,5 +24,15 @@ dist-ssr
 *.sw?
 
 # Environment variables
+.env
 .env.local
 .env.production
+
+# Manus artifacts
+.manus/
+skills/
+config/
+
+# Keypair files (NEVER commit)
+*.keypair.json
+*-keypair.json

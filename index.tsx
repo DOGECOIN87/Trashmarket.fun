@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import '@solana/wallet-adapter-react-ui/styles.css';
+import './index.css';
 import App from './App';
 
 const rootElement = document.getElementById('root');

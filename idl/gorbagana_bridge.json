@@ -1,0 +1,507 @@
+{
+  "address": "FreEcfZtek5atZJCJ1ER8kGLXB1C17WKWXqsVcsn1kPq",
+  "metadata": {
+    "name": "gorbagana_bridge",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Gorbagana-side gGOR escrow bridge for Gorbagana cross-chain trading"
+  },
+  "docs": [
+    "Direction for this program (Solana side - handles sGOR only)",
+    "This program ONLY handles sGOR escrow. gGOR is handled by Gorbagana program.",
+    "",
+    "When someone wants to trade sGOR → gGOR:",
+    "1. They create an order HERE (Solana) locking sGOR",
+    "2. Counterparty fills on Gorbagana network",
+    "",
+    "When someone wants to trade gGOR → sGOR:",
+    "1. They create order on Gorbagana locking gGOR",
+    "2. Counterparty fills HERE (Solana) sending sGOR"
+  ],
+  "instructions": [
+    {
+      "name": "cancel_order",
+      "discriminator": [
+        95,
+        129,
+        237,
+        240,
+        8,
+        49,
+        223,
+        132
+      ],
+      "accounts": [
+        {
+          "name": "maker",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order.maker",
+                "account": "Order"
+              },
+              {
+                "kind": "account",
+                "path": "order.amount",
+                "account": "Order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_token_account",
+          "docs": [
+            "Escrow sGOR token account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "maker_token_account",
+          "docs": [
+            "Maker's sGOR token account (receives refund)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_order",
+      "docs": [
+        "Creates an sGOR escrow order on Solana.",
+        "Maker deposits sGOR into escrow, expecting gGOR on Gorbagana in return."
+      ],
+      "discriminator": [
+        141,
+        54,
+        37,
+        207,
+        237,
+        210,
+        250,
+        215
+      ],
+      "accounts": [
+        {
+          "name": "maker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "order",
+          "docs": [
+            "Order PDA — deterministic from maker + amount"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "maker"
+              },
+              {
+                "kind": "arg",
+                "path": "amount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_token_account",
+          "docs": [
+            "Escrow token account for sGOR",
+            "Initialized with the order PDA as authority"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "maker"
+              },
+              {
+                "kind": "arg",
+                "path": "amount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "maker_token_account",
+          "docs": [
+            "Maker's sGOR token account (source of deposit)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "sgor_mint",
+          "docs": [
+            "sGOR mint account"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "expiration_slot",
+          "type": "u64"
+        },
+        {
+          "name": "gorbagana_recipient",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "fill_order",
+      "docs": [
+        "Fills an sGOR order.",
+        "This is called when a Gorbagana order is being filled - the taker",
+        "sends sGOR on Solana to the maker.",
+        "",
+        "Flow:",
+        "1. Gorbagana maker locked gGOR there",
+        "2. Taker sends sGOR HERE to the Gorbagana maker",
+        "3. Taker then claims gGOR on Gorbagana"
+      ],
+      "discriminator": [
+        232,
+        122,
+        115,
+        25,
+        199,
+        143,
+        136,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "taker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "maker",
+          "docs": [
+            "Validated via order.maker constraint."
+          ],
+          "writable": true
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order.maker",
+                "account": "Order"
+              },
+              {
+                "kind": "account",
+                "path": "order.amount",
+                "account": "Order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_token_account",
+          "docs": [
+            "Escrow sGOR token account (holds maker's escrowed sGOR)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "taker_token_account",
+          "docs": [
+            "Taker's sGOR token account (receives escrowed sGOR)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Order",
+      "discriminator": [
+        134,
+        173,
+        223,
+        185,
+        77,
+        86,
+        28,
+        51
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "OrderCancelled",
+      "discriminator": [
+        108,
+        56,
+        128,
+        68,
+        168,
+        113,
+        168,
+        239
+      ]
+    },
+    {
+      "name": "OrderCreated",
+      "discriminator": [
+        224,
+        1,
+        229,
+        63,
+        254,
+        60,
+        190,
+        159
+      ]
+    },
+    {
+      "name": "OrderFilled",
+      "discriminator": [
+        120,
+        124,
+        109,
+        66,
+        249,
+        116,
+        174,
+        30
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAmount",
+      "msg": "Amount must be >= minimum order size."
+    },
+    {
+      "code": 6001,
+      "name": "InvalidMint",
+      "msg": "Invalid token mint. Must be sGOR."
+    },
+    {
+      "code": 6002,
+      "name": "OrderExpired",
+      "msg": "Order has expired."
+    },
+    {
+      "code": 6003,
+      "name": "OrderAlreadyFilled",
+      "msg": "Order has already been filled."
+    },
+    {
+      "code": 6004,
+      "name": "Unauthorized",
+      "msg": "Unauthorized — only the maker can perform this action."
+    },
+    {
+      "code": 6005,
+      "name": "ExpirationInPast",
+      "msg": "Expiration slot is in the past."
+    },
+    {
+      "code": 6006,
+      "name": "ExpirationTooFar",
+      "msg": "Expiration too far in the future (max ~24 hours)."
+    }
+  ],
+  "types": [
+    {
+      "name": "Order",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maker",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "gorbagana_recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "expiration_slot",
+            "type": "u64"
+          },
+          {
+            "name": "is_filled",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order_key",
+            "type": "pubkey"
+          },
+          {
+            "name": "maker",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order_key",
+            "type": "pubkey"
+          },
+          {
+            "name": "maker",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "gorbagana_recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "expiration_slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFilled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order_key",
+            "type": "pubkey"
+          },
+          {
+            "name": "maker",
+            "type": "pubkey"
+          },
+          {
+            "name": "taker",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

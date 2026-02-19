@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-solana_bridge = "66xqiDYSQZh7A3wyS3n2962Fx1aU8N3nbHjaZUCrXq6M"
+solana_bridge = "9CGxVdboSmVnQYn8vLwK7mTSo7Qd62DFGFxPjxjQPRez"
 
 [programs.mainnet]
 solana_bridge = "11111111111111111111111111111111"

@@ -20,16 +20,13 @@ A test SPL token has been created on Solana devnet to simulate sGOR for bridge t
 
 ## 🧪 How to Get Test Tokens
 
-### Option 1: Request from Faucet (Coming Soon)
-We'll create a simple faucet for distributing test tokens.
-
-### Option 2: Mint Directly (If You Have Authority)
+### Option 1: Mint Directly (If You Have Authority)
 If you control the mint authority:
 ```bash
 spl-token mint 5b2P7TQTDQG4nUzrUUSAuv92NT85Ka4oBFXWcTs9A5zk <AMOUNT> --url devnet
 ```
 
-### Option 3: Transfer from Test Account
+### Option 2: Transfer from Test Account
 Request a transfer from the test token account:
 ```bash
 spl-token transfer 5b2P7TQTDQG4nUzrUUSAuv92NT85Ka4oBFXWcTs9A5zk <AMOUNT> <YOUR_TOKEN_ACCOUNT> --url devnet --fund-recipient
@@ -45,7 +42,7 @@ spl-token create-account 5b2P7TQTDQG4nUzrUUSAuv92NT85Ka4oBFXWcTs9A5zk --url devn
 ```
 
 ### 2. Request Test Tokens
-Contact the team or use the faucet to get test sGOR tokens.
+Contact the team to get test sGOR tokens.
 
 ### 3. Test Bridge Operations
 
@@ -171,7 +168,7 @@ solana confirm <SIGNATURE> --url devnet -v
 
 ## 📞 Need Test Tokens?
 
-Contact the team or check the faucet at:
+Contact the team at:
 - Discord: #bridge-testing
 - Twitter: @trashmarket_fun
 - GitHub: Open an issue
