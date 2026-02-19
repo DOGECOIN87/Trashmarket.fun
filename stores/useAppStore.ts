@@ -8,6 +8,7 @@
 
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -184,26 +185,26 @@ export const useAppStore = create<AppStore>()(
 
 /** Select only network-related state */
 export const useNetworkStore = () =>
-  useAppStore((state) => ({
+  useAppStore(useShallow((state) => ({
     currentNetwork: state.currentNetwork,
     setNetwork: state.setNetwork,
     isGorbagana: state.isGorbagana,
     isSolana: state.isSolana,
     isDevnet: state.isDevnet,
-  }));
+  })));
 
 /** Select only notification state */
 export const useNotificationStore = () =>
-  useAppStore((state) => ({
+  useAppStore(useShallow((state) => ({
     notifications: state.notifications,
     addNotification: state.addNotification,
     removeNotification: state.removeNotification,
     clearNotifications: state.clearNotifications,
-  }));
+  })));
 
 /** Select only wallet state */
 export const useWalletStore = () =>
-  useAppStore((state) => ({
+  useAppStore(useShallow((state) => ({
     gorbaganaConnected: state.gorbaganaConnected,
     gorbaganaAddress: state.gorbaganaAddress,
     gorbaganaBalance: state.gorbaganaBalance,
@@ -211,4 +212,4 @@ export const useWalletStore = () =>
     setGorbaganaWallet: state.setGorbaganaWallet,
     setTokenBalances: state.setTokenBalances,
     clearWallet: state.clearWallet,
-  }));
+  })));
