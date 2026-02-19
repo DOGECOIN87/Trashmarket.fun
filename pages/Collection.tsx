@@ -367,7 +367,7 @@ const Collection: React.FC = () => {
                     {activityData.map(item => (
                       <tr key={item.id} className="hover:bg-white/5 transition-colors">
                         <td className="p-3 flex items-center gap-3">
-                          <img src={item.image} className="w-8 h-8 object-cover border border-white/20" alt="" />
+                          <img src={item.image} className="w-8 h-8 object-cover border border-white/20" alt={item.name} />
                           <div className="flex flex-col">
                             <span className="font-bold text-white">{item.name}</span>
                             <span className={`text-[9px] w-fit px-1 border ${item.type === 'sale' ? `${accentColor} border-current` : 'border-blue-500 text-blue-500'} uppercase`}>
@@ -400,7 +400,7 @@ const Collection: React.FC = () => {
             {activityData.filter(a => a.type === 'sale').map(item => (
               <div key={item.id} className="p-3 flex gap-3 items-start hover:bg-white/5 transition-colors group cursor-pointer">
                 <div className="w-10 h-10 bg-gray-800 border border-white/20 flex-shrink-0">
-                  <img src={item.image} className="w-full h-full object-cover grayscale group-hover:grayscale-0" alt="" />
+                  <img src={item.image} className="w-full h-full object-cover grayscale group-hover:grayscale-0" alt={item.name} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline mb-1">

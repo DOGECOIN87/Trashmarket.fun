@@ -334,8 +334,8 @@ const Gorid: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/10 font-mono text-sm">
-                      {recentSales.map((sale, idx) => (
-                        <tr key={idx} className="hover:bg-white/5 transition-colors">
+                      {recentSales.map((sale) => (
+                        <tr key={sale.txSignature} className="hover:bg-white/5 transition-colors">
                           <td className="p-3">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 bg-magic-green/10 border border-magic-green/30 flex items-center justify-center">
@@ -421,8 +421,8 @@ const Gorid: React.FC = () => {
                 </h3>
               </div>
               <div className="divide-y divide-white/10 max-h-[calc(100vh-8rem)] overflow-y-auto">
-                {recentSales.map((sale, idx) => (
-                  <div key={idx} className="p-3 hover:bg-white/5 transition-colors cursor-pointer">
+                {recentSales.map((sale) => (
+                  <div key={sale.txSignature} className="p-3 hover:bg-white/5 transition-colors cursor-pointer">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-magic-green/10 border border-magic-green/30 flex items-center justify-center flex-shrink-0">
                         <Tag className="w-4 h-4 text-magic-green" />

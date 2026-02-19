@@ -46,7 +46,6 @@ const Bridge: React.FC = () => {
         // Note: In a real app you might want to check expiration too
         const activeOrders = allOrders.filter(o => !o.isFilled);
         setOrders(activeOrders);
-        console.log(`[Bridge] Loaded ${activeOrders.length} active orders on ${currentNetwork}`);
       } catch (err) {
         console.error('[Bridge] Failed to fetch orders:', err);
       } finally {
