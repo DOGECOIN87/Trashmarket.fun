@@ -146,15 +146,12 @@ export const getMockTokenMetrics = (): MarketMetric[] => [
  */
 export const getMarketMetrics = async (): Promise<MarketMetric[]> => {
   try {
-    console.log('Fetching live token data from Trashscan API...');
     const tokens = await getTokens();
 
     if (!tokens || tokens.length === 0) {
-      console.warn('No tokens received from API, using mock data');
       return getMockTokenMetrics();
     }
 
-    console.log(`Successfully fetched ${tokens.length} verified tokens from Trashscan`);
     const metrics = transformTokensToMetrics(tokens);
 
     // Add network stats at the end
@@ -165,8 +162,6 @@ export const getMarketMetrics = async (): Promise<MarketMetric[]> => {
 
     return metrics;
   } catch (error) {
-    console.error('Failed to fetch market metrics from API:', error);
-    console.warn('Falling back to mock token data');
     return getMockTokenMetrics();
   }
 };

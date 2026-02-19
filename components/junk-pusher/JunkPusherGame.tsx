@@ -23,6 +23,11 @@ const JunkPusherGame: React.FC = () => {
         isPaused: false,
     });
     const [hasCheckedRecovery, setHasCheckedRecovery] = useState(false);
+    const gameStateRef = useRef(gameState);
+    gameStateRef.current = gameState;
+
+    const walletKeyRef = useRef(wallet.publicKey);
+    walletKeyRef.current = wallet.publicKey;
 
     const handleUpdate = useCallback((partialState: Partial<GameState>) => {
         setGameState(prev => ({ ...prev, ...partialState }));
@@ -56,14 +61,14 @@ const JunkPusherGame: React.FC = () => {
         setHasCheckedRecovery(true);
     }, [wallet.publicKey, hasCheckedRecovery]);
 
-    // Setup auto-save
+    // Setup auto-save (uses refs to avoid re-registering on every state change)
     useEffect(() => {
         const cleanup = setupAutoSave(
-            () => gameState,
-            () => wallet.publicKey
+            () => gameStateRef.current,
+            () => walletKeyRef.current
         );
         return cleanup;
-    }, [gameState, wallet.publicKey]);
+    }, []);
 
     useEffect(() => {
         if (!gameCanvasRef.current) return;
@@ -127,10 +132,7 @@ const JunkPusherGame: React.FC = () => {
             if (onChain.isProgramReady && wallet.isConnected) {
                 // Real on-chain bump
                 try {
-                    const sig = await onChain.recordCoinCollection(gameState.score);
-                    if (sig) {
-                        console.log('[JunkPusher] On-chain bump recorded:', sig);
-                    }
+                    await onChain.recordCoinCollection(gameState.score);
                 } catch (err) {
                     console.warn('[JunkPusher] On-chain bump failed, continuing locally:', err);
                 }
@@ -146,7 +148,6 @@ const JunkPusherGame: React.FC = () => {
             if (onChain.isProgramReady && wallet.isConnected && gameState.score > 0) {
                 try {
                     await onChain.recordScore(gameState.score);
-                    console.log('[JunkPusher] Score recorded on-chain');
                 } catch (err) {
                     console.warn('[JunkPusher] Failed to record score on-chain:', err);
                 }

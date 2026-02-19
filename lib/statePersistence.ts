@@ -32,7 +32,6 @@ export function saveGameState(state: GameState, walletAddress: string | null): v
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
-    console.log('[StatePersistence] Game state saved:', persistedState);
   } catch (error) {
     console.error('[StatePersistence] Failed to save game state:', error);
   }
@@ -50,7 +49,6 @@ export function loadGameState(walletAddress: string | null): PersistedGameState 
 
     // Only restore if it's for the same wallet (or both are null)
     if (persistedState.walletAddress !== walletAddress) {
-      console.log('[StatePersistence] Wallet mismatch, not restoring state');
       return null;
     }
 
@@ -59,11 +57,9 @@ export function loadGameState(walletAddress: string | null): PersistedGameState 
     const MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
 
     if (age > MAX_AGE) {
-      console.log('[StatePersistence] Saved state too old, not restoring');
       return null;
     }
 
-    console.log('[StatePersistence] Game state loaded:', persistedState);
     return persistedState;
   } catch (error) {
     console.error('[StatePersistence] Failed to load game state:', error);
@@ -77,7 +73,6 @@ export function loadGameState(walletAddress: string | null): PersistedGameState 
 export function clearGameState(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
-    console.log('[StatePersistence] Game state cleared');
   } catch (error) {
     console.error('[StatePersistence] Failed to clear game state:', error);
   }
@@ -96,12 +91,9 @@ export function setupAutoSave(
     saveGameState(state, walletAddress);
   }, AUTO_SAVE_INTERVAL);
 
-  console.log('[StatePersistence] Auto-save enabled (every 5s)');
-
   // Return cleanup function
   return () => {
     clearInterval(intervalId);
-    console.log('[StatePersistence] Auto-save disabled');
   };
 }
 

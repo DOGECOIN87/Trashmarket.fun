@@ -249,8 +249,8 @@ const DexPage: React.FC = () => {
       {/* Token Ticker */}
       <div className="border-b border-white/10 bg-black overflow-hidden">
         <div className="flex animate-marquee whitespace-nowrap py-2">
-          {tokens.slice(0, 15).map((token, i) => (
-            <div key={i} className="flex items-center gap-2 mx-6 text-[10px]">
+          {tokens.slice(0, 15).map((token) => (
+            <div key={token.symbol} className="flex items-center gap-2 mx-6 text-[10px]">
               <span className="text-white font-bold">{token.symbol}</span>
               <span className="text-gray-400">${formatPrice(token.priceUsd)}</span>
               <span className={token.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}>
@@ -260,8 +260,8 @@ const DexPage: React.FC = () => {
             </div>
           ))}
           {/* Duplicate for seamless scroll */}
-          {tokens.slice(0, 15).map((token, i) => (
-            <div key={`dup-${i}`} className="flex items-center gap-2 mx-6 text-[10px]">
+          {tokens.slice(0, 15).map((token) => (
+            <div key={`dup-${token.symbol}`} className="flex items-center gap-2 mx-6 text-[10px]">
               <span className="text-white font-bold">{token.symbol}</span>
               <span className="text-gray-400">${formatPrice(token.priceUsd)}</span>
               <span className={token.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}>
@@ -407,7 +407,7 @@ const DexPage: React.FC = () => {
                     onClick={() => setSelectorOpen('pay')}
                     className="flex items-center gap-2 bg-gray-900 px-3 py-1.5 border border-gray-800 hover:border-gray-600 transition-colors"
                   >
-                    {payToken.logo && <img src={payToken.logo} alt="" className="w-5 h-5 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+                    {payToken.logo && <img src={payToken.logo} alt={payToken.symbol} className="w-5 h-5 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
                     <span className="font-bold text-sm">{payToken.symbol}</span>
                     <ChevronDown size={12} className="text-gray-500" />
                   </button>
@@ -447,7 +447,7 @@ const DexPage: React.FC = () => {
                     onClick={() => setSelectorOpen('receive')}
                     className="flex items-center gap-2 bg-gray-900 px-3 py-1.5 border border-gray-800 hover:border-gray-600 transition-colors"
                   >
-                    {receiveToken?.logo && <img src={receiveToken.logo} alt="" className="w-5 h-5 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+                    {receiveToken?.logo && <img src={receiveToken.logo} alt={receiveToken.symbol} className="w-5 h-5 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
                     <span className="font-bold text-sm">{receiveToken?.symbol || 'Select'}</span>
                     <ChevronDown size={12} className="text-gray-500" />
                   </button>
@@ -609,7 +609,7 @@ const DexPage: React.FC = () => {
                     {token.logo ? (
                       <img
                         src={token.logo}
-                        alt=""
+                        alt={token.symbol}
                         className="w-8 h-8 rounded-full bg-gray-800"
                         onError={(e) => {
                           const el = e.target as HTMLImageElement;
