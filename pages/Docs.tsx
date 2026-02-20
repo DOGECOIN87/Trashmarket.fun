@@ -208,9 +208,9 @@ const Docs: React.FC = () => {
                     <section>
                          <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6">Inputs & Forms</h3>
                          <div className="grid gap-4 p-8 border border-white/20 border-dashed bg-[#050505]">
-                             <input type="text" placeholder="PLACEHOLDER_TEXT" className="w-full bg-black border border-white/20 p-3 text-white font-mono focus:border-magic-green outline-none" />
+                             <input type="text" name="demoText" placeholder="PLACEHOLDER_TEXT" className="w-full bg-black border border-white/20 p-3 text-white font-mono focus:border-magic-green outline-none" />
                              <div className="flex items-center gap-2">
-                                 <input type="checkbox" checked readOnly className="appearance-none w-4 h-4 border border-magic-green bg-magic-green" />
+                                 <input type="checkbox" name="demoCheckbox" checked readOnly className="appearance-none w-4 h-4 border border-magic-green bg-magic-green" />
                                  <span className="text-sm font-mono text-gray-300">Checkbox Active</span>
                              </div>
                          </div>

@@ -204,10 +204,12 @@ export const GOR_SYMBOL = 'GOR';
 /**
  * Format price for display
  */
-export const formatPrice = (price: number): string => {
-  if (price >= 1000) return `${(price / 1000).toFixed(1)}k`;
-  if (price >= 1) return price.toFixed(2);
-  if (price >= 0.001) return price.toFixed(4);
-  if (price >= 0.000001) return price.toFixed(6);
-  return price.toExponential(2);
+export const formatPrice = (price: number | string | undefined | null): string => {
+  const num = Number(price);
+  if (isNaN(num) || num === 0) return '0.00';
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
+  if (num >= 1) return num.toFixed(2);
+  if (num >= 0.001) return num.toFixed(4);
+  if (num >= 0.000001) return num.toFixed(6);
+  return num.toExponential(2);
 };

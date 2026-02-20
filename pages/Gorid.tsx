@@ -169,6 +169,7 @@ const Gorid: React.FC = () => {
             <div className="flex-1 relative">
               <input
                 type="text"
+                name="domainLookup"
                 value={lookupAddress}
                 onChange={(e) => setLookupAddress(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
@@ -250,6 +251,7 @@ const Gorid: React.FC = () => {
                   <div className="relative">
                     <input
                       type="text"
+                      name="domainSearch"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="SEARCH DOMAINS..."

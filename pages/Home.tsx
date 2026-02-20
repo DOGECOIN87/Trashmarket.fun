@@ -94,15 +94,10 @@ const Home: React.FC = () => {
       
       {/* Hero / Spotlight */}
       {featuredCollection ? (
-        <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20">
+        <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20" style={{ backgroundImage: "url('/images/hero-bg.webp')", backgroundSize: 'cover', backgroundPosition: 'center top' }}>
           <div className="absolute inset-0">
-            <img
-              src="/images/hero-bg.webp"
-              alt="Hero"
-              className="w-full h-full object-cover opacity-20 grayscale contrast-150"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+            <div className="absolute inset-0 bg-black/60" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
             <div className="absolute inset-0 bg-[linear-gradient(rgba(18,18,18,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(18,18,18,0.5)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20"></div>
           </div>
           
@@ -225,8 +220,8 @@ const Home: React.FC = () => {
                                 <td className="p-4">
                                     <Link to={`/collection/${collection.id}`} className="flex items-center gap-4">
                                         <span className="text-gray-700 font-mono text-sm w-4 text-center group-hover:text-white transition-colors">0{idx + 1}</span>
-                                        <div className={`w-8 h-8 border border-white/20 overflow-hidden bg-gray-900 group-hover:border-${accentColor === 'text-magic-purple' ? 'magic-purple' : 'magic-green'} transition-colors`}>
-                                            <img src={collection.image} alt={collection.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                                        <div className={`w-8 h-8 min-w-[32px] max-w-[32px] min-h-[32px] max-h-[32px] border border-white/20 overflow-hidden bg-gray-900 ${accentColor === 'text-magic-purple' ? 'group-hover:border-magic-purple' : 'group-hover:border-magic-green'} transition-colors`}>
+                                            <img src={collection.image} alt={collection.name} className="w-8 h-8 object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
                                         </div>
                                         <div>
                                             <div className="font-bold text-gray-300 group-hover:text-white flex items-center gap-2 uppercase tracking-tight text-sm transition-colors">

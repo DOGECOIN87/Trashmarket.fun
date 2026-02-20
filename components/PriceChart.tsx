@@ -25,8 +25,13 @@ const PriceChart: React.FC<PriceChartProps> = ({ data, color = '#adff02', height
     return `${x},${y}`;
   }).join(' ');
 
-  // Create area path
-  const areaPath = `${points} ${width},${height} 0,${height}`;
+  // Create area path with proper SVG commands
+  const pathPoints = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((d.price - minPrice) / range) * height;
+    return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+  }).join(' ');
+  const areaPath = `${pathPoints} L${width},${height} L0,${height} Z`;
 
   return (
     <div className="w-full h-full relative group bg-black/50">

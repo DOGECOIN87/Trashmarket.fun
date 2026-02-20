@@ -356,6 +356,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
           </label>
           <input
             type="text"
+            name="collectionName"
             value={data.name}
             onChange={(e) => updateData({ name: e.target.value })}
             placeholder="e.g., Cool NFT Collection"
@@ -370,6 +371,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
           <input
             type="text"
             value={data.symbol}
+            name="symbol"
             onChange={(e) => updateData({ symbol: e.target.value.toUpperCase() })}
             placeholder="e.g., COOL"
             className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono uppercase"
@@ -381,6 +383,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
             Description *
           </label>
           <textarea
+            name="description"
             value={data.description}
             onChange={(e) => updateData({ description: e.target.value })}
             placeholder="Describe your collection..."
@@ -399,6 +402,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
           </label>
           <input
             type="number"
+            name="supply"
             value={data.supply}
             onChange={(e) => updateData({ supply: parseInt(e.target.value) || 0 })}
             placeholder="1000"
@@ -413,6 +417,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
           </label>
           <input
             type="number"
+            name="mintPrice"
             value={data.mintPrice}
             onChange={(e) => updateData({ mintPrice: parseFloat(e.target.value) || 0 })}
             placeholder="0.1"
@@ -428,6 +433,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
           </label>
           <input
             type="datetime-local"
+            name="mintDate"
             value={data.mintDate}
             onChange={(e) => updateData({ mintDate: e.target.value })}
             className="w-full bg-black border border-white/20 p-3 text-white focus:outline-none focus:border-magic-green font-mono"
@@ -550,6 +556,7 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
                 <span className="text-gray-600 font-mono text-sm">Click to upload logo</span>
                 <input
                   type="file"
+                  name="logo"
                   accept="image/*"
                   onChange={(e) => handleFileChange('logo', e.target.files)}
                   className="hidden"
@@ -591,6 +598,7 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
                 <span className="text-gray-600 font-mono text-sm">Click to upload banner</span>
                 <input
                   type="file"
+                  name="banner"
                   accept="image/*"
                   onChange={(e) => handleFileChange('banner', e.target.files)}
                   className="hidden"
@@ -631,6 +639,7 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
                     <span className="text-xs text-gray-600 mt-1">Add more</span>
                     <input
                       type="file"
+                      name="sampleImages"
                       accept="image/*"
                       multiple
                       onChange={(e) => handleFileChange('sample', e.target.files)}
@@ -693,6 +702,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           </label>
           <input
             type="text"
+            name="contractAddress"
             value={data.contractAddress}
             onChange={(e) => updateData({ contractAddress: e.target.value })}
             placeholder="Gorbagana contract address..."
@@ -706,6 +716,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           </label>
           <input
             type="number"
+            name="royaltyPercentage"
             value={data.royaltyPercentage}
             onChange={(e) => updateData({ royaltyPercentage: parseFloat(e.target.value) || 0 })}
             placeholder="5"
@@ -723,6 +734,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           </label>
           <input
             type="url"
+            name="website"
             value={data.website}
             onChange={(e) => updateData({ website: e.target.value })}
             placeholder="https://your-website.com"
@@ -736,6 +748,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           </label>
           <input
             type="text"
+            name="twitter"
             value={data.twitter}
             onChange={(e) => updateData({ twitter: e.target.value })}
             placeholder="@your_handle"
@@ -749,6 +762,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           </label>
           <input
             type="url"
+            name="discord"
             value={data.discord}
             onChange={(e) => updateData({ discord: e.target.value })}
             placeholder="https://discord.gg/your-server"
@@ -762,6 +776,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           </label>
           <input
             type="url"
+            name="telegram"
             value={data.telegram}
             onChange={(e) => updateData({ telegram: e.target.value })}
             placeholder="https://t.me/your_group"
@@ -775,6 +790,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           </label>
           <input
             type="email"
+            name="contactEmail"
             value={data.contactEmail}
             onChange={(e) => updateData({ contactEmail: e.target.value })}
             placeholder="contact@yourproject.com"
@@ -820,6 +836,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
             Team Information *
           </label>
           <textarea
+            name="teamInfo"
             value={data.teamInfo}
             onChange={(e) => updateData({ teamInfo: e.target.value })}
             placeholder="Tell us about your team..."
@@ -837,6 +854,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
             Roadmap *
           </label>
           <textarea
+            name="roadmap"
             value={data.roadmap}
             onChange={(e) => updateData({ roadmap: e.target.value })}
             placeholder="What are your future plans?"
@@ -854,6 +872,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
             Utility & Benefits *
           </label>
           <textarea
+            name="utility"
             value={data.utility}
             onChange={(e) => updateData({ utility: e.target.value })}
             placeholder="What does your NFT provide to holders?"

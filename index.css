@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "./tailwind.config.js";
 
 /* Gorbagana Brand — Custom Animations & Utilities */
 
@@ -45,4 +44,15 @@
 
 .glow-cyan {
   text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff;
+}
+
+/* Fundraiser scan bar animation */
+@keyframes scan-bar {
+  0% { transform: translateX(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+.animate-scan-bar {
+  animation: scan-bar 2.5s ease-in-out infinite;
 }

@@ -277,6 +277,7 @@ const VanityGenerator: React.FC = () => {
               
               <input
                 type="text"
+                name="vanityName"
                 value={inputName}
                 onChange={(e) => setInputName(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
                 placeholder="Enter desired name (letters + numbers only)"
