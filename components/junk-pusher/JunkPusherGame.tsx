@@ -4,7 +4,7 @@ import { Overlay } from './Overlay';
 import { GameState } from '../../types/types';
 import { useGameWallet } from './WalletAdapter';
 import { useJunkPusherOnChain } from '../../lib/useJunkPusherOnChain';
-import { setupAutoSave, loadGameState, clearGameState, hasRecoverableState, getRecoveryMessage } from '../../lib/statePersistence';
+import { setupAutoSave, loadGameState, clearGameState } from '../../lib/statePersistence';
 import { soundManager } from '../../lib/soundManager';
 
 const JunkPusherGame: React.FC = () => {
@@ -22,44 +22,36 @@ const JunkPusherGame: React.FC = () => {
         fps: 0,
         isPaused: false,
     });
-    const [hasCheckedRecovery, setHasCheckedRecovery] = useState(false);
     const gameStateRef = useRef(gameState);
     gameStateRef.current = gameState;
 
     const walletKeyRef = useRef(wallet.publicKey);
     walletKeyRef.current = wallet.publicKey;
 
+    // Stable refs for on-chain methods to avoid re-render cascades
+    const onChainRef = useRef(onChain);
+    onChainRef.current = onChain;
+
     const handleUpdate = useCallback((partialState: Partial<GameState>) => {
         setGameState(prev => ({ ...prev, ...partialState }));
     }, []);
 
-    // Check for recoverable state on mount
+    // Silently restore saved state on mount to protect player coins
+    const hasRestoredRef = useRef(false);
     useEffect(() => {
-        if (hasCheckedRecovery) return;
+        if (hasRestoredRef.current) return;
+        hasRestoredRef.current = true;
 
-        const walletAddress = wallet.publicKey;
-        if (hasRecoverableState(walletAddress)) {
-            const message = getRecoveryMessage(walletAddress);
-            if (message && window.confirm(message)) {
-                const recovered = loadGameState(walletAddress);
-                if (recovered) {
-                    setGameState(prev => ({
-                        ...prev,
-                        balance: recovered.balance,
-                        score: recovered.score,
-                        netProfit: recovered.netProfit,
-                    }));
-
-                    if (engineRef.current) {
-                        engineRef.current.reset();
-                    }
-                }
-            } else {
-                clearGameState();
-            }
+        const recovered = loadGameState(wallet.publicKey);
+        if (recovered) {
+            setGameState(prev => ({
+                ...prev,
+                balance: recovered.balance,
+                score: recovered.score,
+                netProfit: recovered.netProfit,
+            }));
         }
-        setHasCheckedRecovery(true);
-    }, [wallet.publicKey, hasCheckedRecovery]);
+    }, [wallet.publicKey]);
 
     // Setup auto-save (uses refs to avoid re-registering on every state change)
     useEffect(() => {
@@ -128,11 +120,11 @@ const JunkPusherGame: React.FC = () => {
      * Falls back to the local mock flow if the program isn't deployed yet.
      */
     const handleBump = useCallback(async () => {
-        if (engineRef.current && !gameState.isPaused) {
-            if (onChain.isProgramReady && wallet.isConnected) {
-                // Real on-chain bump
+        if (engineRef.current && !gameStateRef.current.isPaused) {
+            const oc = onChainRef.current;
+            if (oc.isProgramReady && wallet.isConnected) {
                 try {
-                    await onChain.recordCoinCollection(gameState.score);
+                    await oc.recordCoinCollection(gameStateRef.current.score);
                 } catch (err) {
                     console.warn('[JunkPusher] On-chain bump failed, continuing locally:', err);
                 }
@@ -140,14 +132,15 @@ const JunkPusherGame: React.FC = () => {
             engineRef.current.bump();
             soundManager.play('bump');
         }
-    }, [gameState.isPaused, gameState.score, onChain, wallet.isConnected]);
+    }, [wallet.isConnected]);
 
     const handleReset = useCallback(async () => {
         if (engineRef.current) {
-            // Record final score on-chain before resetting
-            if (onChain.isProgramReady && wallet.isConnected && gameState.score > 0) {
+            const oc = onChainRef.current;
+            const currentState = gameStateRef.current;
+            if (oc.isProgramReady && wallet.isConnected && currentState.score > 0) {
                 try {
-                    await onChain.recordScore(gameState.score);
+                    await oc.recordScore(currentState.score);
                 } catch (err) {
                     console.warn('[JunkPusher] Failed to record score on-chain:', err);
                 }
@@ -158,12 +151,12 @@ const JunkPusherGame: React.FC = () => {
                 score: 0,
                 balance: 100,
                 netProfit: 0,
-                fps: gameState.fps,
+                fps: currentState.fps,
                 isPaused: false,
             });
             clearGameState();
         }
-    }, [gameState.fps, gameState.score, onChain, wallet.isConnected]);
+    }, [wallet.isConnected]);
 
     const handlePauseToggle = () => {
         if (engineRef.current) {

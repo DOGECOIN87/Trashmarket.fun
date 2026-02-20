@@ -32,6 +32,7 @@ export class GameEngine {
 
   // State
   private isInitialized = false;
+  private isDisposed = false;
   private isPaused = false;
   private requestAnimationId: number | null = null;
   private lastTime = 0;
@@ -51,6 +52,9 @@ export class GameEngine {
   // Raycasting for input
   private raycaster = new THREE.Raycaster();
 
+  // Reusable object for syncing transforms (avoids per-frame allocation)
+  private dummy = new THREE.Object3D();
+
   constructor(config: Partial<GameConfig>) {
     // Apply config overrides if needed
     if (config.debugEmptyPool) GameEngine.DEBUG_EMPTY_POOL = 1;
@@ -63,8 +67,11 @@ export class GameEngine {
   ): Promise<void> {
     this.onGameStateUpdate = onUpdate;
 
-    // 1. Init Physics
-    await RAPIER.init();
+    // 1. Init Physics (with timeout to prevent hanging on WASM load failure)
+    await Promise.race([
+      RAPIER.init(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('RAPIER WASM init timed out after 10s')), 10_000)),
+    ]);
     this.world = new RAPIER.World(PHYSICS.GRAVITY);
     this.world.numSolverIterations = 8;
 
@@ -142,6 +149,7 @@ export class GameEngine {
     }
 
     this.isInitialized = true;
+    if (this.isDisposed) return;
     this.startLoop();
   }
 
@@ -571,6 +579,7 @@ export class GameEngine {
   }
 
   private loop = () => {
+    if (this.isDisposed) return;
     this.requestAnimationId = requestAnimationFrame(this.loop);
     if (this.isPaused) return;
 
@@ -602,36 +611,38 @@ export class GameEngine {
   }
 
   private updatePhysicsLogic(time: number) {
-    // Use time to drive sine wave. 
+    // Use time to drive sine wave.
     // Note: time here is wall clock. For pure determinism we'd use accumulated simulation time.
     const pusherZ = -DIMENSIONS.PLAYFIELD_LENGTH / 2 + 2 +
       Math.sin(time * (Math.PI * 2 / PHYSICS.PUSHER_PERIOD)) * PHYSICS.PUSHER_AMPLITUDE;
 
     this.pusherBody.setNextKinematicTranslation({ x: 0, y: 0.55, z: pusherZ });
 
+    // Collect indices to remove AFTER reading all positions (avoids RAPIER aliasing)
+    const coinRemovals: { index: number; isWin: boolean }[] = [];
     for (let i = this.coinBodies.length - 1; i >= 0; i--) {
-      const body = this.coinBodies[i].body;
-      const pos = body.translation();
-
-      if (pos.y < -2) {
-        const isWin = pos.z > DIMENSIONS.PLAYFIELD_LENGTH / 2;
-        if (isWin) this.handleWin(false);
-        this.world.removeRigidBody(body);
-        this.coinBodies.splice(i, 1);
+      const { y, z } = this.coinBodies[i].body.translation();
+      if (y < -2) {
+        coinRemovals.push({ index: i, isWin: z > DIMENSIONS.PLAYFIELD_LENGTH / 2 });
       }
     }
+    for (const { index, isWin } of coinRemovals) {
+      if (isWin) this.handleWin(false);
+      this.world.removeRigidBody(this.coinBodies[index].body);
+      this.coinBodies.splice(index, 1);
+    }
 
-    // Trashcoin fall-off detection
+    const trashRemovals: { index: number; isWin: boolean }[] = [];
     for (let i = this.trashcoinBodies.length - 1; i >= 0; i--) {
-      const body = this.trashcoinBodies[i].body;
-      const pos = body.translation();
-
-      if (pos.y < -2) {
-        const isWin = pos.z > DIMENSIONS.PLAYFIELD_LENGTH / 2;
-        if (isWin) this.handleWin(true);
-        this.world.removeRigidBody(body);
-        this.trashcoinBodies.splice(i, 1);
+      const { y, z } = this.trashcoinBodies[i].body.translation();
+      if (y < -2) {
+        trashRemovals.push({ index: i, isWin: z > DIMENSIONS.PLAYFIELD_LENGTH / 2 });
       }
+    }
+    for (const { index, isWin } of trashRemovals) {
+      if (isWin) this.handleWin(true);
+      this.world.removeRigidBody(this.trashcoinBodies[index].body);
+      this.trashcoinBodies.splice(index, 1);
     }
 
     if (GameEngine.DEBUG_AUTOPLAY && Math.random() < 0.05) {
@@ -670,27 +681,28 @@ export class GameEngine {
   }
 
   private syncGraphics() {
-    const dummy = new THREE.Object3D();
+    const d = this.dummy;
 
-    const pusherPos = this.pusherBody.translation();
+    // Destructure immediately to release RAPIER WASM borrows before next call
+    const { x: px, y: py, z: pz } = this.pusherBody.translation();
     const pusherMesh = (this.pusherBody as any).mesh;
     if (pusherMesh) {
-      pusherMesh.position.set(pusherPos.x, pusherPos.y, pusherPos.z);
+      pusherMesh.position.set(px, py, pz);
     }
 
     for (let i = 0; i < PHYSICS.MAX_COINS; i++) {
       if (i < this.coinBodies.length) {
         const body = this.coinBodies[i].body;
-        const pos = body.translation();
-        const rot = body.rotation();
-        dummy.position.set(pos.x, pos.y, pos.z);
-        dummy.quaternion.set(rot.x, rot.y, rot.z, rot.w);
-        dummy.scale.set(1, 1, 1);
+        const { x: bx, y: by, z: bz } = body.translation();
+        const { x: rx, y: ry, z: rz, w: rw } = body.rotation();
+        d.position.set(bx, by, bz);
+        d.quaternion.set(rx, ry, rz, rw);
+        d.scale.set(1, 1, 1);
       } else {
-        dummy.scale.set(0, 0, 0);
+        d.scale.set(0, 0, 0);
       }
-      dummy.updateMatrix();
-      this.coinInstancedMesh.setMatrixAt(i, dummy.matrix);
+      d.updateMatrix();
+      this.coinInstancedMesh.setMatrixAt(i, d.matrix);
     }
     this.coinInstancedMesh.instanceMatrix.needsUpdate = true;
 
@@ -698,16 +710,16 @@ export class GameEngine {
     for (let i = 0; i < TRASHCOIN.MAX_COUNT; i++) {
       if (i < this.trashcoinBodies.length) {
         const body = this.trashcoinBodies[i].body;
-        const pos = body.translation();
-        const rot = body.rotation();
-        dummy.position.set(pos.x, pos.y, pos.z);
-        dummy.quaternion.set(rot.x, rot.y, rot.z, rot.w);
-        dummy.scale.set(1, 1, 1);
+        const { x: bx, y: by, z: bz } = body.translation();
+        const { x: rx, y: ry, z: rz, w: rw } = body.rotation();
+        d.position.set(bx, by, bz);
+        d.quaternion.set(rx, ry, rz, rw);
+        d.scale.set(1, 1, 1);
       } else {
-        dummy.scale.set(0, 0, 0);
+        d.scale.set(0, 0, 0);
       }
-      dummy.updateMatrix();
-      this.trashcoinInstancedMesh.setMatrixAt(i, dummy.matrix);
+      d.updateMatrix();
+      this.trashcoinInstancedMesh.setMatrixAt(i, d.matrix);
     }
     this.trashcoinInstancedMesh.instanceMatrix.needsUpdate = true;
   }
@@ -721,6 +733,7 @@ export class GameEngine {
   }
 
   public cleanup() {
+    this.isDisposed = true;
     if (this.requestAnimationId) {
       cancelAnimationFrame(this.requestAnimationId);
     }
