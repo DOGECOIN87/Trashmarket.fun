@@ -37,8 +37,8 @@ const FilterContent: React.FC<FilterContentProps> = ({ accentColor, currency, bo
     <div>
       <div className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Price Range ({currency})</div>
       <div className="flex gap-2">
-        <input type="number" placeholder="Min" className={`w-1/2 bg-black border border-white/20 p-2 text-sm text-white font-mono placeholder-gray-700 ${borderFocus} outline-none`} />
-        <input type="number" placeholder="Max" className={`w-1/2 bg-black border border-white/20 p-2 text-sm text-white font-mono placeholder-gray-700 ${borderFocus} outline-none`} />
+        <input type="number" name="priceMin" placeholder="Min" className={`w-1/2 bg-black border border-white/20 p-2 text-sm text-white font-mono placeholder-gray-700 ${borderFocus} outline-none`} />
+        <input type="number" name="priceMax" placeholder="Max" className={`w-1/2 bg-black border border-white/20 p-2 text-sm text-white font-mono placeholder-gray-700 ${borderFocus} outline-none`} />
       </div>
     </div>
     <div>
@@ -295,6 +295,7 @@ const Collection: React.FC = () => {
                 <div className="relative hidden md:block">
                   <input
                     type="text"
+                    name="searchId"
                     placeholder="SEARCH ID"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -311,6 +312,7 @@ const Collection: React.FC = () => {
                   <span className={`text-[10px] md:text-xs font-bold ${accentColor} whitespace-nowrap uppercase tracking-wider`}>SWEEP</span>
                   <input
                     type="range"
+                    name="sweepCount"
                     min="0"
                     max="10"
                     step="1"
@@ -324,6 +326,7 @@ const Collection: React.FC = () => {
                 <div className="relative md:hidden w-1/3">
                   <input
                     type="text"
+                    name="searchIdMobile"
                     placeholder="ID#"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}

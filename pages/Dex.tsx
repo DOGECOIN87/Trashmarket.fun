@@ -255,7 +255,7 @@ const DexPage: React.FC = () => {
               <span className="text-gray-400">${formatPrice(token.priceUsd)}</span>
               <span className={token.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}>
                 {token.change24h >= 0 ? <TrendingUp size={10} className="inline" /> : <TrendingDown size={10} className="inline" />}
-                {' '}{token.change24h.toFixed(1)}%
+                {' '}{Number(token.change24h || 0).toFixed(1)}%
               </span>
             </div>
           ))}
@@ -266,7 +266,7 @@ const DexPage: React.FC = () => {
               <span className="text-gray-400">${formatPrice(token.priceUsd)}</span>
               <span className={token.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}>
                 {token.change24h >= 0 ? <TrendingUp size={10} className="inline" /> : <TrendingDown size={10} className="inline" />}
-                {' '}{token.change24h.toFixed(1)}%
+                {' '}{Number(token.change24h || 0).toFixed(1)}%
               </span>
             </div>
           ))}
@@ -398,6 +398,7 @@ const DexPage: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <input
                     type="number"
+                    name="payAmount"
                     value={payAmount}
                     onChange={handlePayChange}
                     placeholder="0.00"
@@ -438,6 +439,7 @@ const DexPage: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <input
                     type="number"
+                    name="receiveAmount"
                     value={receiveAmount}
                     readOnly
                     placeholder="0.00"
@@ -550,6 +552,7 @@ const DexPage: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                 <input
                   type="text"
+                  name="tokenSearch"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="SEARCH_TOKEN_OR_PASTE_MINT..."

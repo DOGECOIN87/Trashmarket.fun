@@ -49,6 +49,7 @@ export const SoundControl: React.FC = () => {
             <span className="text-xs text-green-400 font-[Inter] uppercase tracking-wider">Volume</span>
             <input
               type="range"
+              name="volume"
               min="0"
               max="1"
               step="0.1"

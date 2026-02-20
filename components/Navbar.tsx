@@ -141,6 +141,7 @@ const Navbar: React.FC = () => {
                 </div>
                 <input
                   type="text"
+                  name="search"
                   className="block w-full pl-10 pr-3 py-2 border border-white/20 leading-5 bg-black text-white placeholder-gray-600 focus:outline-none focus:border-magic-green focus:ring-1 focus:ring-magic-green sm:text-sm transition-all duration-150 font-mono uppercase focus:text-magic-green"
                   placeholder="SEARCH_TRASH..."
                 />
