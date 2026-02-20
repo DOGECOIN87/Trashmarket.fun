@@ -188,6 +188,25 @@ class GorbaganaRPC {
     return this.request<number | null>('getBlockTime', [slot]);
   }
 
+  // Get confirmed signatures for an address (for transaction history)
+  async getSignaturesForAddress(
+    address: string,
+    limit: number = 100
+  ): Promise<Array<{ signature: string; slot: number; blockTime: number | null; err: any }>> {
+    return this.request<Array<{ signature: string; slot: number; blockTime: number | null; err: any }>>(
+      'getSignaturesForAddress',
+      [address, { limit, commitment: 'confirmed' }]
+    );
+  }
+
+  // Get transaction details
+  async getTransaction(signature: string): Promise<any> {
+    return this.request<any>('getTransaction', [
+      signature,
+      { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 },
+    ]);
+  }
+
   // Health check
   async isHealthy(): Promise<boolean> {
     try {

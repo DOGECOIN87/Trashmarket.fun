@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   ArrowLeftRight,
   ShieldCheck,
@@ -9,19 +9,144 @@ import {
   CheckCircle2,
   Clock,
   Activity,
-  Beaker
+  Beaker,
+  Heart,
+  Copy,
+  Check,
+  ExternalLink,
+  Radio,
+  Terminal,
+  Users,
 } from 'lucide-react';
 import { useNetwork, GORBAGANA_CONFIG } from '../contexts/NetworkContext';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useBridgeService, BridgeOrder } from '../services/bridgeService';
 import { useAnchor } from '../contexts/AnchorContext';
 import { PublicKey } from '@solana/web3.js';
+import { gorbaganaRPC, formatGOR } from '../utils/gorbaganaRPC';
+import { getGoridNameFromAddress } from '../services/goridService';
+
+// Fundraiser config
+const FUNDRAISER_WALLET = '7qrxa4jsxVWrNRmuFNPv5ekCScjdk8gPeFg7xDdEdHzU';
+
+interface Donor {
+  address: string;
+  goridName: string | null;
+  totalAmount: number;
+  txCount: number;
+  lastTx: string;
+}
 
 const Bridge: React.FC = () => {
   const { connected } = useWallet();
   const { fetchAllOrders, createOrderGGOR, createOrderSGOR, fillOrder, cancelOrder } = useBridgeService();
   const { program } = useAnchor();
-  const { rpcEndpoint: currentRpcEndpoint, isDevnet, currentNetwork } = useNetwork(); // Get current RPC endpoint from NetworkContext
+  const { rpcEndpoint: currentRpcEndpoint, isDevnet, currentNetwork } = useNetwork();
+
+  // --- FUNDRAISER STATE ---
+  const [fundraiserBalance, setFundraiserBalance] = useState<number>(0);
+  const [donors, setDonors] = useState<Donor[]>([]);
+  const [fundraiserLoading, setFundraiserLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const fundraiserFetched = useRef(false);
+
+  // Fetch fundraiser data
+  useEffect(() => {
+    if (fundraiserFetched.current) return;
+    fundraiserFetched.current = true;
+
+    const fetchFundraiserData = async () => {
+      setFundraiserLoading(true);
+      try {
+        // Fetch balance
+        const balance = await gorbaganaRPC.getBalance(FUNDRAISER_WALLET);
+        setFundraiserBalance(balance);
+
+        // Fetch transaction history
+        const signatures = await gorbaganaRPC.getSignaturesForAddress(FUNDRAISER_WALLET, 100);
+        const successfulSigs = signatures.filter(s => !s.err);
+
+        // Aggregate donors from transactions
+        const donorMap = new Map<string, { totalAmount: number; txCount: number; lastTx: string }>();
+
+        for (const sig of successfulSigs) {
+          try {
+            const tx = await gorbaganaRPC.getTransaction(sig.signature);
+            if (!tx?.meta || !tx?.transaction) continue;
+
+            const preBalances = tx.meta.preBalances as number[];
+            const postBalances = tx.meta.postBalances as number[];
+            const accountKeys = tx.transaction.message.accountKeys as Array<{ pubkey: string } | string>;
+
+            // Find the sender (account that lost lamports, excluding the fundraiser itself)
+            for (let i = 0; i < accountKeys.length; i++) {
+              const key = typeof accountKeys[i] === 'string' ? accountKeys[i] : (accountKeys[i] as any).pubkey;
+              if (key === FUNDRAISER_WALLET) continue;
+
+              const diff = (preBalances[i] || 0) - (postBalances[i] || 0);
+              if (diff > 0) {
+                const existing = donorMap.get(key);
+                const amountGOR = diff / 1e9;
+                if (existing) {
+                  existing.totalAmount += amountGOR;
+                  existing.txCount += 1;
+                } else {
+                  donorMap.set(key, { totalAmount: amountGOR, txCount: 1, lastTx: sig.signature });
+                }
+                break; // Only count the primary sender
+              }
+            }
+          } catch {
+            // Skip failed tx fetches
+          }
+        }
+
+        // Resolve Gorid names for top donors
+        const donorEntries = Array.from(donorMap.entries())
+          .sort((a, b) => b[1].totalAmount - a[1].totalAmount)
+          .slice(0, 20);
+
+        const resolvedDonors: Donor[] = await Promise.all(
+          donorEntries.map(async ([address, data]) => {
+            let goridName: string | null = null;
+            try {
+              goridName = await getGoridNameFromAddress(address);
+            } catch {
+              // Ignore name resolution failures
+            }
+            return {
+              address,
+              goridName,
+              totalAmount: data.totalAmount,
+              txCount: data.txCount,
+              lastTx: data.lastTx,
+            };
+          })
+        );
+
+        setDonors(resolvedDonors);
+      } catch (err) {
+        console.error('[Bridge] Failed to fetch fundraiser data:', err);
+      } finally {
+        setFundraiserLoading(false);
+      }
+    };
+
+    fetchFundraiserData();
+
+    // Refresh every 60 seconds
+    const interval = setInterval(() => {
+      fundraiserFetched.current = false;
+      fetchFundraiserData();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const copyAddress = useCallback(() => {
+    navigator.clipboard.writeText(FUNDRAISER_WALLET);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, []);
 
   // --- STATE ---
   const [viewMode, setViewMode] = useState<'trade' | 'orders' | 'escrow' | 'history'>('trade');
@@ -383,6 +508,154 @@ const Bridge: React.FC = () => {
         </div>
       </div>
 
+      {/* Fundraiser CTA */}
+      <div className="border-b border-white/20 bg-gradient-to-b from-magic-green/5 to-transparent">
+        <div className="max-w-[1600px] mx-auto px-4 py-8 md:py-12">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2 text-magic-green text-xs font-bold uppercase tracking-widest font-mono">
+              <Terminal className="w-3 h-3" /> {'>_'} 1:1 P2P BRIDGE FUNDRAISER
+            </div>
+            <div className="flex items-center gap-2">
+              <Radio className="w-3 h-3 text-magic-green animate-pulse" />
+              <span className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">LIVE</span>
+            </div>
+          </div>
+
+          {/* Main CTA Block */}
+          <div className="border border-magic-green/30 bg-black relative overflow-hidden">
+            {/* Corner accents */}
+            <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-magic-green" />
+            <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-magic-green" />
+            <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-magic-green" />
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-magic-green" />
+
+            <div className="p-6 md:p-8">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                {/* Left side - Amount raised */}
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-2">Total_Raised</div>
+                  <div className="text-4xl md:text-5xl font-black text-magic-green glow-green tracking-tight">
+                    {fundraiserLoading ? (
+                      <span className="animate-pulse">LOADING...</span>
+                    ) : (
+                      formatGOR(fundraiserBalance)
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 mt-3">
+                    <div className="flex items-center gap-2 text-gray-400 text-xs">
+                      <Users className="w-3 h-3" />
+                      <span>{donors.length} donor{donors.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-400 text-xs">
+                      <Heart className="w-3 h-3 text-magic-red" />
+                      <span>No goal — every GOR counts</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right side - Donate action */}
+                <div className="flex flex-col gap-3 w-full md:w-auto">
+                  <button
+                    onClick={copyAddress}
+                    className="px-8 py-4 bg-magic-green text-black font-bold uppercase tracking-widest text-sm hover:bg-white transition-colors flex items-center justify-center gap-2"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4" /> ADDRESS COPIED
+                      </>
+                    ) : (
+                      <>
+                        <Heart className="w-4 h-4" /> DONATE GOR
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={copyAddress}
+                    className="flex items-center gap-2 text-[10px] text-gray-500 hover:text-magic-green transition-colors font-mono justify-center"
+                  >
+                    <Copy className="w-3 h-3" />
+                    {FUNDRAISER_WALLET.slice(0, 12)}...{FUNDRAISER_WALLET.slice(-8)}
+                  </button>
+                </div>
+              </div>
+
+              {/* Scan bar visualizer */}
+              <div className="mt-6 h-1 bg-white/5 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-magic-green to-transparent animate-scan-bar" />
+              </div>
+            </div>
+          </div>
+
+          {/* Donor Leaderboard */}
+          {donors.length > 0 && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono font-bold">Donor_Leaderboard</div>
+                <div className="text-[10px] text-gray-600 uppercase tracking-widest font-mono">Top {donors.length}</div>
+              </div>
+
+              <div className="overflow-x-auto border border-white/10">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-white/5 text-[10px] uppercase text-gray-500 border-b border-white/10">
+                      <th className="p-3 font-bold w-12">Rank</th>
+                      <th className="p-3 font-bold">Donor</th>
+                      <th className="p-3 font-bold text-right">Amount</th>
+                      <th className="p-3 font-bold text-right">TXs</th>
+                      <th className="p-3 font-bold text-right">Explorer</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm">
+                    {donors.map((donor, idx) => (
+                      <tr key={donor.address} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="p-3 text-gray-600 font-mono text-xs">
+                          {idx === 0 ? '🏆' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex flex-col">
+                            {donor.goridName && (
+                              <span className="text-magic-green font-bold text-xs">{donor.goridName}</span>
+                            )}
+                            <span className="text-gray-400 font-mono text-[10px]">
+                              {donor.address.slice(0, 8)}...{donor.address.slice(-6)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-right font-mono font-bold text-magic-green text-xs">
+                          {formatGOR(donor.totalAmount)}
+                        </td>
+                        <td className="p-3 text-right font-mono text-gray-500 text-xs">
+                          {donor.txCount}
+                        </td>
+                        <td className="p-3 text-right">
+                          <a
+                            href={`${GORBAGANA_CONFIG.explorerUrl}/address/${donor.address}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gray-500 hover:text-magic-green transition-colors inline-flex"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {fundraiserLoading && (
+            <div className="mt-6 text-center py-8">
+              <div className="text-magic-green animate-pulse text-xs uppercase tracking-widest font-mono">
+                LOADING DONOR DATA...
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 py-8">
         {/* Navigation Tabs */}
@@ -492,6 +765,7 @@ const Bridge: React.FC = () => {
               <div>
                 <label className="block text-[10px] text-gray-500 uppercase mb-1">I want to sell</label>
                 <select
+                  name="bridgeDirection"
                   value={isDevnet ? 'sGOR' : createDirection}
                   onChange={(e) => !isDevnet && setCreateDirection(e.target.value as 'gGOR' | 'sGOR')}
                   disabled={isDevnet}
@@ -508,6 +782,7 @@ const Bridge: React.FC = () => {
                 <label className="block text-[10px] text-gray-500 uppercase mb-1">Amount</label>
                 <input
                   type="number"
+                  name="bridgeAmount"
                   value={createAmount}
                   onChange={(e) => setCreateAmount(e.target.value)}
                   placeholder={isDevnet ? "5.0 (test sGOR)" : "0.00"}
