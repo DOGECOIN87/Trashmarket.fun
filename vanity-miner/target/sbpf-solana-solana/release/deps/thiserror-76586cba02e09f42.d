@@ -1,0 +1,10 @@
+/home/mattrick/Desktop/TRASHMARKET.FUN/Trashmarket.fun/vanity-miner/target/sbpf-solana-solana/release/deps/thiserror-76586cba02e09f42.d: /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/lib.rs /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/aserror.rs /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/display.rs /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/provide.rs
+
+/home/mattrick/Desktop/TRASHMARKET.FUN/Trashmarket.fun/vanity-miner/target/sbpf-solana-solana/release/deps/libthiserror-76586cba02e09f42.rlib: /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/lib.rs /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/aserror.rs /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/display.rs /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/provide.rs
+
+/home/mattrick/Desktop/TRASHMARKET.FUN/Trashmarket.fun/vanity-miner/target/sbpf-solana-solana/release/deps/libthiserror-76586cba02e09f42.rmeta: /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/lib.rs /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/aserror.rs /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/display.rs /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/provide.rs
+
+/home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/lib.rs:
+/home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/aserror.rs:
+/home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/display.rs:
+/home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-1.0.69/src/provide.rs:

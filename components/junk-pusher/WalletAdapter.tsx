@@ -1,8 +1,11 @@
 /**
- * Adapter that maps the root WalletContext interface to what the game components expect.
+ * Adapter that maps the @solana/wallet-adapter-react interface to what the game components expect.
  * This eliminates the need for the game's standalone wallet/solana service.
  */
-import { useWallet as useRootWallet } from '../../contexts/WalletContext';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { useState, useCallback, useEffect } from 'react';
 
 export interface GameWalletState {
     publicKey: string | null;
@@ -16,27 +19,42 @@ export interface GameWalletState {
 }
 
 export function useGameWallet(): GameWalletState {
-    const rootWallet = useRootWallet();
+    const { publicKey, connected, connecting, disconnect, wallet } = useWallet();
+    const { setVisible } = useWalletModal();
+    const { connection } = useConnection();
+    const [balance, setBalance] = useState<number | null>(null);
+
+    const refreshBalance = useCallback(async () => {
+        if (!publicKey) {
+            setBalance(null);
+            return;
+        }
+        try {
+            const bal = await connection.getBalance(publicKey);
+            setBalance(bal / LAMPORTS_PER_SOL);
+        } catch {
+            // silently fail
+        }
+    }, [publicKey, connection]);
+
+    useEffect(() => {
+        if (connected && publicKey) {
+            refreshBalance();
+        } else {
+            setBalance(null);
+        }
+    }, [connected, publicKey, refreshBalance]);
 
     return {
-        publicKey: rootWallet.address,
-        isConnected: rootWallet.connected,
-        isLoading: rootWallet.isConnecting,
-        balance: rootWallet.balance,
-        hasWalletExtension: rootWallet.availableWallets.some(w => w.installed),
+        publicKey: publicKey?.toBase58() ?? null,
+        isConnected: connected,
+        isLoading: connecting,
+        balance,
+        hasWalletExtension: !!wallet,
         connectWallet: async () => {
-            // Connect with the first available installed wallet
-            const installed = rootWallet.availableWallets.find(w => w.installed);
-            if (installed) {
-                await rootWallet.connect(installed.id);
-            } else {
-                // Try backpack as default
-                await rootWallet.connect('backpack');
-            }
+            setVisible(true);
         },
-        disconnectWallet: () => rootWallet.disconnect(),
-        refreshBalance: async () => {
-            // Root wallet auto-refreshes balance on connect; no-op here
-        },
+        disconnectWallet: () => disconnect(),
+        refreshBalance,
     };
 }

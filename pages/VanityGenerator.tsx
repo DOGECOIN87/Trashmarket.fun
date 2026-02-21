@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  Terminal, Cpu, Download, Lock, Unlock, Play, Pause, Square, 
-  Zap, Trophy, AlertTriangle, Copy, Check, Settings, Sparkles
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  Terminal, Cpu, Download, Lock, Unlock, Play, Pause, Square,
+  Zap, Trophy, AlertTriangle, Copy, Check, Settings, Sparkles,
+  Wallet, ArrowDownToLine, ArrowUpFromLine, DollarSign
 } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
-import { useWallet } from '../contexts/WalletContext';
+import { useWallet } from '@solana/wallet-adapter-react';
 import {
   WorkerManager,
   PatternConfig,
@@ -16,14 +17,13 @@ import {
   formatNumber,
   BASE58_SUBSTITUTIONS,
 } from '../lib/workerManager';
-
-// Pricing tiers
-const PRICING = {
-  BASIC: { price: 0.05, maxPrefixLen: 3, label: 'BASIC' },
-  PRO: { price: 0.15, maxPrefixLen: 4, label: 'PRO' },
-  PREMIUM: { price: 0.5, maxPrefixLen: 5, label: 'PREMIUM' },
-  ULTRA: { price: 1.0, maxPrefixLen: 6, label: 'ULTRA' },
-};
+import {
+  useVanityPayment,
+  calculateBatchCostGOR,
+  calculateBatchCostLamports,
+  calculateDifficultyMultiplier,
+  calculateEstimatedAttempts,
+} from '../lib/useVanityPayment';
 
 // Treasury wallet for fees
 const TREASURY_WALLET = 'TMABDMgLHfmmRNyHgbHTP9P5XP1zrAMFfbRAef69o9f';
@@ -41,7 +41,22 @@ interface StoredMatch extends MatchData {
 
 const VanityGenerator: React.FC = () => {
   const { accentColor, currency } = useNetwork();
-  const { connected, address: walletAddress } = useWallet();
+  const { connected, publicKey } = useWallet();
+  const walletAddress = publicKey?.toBase58() ?? null;
+
+  // Payment hook
+  const {
+    miningAccount,
+    isInitializing,
+    error: paymentError,
+    initializeMining,
+    chargeForBatch,
+    refreshBalance,
+    recordMatch,
+    setMiningActive,
+    resetSession,
+    setError: setPaymentError,
+  } = useVanityPayment();
 
   // Input state
   const [inputName, setInputName] = useState('');
@@ -56,24 +71,22 @@ const VanityGenerator: React.FC = () => {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [matches, setMatches] = useState<StoredMatch[]>([]);
   const [workerCount, setWorkerCount] = useState(0);
+  const [totalSpent, setTotalSpent] = useState(0);
 
   // UI state
-  const [showSettings, setShowSettings] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   // Worker manager ref
   const workerManagerRef = useRef<WorkerManager | null>(null);
 
   // Calculate patterns and difficulty
-  const patterns = React.useMemo(() => {
+  const patterns = useMemo(() => {
     if (!inputName || charVariants.length === 0) return null;
 
-    // Build pattern from selected variants
-    const selectedPattern = charVariants.map(cv => 
+    const selectedPattern = charVariants.map(cv =>
       cv.selected.length > 0 ? cv.selected[0] : cv.char
     ).join('');
 
-    // Generate all variations based on selected chars
     const prefixPattern = selectedPattern.slice(0, prefixLen);
     const suffixPattern = suffixLen > 0 ? selectedPattern.slice(-suffixLen) : '';
 
@@ -84,17 +97,33 @@ const VanityGenerator: React.FC = () => {
     return { prefixes, suffixes, contains };
   }, [inputName, charVariants, prefixLen, suffixLen, includeContains]);
 
-  const difficulty = React.useMemo(() => {
+  const difficulty = useMemo(() => {
     return estimateDifficulty(prefixLen, suffixLen);
   }, [prefixLen, suffixLen]);
 
-  const pricingTier = React.useMemo(() => {
-    const maxLen = Math.max(prefixLen, suffixLen);
-    if (maxLen >= 6) return PRICING.ULTRA;
-    if (maxLen >= 5) return PRICING.PREMIUM;
-    if (maxLen >= 4) return PRICING.PRO;
-    return PRICING.BASIC;
+  // Cost calculations
+  const batchCostGOR = useMemo(() => {
+    return calculateBatchCostGOR(prefixLen, suffixLen);
   }, [prefixLen, suffixLen]);
+
+  const batchCostLamports = useMemo(() => {
+    return calculateBatchCostLamports(prefixLen, suffixLen);
+  }, [prefixLen, suffixLen]);
+
+  const difficultyMultiplier = useMemo(() => {
+    return calculateDifficultyMultiplier(prefixLen, suffixLen);
+  }, [prefixLen, suffixLen]);
+
+  const estimatedAttempts = useMemo(() => {
+    return calculateEstimatedAttempts(prefixLen, suffixLen);
+  }, [prefixLen, suffixLen]);
+
+  const estimatedTotalCost = useMemo(() => {
+    if (estimatedAttempts <= 0) return 0;
+    // Cost = (estimatedAttempts / batchSize) * batchCost
+    // batchSize = 500 keys/batch * batchesPerPayment(10) = 5000 keys per payment
+    return (estimatedAttempts / 5000) * batchCostGOR;
+  }, [estimatedAttempts, batchCostGOR]);
 
   // Initialize character variants when input changes
   useEffect(() => {
@@ -106,51 +135,92 @@ const VanityGenerator: React.FC = () => {
     const newVariants: CharVariant[] = inputName.split('').map((char) => ({
       char,
       variants: BASE58_SUBSTITUTIONS[char] || [char],
-      selected: [char], // Start with original char selected
+      selected: [char],
     }));
 
     setCharVariants(newVariants);
   }, [inputName]);
+
+  // Auto-initialize mining account when wallet connects
+  useEffect(() => {
+    if (connected && walletAddress && !miningAccount) {
+      initializeMining();
+    }
+  }, [connected, walletAddress]);
 
   // Toggle a variant selection
   const toggleVariant = (charIndex: number, variant: string) => {
     setCharVariants(prev => {
       const updated = [...prev];
       const cv = { ...updated[charIndex] };
-      
+
       if (cv.selected.includes(variant)) {
-        // Remove if more than one selected
         if (cv.selected.length > 1) {
           cv.selected = cv.selected.filter(v => v !== variant);
         }
       } else {
         cv.selected = [...cv.selected, variant];
       }
-      
+
       updated[charIndex] = cv;
       return updated;
     });
   };
 
-  // Start mining
-  const startMining = useCallback(() => {
+  // Start mining with payment integration
+  const startMining = useCallback(async () => {
     if (!patterns || isMining) return;
 
+    if (!connected || !walletAddress) {
+      setPaymentError('Please connect your wallet first');
+      return;
+    }
+
+    // Initialize mining account if needed
+    if (!miningAccount) {
+      const success = await initializeMining();
+      if (!success) return;
+    }
+
+    // Check balance covers at least one payment cycle
+    if (miningAccount && miningAccount.balance < batchCostGOR) {
+      setPaymentError(`Insufficient balance. Need at least ${batchCostGOR.toFixed(4)} ${currency} per payment cycle.`);
+      return;
+    }
+
     const config: PatternConfig = {
-      prefixes: patterns.prefixes.slice(0, 100), // Limit for performance
+      prefixes: patterns.prefixes.slice(0, 100),
       suffixes: patterns.suffixes.slice(0, 50),
       contains: patterns.contains.slice(0, 20),
       minScore: 10,
     };
 
+    // Charge for initial batch before starting
+    const initialPaymentOk = await chargeForBatch(batchCostLamports);
+    if (!initialPaymentOk) {
+      setPaymentError('Initial payment failed. Please try again.');
+      return;
+    }
+    setTotalSpent(batchCostGOR);
+
     workerManagerRef.current = new WorkerManager({
       workerPath: '../workers/vanityMiner.worker.ts',
       maxWorkers: 8,
+      batchesPerPayment: 10,
+      onBatchComplete: async () => {
+        // Charge for next batch cycle
+        const success = await chargeForBatch(batchCostLamports);
+        if (success) {
+          setTotalSpent(prev => prev + batchCostGOR);
+        }
+        return success;
+      },
       onProgress: (data) => {
         setProgress(data);
       },
       onMatch: (data) => {
         setMatches(prev => [...prev, { ...data, encrypted: true, unlocked: false }]);
+        recordMatch();
       },
       onError: (error) => {
         console.error('Mining error:', error);
@@ -161,12 +231,13 @@ const VanityGenerator: React.FC = () => {
     setWorkerCount(workerManagerRef.current.getOptimalWorkerCount());
     setIsMining(true);
     setIsPaused(false);
-  }, [patterns, isMining]);
+    setMiningActive(true);
+  }, [patterns, isMining, connected, walletAddress, miningAccount, batchCostGOR, batchCostLamports, chargeForBatch, currency]);
 
   // Pause/Resume mining
   const togglePause = useCallback(() => {
     if (!workerManagerRef.current) return;
-    
+
     if (isPaused) {
       workerManagerRef.current.resume();
     } else {
@@ -181,6 +252,8 @@ const VanityGenerator: React.FC = () => {
     workerManagerRef.current = null;
     setIsMining(false);
     setIsPaused(false);
+    setMiningActive(false);
+    refreshBalance();
   }, []);
 
   // Cleanup on unmount
@@ -190,14 +263,8 @@ const VanityGenerator: React.FC = () => {
     };
   }, []);
 
-  // Unlock a match (simulated - in real app would check payment)
+  // Unlock a match
   const unlockMatch = async (index: number) => {
-    // In real implementation, this would:
-    // 1. Request payment transaction
-    // 2. Verify on-chain
-    // 3. Decrypt the keypair
-    
-    // For demo, just unlock
     setMatches(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], encrypted: false, unlocked: true };
@@ -208,12 +275,12 @@ const VanityGenerator: React.FC = () => {
   // Download keypair
   const downloadKeypair = (match: StoredMatch) => {
     if (match.encrypted) return;
-    
+
     const keypairData = {
       publicKey: match.address,
       secretKey: Array.from(match.secretKey),
     };
-    
+
     const blob = new Blob([JSON.stringify(keypairData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -232,7 +299,12 @@ const VanityGenerator: React.FC = () => {
 
   // Blur address for locked matches
   const blurAddress = (addr: string) => {
-    return addr.slice(0, 8) + '•'.repeat(24) + addr.slice(-8);
+    return addr.slice(0, 8) + '\u2022'.repeat(24) + addr.slice(-8);
+  };
+
+  // Format GOR for display
+  const formatGOR = (amount: number): string => {
+    return amount.toFixed(4);
   };
 
   const accentBorder = accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green';
@@ -249,41 +321,79 @@ const VanityGenerator: React.FC = () => {
         className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
         src="/gorbagio-video-mattress.mp4"
       />
+
       {/* Header */}
       <div className="border-b border-white/10 bg-gradient-to-r from-black via-gray-900 to-black">
         <div className="max-w-[1600px] mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Terminal className={`w-5 h-5 ${accentColor}`} />
-            <h1 className="text-xl font-bold tracking-tighter uppercase">VANITY_GENERATOR</h1>
-            <span className="text-[10px] text-gray-500 border border-gray-800 px-2 py-0.5">BETA</span>
+            <h1 className="text-xl font-bold tracking-tighter uppercase">VANITY_MINER</h1>
+            <span className="text-[10px] text-gray-500 border border-gray-800 px-2 py-0.5">PAID</span>
           </div>
+
+          {/* Live GOR Balance */}
           <div className="flex items-center gap-4">
+            {connected && miningAccount && (
+              <div className={`flex items-center gap-3 border ${accentBorder} px-4 py-2`}>
+                <Wallet className={`w-4 h-4 ${accentColor}`} />
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">MINING_BALANCE</div>
+                  <div className={`text-lg font-bold ${accentColor}`}>
+                    {formatGOR(miningAccount.balance)} {currency}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2 text-[10px] text-gray-500">
               <Cpu className="w-3 h-3" />
               {workerCount > 0 ? `${workerCount} CORES` : 'IDLE'}
             </div>
-            <button 
-              onClick={() => setShowSettings(!showSettings)}
-              className={`p-2 border border-gray-800 hover:border-gray-600 ${showSettings ? accentColor : 'text-gray-500'}`}
-            >
-              <Settings className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </div>
 
       <div className="max-w-[1600px] mx-auto px-4 py-8">
+        {/* Payment Error Banner */}
+        {paymentError && (
+          <div className="mb-6 border border-magic-red bg-magic-red/10 p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-magic-red flex-shrink-0" />
+              <span className="text-sm text-magic-red">{paymentError}</span>
+            </div>
+            <button
+              onClick={() => setPaymentError(null)}
+              className="text-magic-red hover:text-white text-xs uppercase"
+            >
+              DISMISS
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* Left: Pattern Builder */}
+
+          {/* Left: Pattern Builder + Cost Display */}
           <div className="space-y-6">
+
+            {/* Wallet Not Connected Notice */}
+            {!connected && (
+              <div className="border border-yellow-500/30 bg-yellow-500/5 p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <Wallet className="w-5 h-5 text-yellow-500" />
+                  <span className="text-sm font-bold text-yellow-500 uppercase">WALLET_REQUIRED</span>
+                </div>
+                <p className="text-sm text-yellow-500/80">
+                  Connect your wallet to start mining vanity addresses. Mining charges {currency} per batch of attempts. Unused balance stays in your wallet.
+                </p>
+              </div>
+            )}
+
             {/* Name Input */}
             <div className={`border ${accentBorder}/30 bg-black p-6`}>
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className={`w-4 h-4 ${accentColor}`} />
                 <span className="text-sm font-bold uppercase tracking-wider">YOUR_NAME</span>
               </div>
-              
+
               <input
                 type="text"
                 name="vanityName"
@@ -293,7 +403,7 @@ const VanityGenerator: React.FC = () => {
                 className="w-full bg-gray-900 border border-gray-700 px-4 py-3 text-xl font-bold text-white placeholder-gray-600 focus:border-magic-green focus:outline-none"
                 maxLength={12}
               />
-              
+
               <div className="mt-2 text-[10px] text-gray-500 flex justify-between">
                 <span>Base58 ONLY (no 0, O, I, l)</span>
                 <span>{inputName.length}/12 chars</span>
@@ -307,17 +417,14 @@ const VanityGenerator: React.FC = () => {
                   <span className="text-sm font-bold uppercase tracking-wider">CHAR_VARIANTS</span>
                   <span className="text-[10px] text-gray-500">Click to toggle</span>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                   <div className="flex gap-1 min-w-max">
                     {charVariants.map((cv, idx) => (
                       <div key={idx} className="flex flex-col gap-1">
-                        {/* Original char header */}
                         <div className={`w-10 h-10 flex items-center justify-center border-2 ${accentBorder} text-lg font-bold ${accentColor}`}>
                           {cv.char}
                         </div>
-                        
-                        {/* Variant buttons */}
                         {cv.variants.map((variant, vIdx) => (
                           <button
                             key={vIdx}
@@ -335,7 +442,7 @@ const VanityGenerator: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="mt-4 text-[10px] text-gray-500">
                   SELECTED: {charVariants.map(cv => cv.selected.join('/')).join(' ')}
                 </div>
@@ -348,7 +455,7 @@ const VanityGenerator: React.FC = () => {
                 <Settings className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-bold uppercase tracking-wider">MINING_CONFIG</span>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] text-gray-500 uppercase block mb-2">PREFIX_LENGTH</label>
@@ -358,8 +465,8 @@ const VanityGenerator: React.FC = () => {
                         key={len}
                         onClick={() => setPrefixLen(len)}
                         className={`flex-1 py-2 text-xs font-bold ${
-                          prefixLen === len 
-                            ? `${accentBg} text-black` 
+                          prefixLen === len
+                            ? `${accentBg} text-black`
                             : 'bg-gray-900 text-gray-500 hover:text-white'
                         }`}
                       >
@@ -368,7 +475,7 @@ const VanityGenerator: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="text-[10px] text-gray-500 uppercase block mb-2">SUFFIX_LENGTH</label>
                   <div className="flex gap-px">
@@ -377,8 +484,8 @@ const VanityGenerator: React.FC = () => {
                         key={len}
                         onClick={() => setSuffixLen(len)}
                         className={`flex-1 py-2 text-xs font-bold ${
-                          suffixLen === len 
-                            ? `${accentBg} text-black` 
+                          suffixLen === len
+                            ? `${accentBg} text-black`
                             : 'bg-gray-900 text-gray-500 hover:text-white'
                         }`}
                       >
@@ -403,7 +510,7 @@ const VanityGenerator: React.FC = () => {
                   </span>
                 </div>
                 <div className="w-full h-2 bg-gray-800 overflow-hidden">
-                  <div 
+                  <div
                     className={`h-full transition-all ${
                       difficulty.difficulty === 'easy' ? 'bg-magic-green w-1/4' :
                       difficulty.difficulty === 'medium' ? 'bg-yellow-500 w-2/4' :
@@ -419,17 +526,95 @@ const VanityGenerator: React.FC = () => {
               </div>
             </div>
 
-            {/* Start Button */}
+            {/* LIVE COST DISPLAY */}
+            <div className={`border-2 ${accentBorder} bg-black p-6`}>
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <DollarSign className={`w-4 h-4 ${accentColor}`} />
+                  <span className="text-sm font-bold uppercase tracking-wider">LIVE_MINING_COST</span>
+                </div>
+                <div className={`text-[10px] ${accentBg} text-black px-2 py-0.5 font-bold`}>
+                  PER 5,000 ATTEMPTS
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">BATCH_COST</div>
+                  <div className="text-3xl font-bold text-white">
+                    {formatGOR(batchCostGOR)} <span className={`text-lg ${accentColor}`}>{currency}</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">MULTIPLIER</div>
+                  <div className="text-3xl font-bold text-white">
+                    {difficultyMultiplier}x
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Pattern Complexity:</span>
+                  <span className="text-white uppercase">{difficulty.difficulty}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Est. Attempts for Match:</span>
+                  <span className="text-white">{formatNumber(estimatedAttempts)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Est. Cost for Match:</span>
+                  <span className={`${accentColor} font-bold`}>
+                    ~{estimatedTotalCost > 1000 ? formatNumber(estimatedTotalCost) : estimatedTotalCost.toFixed(2)} {currency}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Time per Batch:</span>
+                  <span className="text-white">~20ms</span>
+                </div>
+              </div>
+
+              {/* Real-time cost accumulator during mining */}
+              {isMining && (
+                <div className="mt-4 pt-4 border-t border-gray-700">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 text-xs uppercase">SESSION_SPENT:</span>
+                    <span className={`text-2xl font-bold ${accentColor}`}>
+                      {formatGOR(totalSpent)} {currency}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-gray-500 mt-1">
+                    {progress?.checked ? formatNumber(progress.checked) : '0'} addresses checked
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Mining Controls */}
             <div className={`border ${accentBorder} p-1`}>
               {!isMining ? (
                 <button
                   onClick={startMining}
-                  disabled={!inputName || prefixLen === 0}
+                  disabled={!inputName || prefixLen === 0 || !connected || isInitializing}
                   className={`w-full ${accentBg} text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity`}
                 >
-                  <Play className="w-4 h-4" />
-                  START_MINING
-                  <span className="opacity-70">( {pricingTier.price} {currency} per unlock )</span>
+                  {isInitializing ? (
+                    <>
+                      <Cpu className="w-4 h-4 animate-spin" />
+                      INITIALIZING...
+                    </>
+                  ) : !connected ? (
+                    <>
+                      <Wallet className="w-4 h-4" />
+                      CONNECT_WALLET
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" />
+                      START_MINING
+                      <span className="opacity-70">( {formatGOR(batchCostGOR)} {currency}/cycle )</span>
+                    </>
+                  )}
                 </button>
               ) : (
                 <div className="flex gap-1">
@@ -471,22 +656,30 @@ const VanityGenerator: React.FC = () => {
 
                 {progress && (
                   <>
-                    {/* Progress bar simulation */}
+                    {/* Progress bar */}
                     <div className="w-full h-2 bg-gray-800 overflow-hidden mb-4">
-                      <div 
-                        className={`h-full ${accentBg} animate-pulse`}
-                        style={{ width: isMining && !isPaused ? '100%' : '0%' }}
+                      <div
+                        className={`h-full ${accentBg} transition-all duration-300`}
+                        style={{
+                          width: `${Math.min((progress.checked / Math.max(estimatedAttempts, 1)) * 100, 100)}%`
+                        }}
                       />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-500 mb-4">
+                      <span>{formatNumber(progress.checked)} checked</span>
+                      <span>Est. {formatNumber(estimatedAttempts)} for match</span>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4 text-center">
                       <div className="p-3 bg-gray-900/50 border border-gray-800">
-                        <div className="text-2xl font-bold text-white">{formatNumber(progress.checked)}</div>
-                        <div className="text-[10px] text-gray-500 uppercase">ADDRESSES_CHECKED</div>
-                      </div>
-                      <div className="p-3 bg-gray-900/50 border border-gray-800">
                         <div className={`text-2xl font-bold ${accentColor}`}>{formatNumber(progress.rate)}/s</div>
                         <div className="text-[10px] text-gray-500 uppercase">HASH_RATE</div>
+                      </div>
+                      <div className="p-3 bg-gray-900/50 border border-gray-800">
+                        <div className={`text-2xl font-bold ${accentColor}`}>
+                          {formatGOR(totalSpent)}
+                        </div>
+                        <div className="text-[10px] text-gray-500 uppercase">{currency}_SPENT</div>
                       </div>
                       <div className="p-3 bg-gray-900/50 border border-gray-800">
                         <div className="text-2xl font-bold text-white">{formatDuration(progress.elapsed)}</div>
@@ -547,13 +740,13 @@ const VanityGenerator: React.FC = () => {
                               </button>
                             )}
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2">
                             <span className={`text-[10px] px-2 py-0.5 ${accentBg} text-black font-bold`}>
                               SCORE: {match.score}
                             </span>
                             {match.matches.map((m, mIdx) => (
-                              <span 
+                              <span
                                 key={mIdx}
                                 className="text-[10px] px-2 py-0.5 border border-gray-600 text-gray-400"
                               >
@@ -575,10 +768,10 @@ const VanityGenerator: React.FC = () => {
                           ) : (
                             <button
                               onClick={() => unlockMatch(idx)}
-                              className="px-3 py-2 border border-yellow-500 text-yellow-500 text-[10px] font-bold uppercase flex items-center gap-1 hover:bg-yellow-500/10"
+                              className={`px-3 py-2 border ${accentBorder} ${accentColor} text-[10px] font-bold uppercase flex items-center gap-1 hover:${accentBg}/10`}
                             >
                               <Unlock className="w-3 h-3" />
-                              {pricingTier.price} {currency}
+                              UNLOCK
                             </button>
                           )}
                         </div>
@@ -589,13 +782,47 @@ const VanityGenerator: React.FC = () => {
               )}
             </div>
 
+            {/* Session Summary */}
+            {totalSpent > 0 && (
+              <div className="border border-white/10 bg-black p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <DollarSign className="w-4 h-4 text-gray-500" />
+                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">SESSION_SUMMARY</span>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Total Spent:</span>
+                    <span className={`${accentColor} font-bold`}>{formatGOR(totalSpent)} {currency}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Addresses Checked:</span>
+                    <span className="text-white">{formatNumber(progress?.checked || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Cost per Cycle:</span>
+                    <span className="text-white">{formatGOR(batchCostGOR)} {currency}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Matches Found:</span>
+                    <span className="text-white">{matches.length}</span>
+                  </div>
+                  {miningAccount && (
+                    <div className="flex justify-between pt-2 border-t border-gray-800">
+                      <span className="text-gray-400">Remaining Balance:</span>
+                      <span className={`${accentColor} font-bold`}>{formatGOR(miningAccount.balance)} {currency}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Security Notice */}
             <div className="border border-yellow-500/30 bg-yellow-500/5 p-4 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
               <div className="text-[11px] text-yellow-500/80">
-                <span className="font-bold uppercase">SECURITY_NOTICE:</span> All keypairs are generated 
-                client-side in your browser. Private keys never leave your device. Always backup 
-                your keypair files securely.
+                <span className="font-bold uppercase">SECURITY_NOTICE:</span> All keypairs are generated
+                client-side in your browser. Private keys never leave your device. {currency} payments
+                are processed on-chain to the platform treasury. Mining charges are non-refundable.
               </div>
             </div>
           </div>

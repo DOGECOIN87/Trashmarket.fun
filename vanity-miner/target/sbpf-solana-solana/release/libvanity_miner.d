@@ -1,0 +1,1 @@
+/home/mattrick/Desktop/TRASHMARKET.FUN/Trashmarket.fun/vanity-miner/target/sbpf-solana-solana/release/libvanity_miner.rlib: /home/mattrick/Desktop/TRASHMARKET.FUN/Trashmarket.fun/vanity-miner/programs/vanity-miner/src/lib.rs

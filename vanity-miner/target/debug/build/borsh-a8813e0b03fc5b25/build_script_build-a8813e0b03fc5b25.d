@@ -1,0 +1,5 @@
+/home/mattrick/Desktop/TRASHMARKET.FUN/Trashmarket.fun/vanity-miner/target/debug/build/borsh-a8813e0b03fc5b25/build_script_build-a8813e0b03fc5b25.d: /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/borsh-1.6.0/build.rs
+
+/home/mattrick/Desktop/TRASHMARKET.FUN/Trashmarket.fun/vanity-miner/target/debug/build/borsh-a8813e0b03fc5b25/build_script_build-a8813e0b03fc5b25: /home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/borsh-1.6.0/build.rs
+
+/home/mattrick/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/borsh-1.6.0/build.rs:

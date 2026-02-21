@@ -1,0 +1,863 @@
+PAID VANITY GENERATOR - IMPLEMENTATION GUIDE
+Pay-Per-Generation Model with Live GOR Cost Display
+NEW ARCHITECTURE OVERVIEW
+plain
+Copy
+┌─────────────────────────────────────────────────────────────────┐
+│                     USER BROWSER                                │
+│  ┌─────────────────┐      ┌─────────────────────────────────┐  │
+│  │   Main Thread   │      │      Web Worker Thread          │  │
+│  │                 │      │                                 │  │
+│  │  UI Components  │◄────►│  Key Generation (Batch: 1000)   │  │
+│  │                 │      │                                 │  │
+│  │  • Cost Display │      │  • Generate keypairs            │  │
+│  │  • Pattern Input│      │  • Check patterns               │  │
+│  │  • Progress Bar │      │  • Report matches               │  │
+│  │  • GOR Balance  │      │                                 │  │
+│  │                 │      │  NO PAYMENT LOGIC HERE          │  │
+│  └────────┬────────┘      └─────────────────────────────────┘  │
+│           │                                                     │
+│           │  1. User clicks "START MINING"                      │
+│           │     ↓                                               │
+│           │  2. Deduct GOR for batch (on-chain)                 │
+│           │     ↓                                               │
+│           │  3. Web Worker runs batch                           │
+│           │     ↓                                               │
+│           │  4. Match found? → Deduct GOR for next batch        │
+│           │     No match? → Auto-continue (deduct again)        │
+│           │     ↓                                               │
+│           │  5. User clicks STOP → Stop after current batch     │
+│           │                                                     │
+│  ┌────────▼─────────────────────────────────────────────────┐   │
+│  │              SMART CONTRACT (Gorbagana)                   │   │
+│  │                                                           │   │
+│  │  Program: VanityMiningProgram                             │   │
+│  │                                                           │   │
+│  │  Functions:                                               │   │
+│  │  • initializeUser() - Create user mining account          │   │
+│  │  • depositGOR(amount) - Fund mining balance               │   │
+│  │  • chargeForBatch(batchSize) - Deduct per 1000 attempts   │   │
+│  │  • withdrawRemaining() - Refund unused balance            │   │
+│  │  • claimMatch(address) - Record found vanity address      │   │
+│  │                                                           │   │
+│  │  State:                                                   │   │
+│  │  • userMiningAccount: { balance, totalSpent, matchesFound }│  │
+│  │  • platformTreasury: Accumulated fees                     │   │
+│  │                                                           │   │
+│  └───────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  💰 PAYMENT FLOW:                                                │
+│  User Wallet → Smart Contract → Platform Treasury                │
+│       ↑              ↓                  ↓                        │
+│   GOR Balance   Batch Deduction    Accumulated Fees              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+PRICING MODEL
+Table
+Copy
+Batch Size	Cost per Batch	Est. Keys/Second	Time per Batch
+1,000 keys	0.01 GOR	~50,000/s	~20ms
+10,000 keys	0.09 GOR (10% discount)	~50,000/s	~200ms
+100,000 keys	0.80 GOR (20% discount)	~50,000/s	~2s
+Estimated Costs for Pattern Difficulty:
+Table
+Copy
+Pattern Type	Example	Est. Attempts	Cost Range
+3-char prefix	ABC****	~200,000	0.16 - 2.00 GOR
+4-char prefix	ABCD***	~14 million	11 - 140 GOR
+5-char prefix	ABCDE**	~800 million	640 - 8,000 GOR
+3-char suffix	****ABC	~200,000	0.16 - 2.00 GOR
+Prefix + Suffix	ABC***XYZ	~40 billion	Very expensive
+UPDATED REACT COMPONENTS
+1. Payment Manager Hook
+TypeScript
+Copy
+// hooks/useVanityPayment.ts
+import { useState, useCallback } from 'react';
+import { Connection, PublicKey, Transaction } from '@solana/web3.js';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { RPC_ENDPOINTS } from '../lib/rpcConfig';
+
+const VANITY_PROGRAM_ID = new PublicKey('YourVanityProgram11111111111111111111111111');
+const GOR_MINT = new PublicKey('So1111111111111111111111111111111111111112'); // Wrapped GOR
+
+interface MiningAccount {
+  balance: number;      // GOR lamports (9 decimals)
+  totalSpent: number;   // Lifetime spent
+  matchesFound: number; // Total matches
+  isActive: boolean;    // Currently mining
+}
+
+export function useVanityPayment() {
+  const { publicKey, signTransaction } = useWallet();
+  const [miningAccount, setMiningAccount] = useState<MiningAccount | null>(null);
+  const [pendingBatchCost, setPendingBatchCost] = useState<bigint>(0n);
+  
+  const connection = new Connection(RPC_ENDPOINTS.GORBAGANA);
+
+  // Calculate cost for next batch based on difficulty
+  const calculateBatchCost = useCallback((difficulty: number): bigint => {
+    // Base cost: 0.01 GOR = 10_000_000 lamports (9 decimals)
+    const baseCost = 10_000_000n;
+    
+    // Difficulty multiplier (longer patterns = higher cost)
+    // difficulty is calculated as: 58^prefixLength * 58^suffixLength
+    const difficultyMultiplier = BigInt(Math.min(difficulty, 1000)); // Cap at 1000x
+    
+    return baseCost * difficultyMultiplier;
+  }, []);
+
+  // Initialize or get user's mining account
+  const initializeMining = useCallback(async () => {
+    if (!publicKey || !signTransaction) return;
+
+    // Check if mining account exists
+    const [miningPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from('mining'), publicKey.toBuffer()],
+      VANITY_PROGRAM_ID
+    );
+
+    try {
+      const account = await connection.getAccountInfo(miningPDA);
+      
+      if (!account) {
+        // Create mining account
+        const tx = new Transaction().add(
+          // Program instruction to initialize
+          {
+            keys: [
+              { pubkey: publicKey, isSigner: true, isWritable: true },
+              { pubkey: miningPDA, isSigner: false, isWritable: true },
+              { pubkey: GOR_MINT, isSigner: false, isWritable: false },
+            ],
+            programId: VANITY_PROGRAM_ID,
+            data: Buffer.from([0]), // Initialize instruction
+          }
+        );
+        
+        const { blockhash } = await connection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = publicKey;
+        
+        const signed = await signTransaction(tx);
+        const sig = await connection.sendRawTransaction(signed.serialize());
+        await connection.confirmTransaction(sig);
+      }
+      
+      // Fetch account data
+      await refreshMiningAccount();
+    } catch (error) {
+      console.error('Failed to initialize mining:', error);
+      throw error;
+    }
+  }, [publicKey, signTransaction]);
+
+  // Deposit GOR into mining account
+  const depositGOR = useCallback(async (amountGOR: number) => {
+    if (!publicKey || !signTransaction) return;
+
+    const amountLamports = BigInt(Math.round(amountGOR * 1_000_000_000)); // 9 decimals
+    
+    const tx = new Transaction().add(
+      // Transfer GOR to mining program vault
+      {
+        keys: [
+          { pubkey: publicKey, isSigner: true, isWritable: true },
+          { pubkey: GOR_MINT, isSigner: false, isWritable: true },
+          // ... ATA accounts
+        ],
+        programId: VANITY_PROGRAM_ID,
+        data: Buffer.from([1, ...new Uint8Array(new BigUint64Array([amountLamports]).buffer)]),
+      }
+    );
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = publicKey;
+    
+    const signed = await signTransaction(tx);
+    const sig = await connection.sendRawTransaction(signed.serialize());
+    await connection.confirmTransaction(sig);
+    
+    await refreshMiningAccount();
+  }, [publicKey, signTransaction]);
+
+  // Charge for batch (called automatically before each batch)
+  const chargeForBatch = useCallback(async (cost: bigint): Promise<boolean> => {
+    if (!publicKey) return false;
+
+    try {
+      const tx = new Transaction().add(
+        {
+          keys: [
+            { pubkey: publicKey, isSigner: true, isWritable: true },
+            // ... mining account, treasury
+          ],
+          programId: VANITY_PROGRAM_ID,
+          data: Buffer.from([2, ...new Uint8Array(new BigUint64Array([cost]).buffer)]),
+        }
+      );
+
+      const { blockhash } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = publicKey;
+      
+      const signed = await signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(sig);
+      
+      await refreshMiningAccount();
+      return true;
+    } catch (error) {
+      console.error('Payment failed:', error);
+      return false;
+    }
+  }, [publicKey, signTransaction]);
+
+  // Withdraw remaining balance
+  const withdrawRemaining = useCallback(async () => {
+    if (!publicKey || !signTransaction) return;
+
+    const tx = new Transaction().add(
+      {
+        keys: [
+          { pubkey: publicKey, isSigner: true, isWritable: true },
+          // ... mining account
+        ],
+        programId: VANITY_PROGRAM_ID,
+        data: Buffer.from([3]), // Withdraw instruction
+      }
+    );
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = publicKey;
+    
+    const signed = await signTransaction(tx);
+    const sig = await connection.sendRawTransaction(signed.serialize());
+    await connection.confirmTransaction(sig);
+    
+    await refreshMiningAccount();
+  }, [publicKey, signTransaction]);
+
+  const refreshMiningAccount = async () => {
+    // Fetch and set mining account data
+    // Implementation depends on program account structure
+  };
+
+  return {
+    miningAccount,
+    pendingBatchCost,
+    calculateBatchCost,
+    initializeMining,
+    depositGOR,
+    chargeForBatch,
+    withdrawRemaining,
+  };
+}
+2. Updated Vanity Generator UI with Live Cost Display
+TypeScript
+Copy
+// pages/VanityGenerator.tsx (Updated sections)
+import { useVanityPayment } from '../hooks/useVanityPayment';
+import { useWorkerManager } from '../hooks/useWorkerManager';
+
+export function VanityGenerator() {
+  const { publicKey, connected } = useWallet();
+  const {
+    miningAccount,
+    pendingBatchCost,
+    calculateBatchCost,
+    initializeMining,
+    depositGOR,
+    chargeForBatch,
+    withdrawRemaining,
+  } = useVanityPayment();
+
+  const [inputName, setInputName] = useState('');
+  const [isMining, setIsMining] = useState(false);
+  const [progress, setProgress] = useState<MiningProgress | null>(null);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [depositAmount, setDepositAmount] = useState(1); // Default 1 GOR
+
+  // Calculate difficulty and cost
+  const difficulty = useMemo(() => {
+    return calculateDifficulty(inputName, prefixLength, suffixLength);
+  }, [inputName, prefixLength, suffixLength]);
+
+  const batchCost = useMemo(() => {
+    return calculateBatchCost(difficulty.difficulty);
+  }, [difficulty, calculateBatchCost]);
+
+  const batchCostGOR = Number(batchCost) / 1_000_000_000; // Convert to GOR
+
+  // Format GOR display
+  const formatGOR = (lamports: bigint | number): string => {
+    const gor = Number(lamports) / 1_000_000_000;
+    return gor.toFixed(4) + ' GOR';
+  };
+
+  // Start mining with payment
+  const handleStartMining = async () => {
+    if (!connected || !publicKey) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    // Initialize if needed
+    if (!miningAccount) {
+      await initializeMining();
+    }
+
+    // Check balance
+    if (!miningAccount || miningAccount.balance < Number(batchCost)) {
+      alert('Insufficient balance. Please deposit more GOR.');
+      return;
+    }
+
+    setIsMining(true);
+    
+    // Start worker with payment callback
+    startWorkers({
+      pattern: generatePattern(inputName),
+      batchSize: 1000,
+      onBatchStart: async () => {
+        // Charge before each batch
+        const success = await chargeForBatch(batchCost);
+        if (!success) {
+          stopWorkers();
+          setIsMining(false);
+          return false; // Stop mining if payment fails
+        }
+        setTotalSpent(prev => prev + batchCostGOR);
+        return true;
+      },
+      onProgress: setProgress,
+      onMatch: (match) => {
+        setMatches(prev => [...prev, match]);
+        // Optionally charge bonus for match found
+      },
+    });
+  };
+
+  return (
+    <div className="vanity-generator bg-black text-white min-h-screen p-6 font-mono">
+      {/* Header with Live Stats */}
+      <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#adff02]">VANITY MINER</h1>
+          <p className="text-gray-500 text-sm">Generate custom Gorbagana addresses</p>
+        </div>
+        
+        {/* Live GOR Balance Display */}
+        {connected && miningAccount && (
+          <div className="bg-gray-900 rounded-lg p-4 border border-[#adff02]">
+            <div className="text-xs text-gray-500 uppercase">Mining Balance</div>
+            <div className="text-2xl font-bold text-[#adff02]">
+              {formatGOR(miningAccount.balance)}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              Spent: {formatGOR(miningAccount.totalSpent)}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left Panel: Configuration */}
+        <div className="space-y-6">
+          
+          {/* Deposit Section (if no balance) */}
+          {(!miningAccount || miningAccount.balance < 0.01) && (
+            <div className="bg-gray-900 rounded-lg p-6 border border-yellow-600">
+              <h3 className="text-yellow-500 font-bold mb-4">⚠️ DEPOSIT REQUIRED</h3>
+              <p className="text-sm text-gray-400 mb-4">
+                Vanity mining requires GOR deposits. Funds are deducted per batch of 1,000 attempts.
+                Unused funds can be withdrawn anytime.
+              </p>
+              
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-2">DEPOSIT AMOUNT (GOR)</label>
+                  <input
+                    type="number"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(parseFloat(e.target.value))}
+                    min={0.1}
+                    step={0.1}
+                    className="w-full bg-black border border-gray-700 px-4 py-3 text-white focus:border-[#adff02] focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={() => depositGOR(depositAmount)}
+                  className="bg-[#adff02] text-black px-6 py-3 font-bold hover:bg-[#88cc00]"
+                >
+                  DEPOSIT {depositAmount} GOR
+                </button>
+              </div>
+              
+              <div className="mt-4 text-xs text-gray-500">
+                Suggested: 1-5 GOR for simple patterns, 10+ GOR for complex patterns
+              </div>
+            </div>
+          )}
+
+          {/* Pattern Input */}
+          <div className="bg-gray-900 rounded-lg p-6">
+            <label className="block text-xs text-gray-500 mb-2">DESIRED PATTERN</label>
+            <input
+              value={inputName}
+              onChange={(e) => setInputName(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
+              placeholder="Enter name (e.g., TRASH)"
+              maxLength={12}
+              disabled={isMining}
+              className="w-full bg-black border border-gray-700 px-4 py-3 text-xl font-bold text-white placeholder-gray-600 focus:border-[#adff02] focus:outline-none disabled:opacity-50"
+            />
+            <div className="text-xs text-gray-500 mt-2">
+              Base58 only • {inputName.length}/12 chars
+            </div>
+          </div>
+
+          {/* LIVE COST DISPLAY - Critical Feature */}
+          <div className="bg-gray-900 rounded-lg p-6 border-2 border-[#adff02]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-[#adff02] font-bold">⚡ LIVE MINING COST</h3>
+              <div className="text-xs bg-[#adff02] text-black px-2 py-1 rounded">
+                PER 1,000 ATTEMPTS
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <div className="text-xs text-gray-500">BATCH COST</div>
+                <div className="text-3xl font-bold text-white">
+                  {batchCostGOR.toFixed(4)} <span className="text-lg text-[#adff02]">GOR</span>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">DIFFICULTY</div>
+                <div className="text-3xl font-bold text-white">
+                  {difficulty.difficulty}x
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Pattern Complexity:</span>
+                <span className="text-white">{difficulty.patternComplexity}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Est. Attempts for Match:</span>
+                <span className="text-white">{formatNumber(difficulty.estimatedAttempts)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Est. Cost for Match:</span>
+                <span className="text-[#adff02] font-bold">
+                  ~{(difficulty.estimatedAttempts / 1000 * batchCostGOR).toFixed(2)} GOR
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Time per Batch:</span>
+                <span className="text-white">~20ms</span>
+              </div>
+            </div>
+
+            {/* Real-time cost accumulator */}
+            {isMining && (
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">SESSION SPENT:</span>
+                  <span className="text-2xl font-bold text-[#adff02]">
+                    {totalSpent.toFixed(4)} GOR
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {progress?.checked ? formatNumber(progress.checked) : '0'} addresses checked
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Mining Controls */}
+          <div className="flex gap-4">
+            {!isMining ? (
+              <button
+                onClick={handleStartMining}
+                disabled={!inputName || !connected || !miningAccount || miningAccount.balance < Number(batchCost)}
+                className="flex-1 bg-[#adff02] text-black py-4 font-bold text-lg hover:bg-[#88cc00] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {!connected ? 'CONNECT WALLET' : 
+                 !miningAccount ? 'INITIALIZE MINING' :
+                 miningAccount.balance < Number(batchCost) ? 'DEPOSIT MORE GOR' :
+                 `START MINING (${batchCostGOR.toFixed(4)} GOR/batch)`}
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={pauseMining}
+                  className="flex-1 bg-yellow-600 text-white py-4 font-bold hover:bg-yellow-700"
+                >
+                  PAUSE
+                </button>
+                <button
+                  onClick={stopMining}
+                  className="flex-1 bg-red-600 text-white py-4 font-bold hover:bg-red-700"
+                >
+                  STOP & REFUND UNUSED
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Withdraw Button */}
+          {miningAccount && miningAccount.balance > 0 && !isMining && (
+            <button
+              onClick={withdrawRemaining}
+              className="w-full border border-gray-700 text-gray-400 py-2 text-sm hover:border-[#adff02] hover:text-[#adff02]"
+            >
+              WITHDRAW REMAINING {formatGOR(miningAccount.balance)}
+            </button>
+          )}
+        </div>
+
+        {/* Right Panel: Progress & Results */}
+        <div className="space-y-6">
+          {/* Mining Progress */}
+          {(isMining || progress) && (
+            <div className="bg-gray-900 rounded-lg p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-white font-bold">
+                  {isMining ? '⛏️ MINING IN PROGRESS' : 'MINING PAUSED'}
+                </h3>
+                <div className="text-[#adff02] font-mono">
+                  {workerCount} WORKERS
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-4">
+                <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[#adff02] transition-all duration-300"
+                    style={{ width: `${Math.min((progress?.checked || 0) / difficulty.estimatedAttempts * 100, 100)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 mt-2">
+                  <span>{formatNumber(progress?.checked || 0)} checked</span>
+                  <span>Est. {formatNumber(difficulty.estimatedAttempts)} for match</span>
+                </div>
+              </div>
+
+              {/* Live Stats */}
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-white">
+                    {formatNumber(progress?.rate || 0)}
+                  </div>
+                  <div className="text-xs text-gray-500">HASHES/SEC</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-[#adff02]">
+                    {totalSpent.toFixed(3)}
+                  </div>
+                  <div className="text-xs text-gray-500">GOR SPENT</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">
+                    {formatDuration(progress?.elapsed || 0)}
+                  </div>
+                  <div className="text-xs text-gray-500">TIME ELAPSED</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Matches Found */}
+          <div className="bg-gray-900 rounded-lg p-6">
+            <h3 className="text-white font-bold mb-4">
+              MATCHES FOUND ({matches.length})
+            </h3>
+            
+            {matches.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                No matches yet. Keep mining!
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {matches.map((match, idx) => (
+                  <div key={idx} className="bg-black border border-gray-800 p-4 rounded">
+                    <div className="flex justify-between items-start mb-2">
+                      <code className="text-[#adff02] text-lg">{match.address}</code>
+                      <span className="text-xs bg-[#adff02] text-black px-2 py-1">
+                        SCORE: {match.score}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mb-3">
+                      {match.matches.map(m => `${m.type}: ${m.pattern}`).join(' • ')}
+                    </div>
+                    <button
+                      onClick={() => downloadKeypair(match)}
+                      className="w-full bg-gray-800 text-white py-2 text-sm hover:bg-gray-700"
+                    >
+                      DOWNLOAD KEYPAIR
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Cost History */}
+          {totalSpent > 0 && (
+            <div className="bg-gray-900 rounded-lg p-6">
+              <h3 className="text-gray-500 text-xs uppercase mb-4">Session Summary</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Total Spent:</span>
+                  <span className="text-[#adff02] font-bold">{totalSpent.toFixed(4)} GOR</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Addresses Checked:</span>
+                  <span className="text-white">{formatNumber(progress?.checked || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Cost per 1000:</span>
+                  <span className="text-white">{batchCostGOR.toFixed(4)} GOR</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Matches Found:</span>
+                  <span className="text-white">{matches.length}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Security Footer */}
+      <div className="mt-8 pt-4 border-t border-gray-800 text-xs text-gray-500 text-center">
+        <p>
+          🔒 All key generation happens client-side. Private keys never leave your browser. 
+          GOR payments are processed on-chain via smart contract. 
+          Unused balances can be withdrawn anytime.
+        </p>
+      </div>
+    </div>
+  );
+}
+3. Updated Worker Manager with Payment Hooks
+TypeScript
+Copy
+// hooks/useWorkerManager.ts
+import { useRef, useCallback } from 'react';
+
+interface WorkerConfig {
+  pattern: PatternConfig;
+  batchSize: number;
+  onBatchStart: () => Promise<boolean>; // Returns false to stop
+  onProgress: (progress: ProgressData) => void;
+  onMatch: (match: MatchData) => void;
+}
+
+export function useWorkerManager() {
+  const workers = useRef<Worker[]>([]);
+  const configRef = useRef<WorkerConfig | null>(null);
+
+  const startWorkers = useCallback(async (config: WorkerConfig) => {
+    configRef.current = config;
+    
+    // Determine optimal worker count
+    const workerCount = Math.min(navigator.hardwareConcurrency || 4, 8);
+    
+    // Initialize workers
+    for (let i = 0; i < workerCount; i++) {
+      const worker = new Worker(
+        new URL('../workers/vanityMiner.worker.ts', import.meta.url),
+        { type: 'module' }
+      );
+      
+      worker.onmessage = async (e) => {
+        const { type, data } = e.data;
+        
+        switch (type) {
+          case 'BATCH_COMPLETE':
+            // Request payment for next batch
+            const shouldContinue = await config.onBatchStart();
+            if (shouldContinue) {
+              worker.postMessage({ type: 'START_BATCH', config: config.pattern });
+            } else {
+              worker.postMessage({ type: 'STOP' });
+            }
+            break;
+            
+          case 'PROGRESS':
+            config.onProgress(data);
+            break;
+            
+          case 'MATCH':
+            config.onMatch(data);
+            break;
+        }
+      };
+      
+      // Start first batch (payment already verified)
+      worker.postMessage({ 
+        type: 'START', 
+        config: { ...config.pattern, workerId: i, batchSize: config.batchSize } 
+      });
+      
+      workers.current.push(worker);
+    }
+  }, []);
+
+  const stopWorkers = useCallback(() => {
+    workers.current.forEach(worker => {
+      worker.postMessage({ type: 'STOP' });
+      worker.terminate();
+    });
+    workers.current = [];
+  }, []);
+
+  return { startWorkers, stopWorkers };
+}
+SMART CONTRACT OUTLINE (Anchor/Rust)
+rust
+Copy
+// programs/vanity-miner/src/lib.rs
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+
+declare_id!("VanityProgram11111111111111111111111111");
+
+#[program]
+pub mod vanity_miner {
+    use super::*;
+
+    pub fn initialize_user(ctx: Context<InitializeUser>) -> Result<()> {
+        let mining_account = &mut ctx.accounts.mining_account;
+        mining_account.owner = ctx.accounts.user.key();
+        mining_account.balance = 0;
+        mining_account.total_spent = 0;
+        mining_account.matches_found = 0;
+        mining_account.is_active = false;
+        Ok(())
+    }
+
+    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+        // Transfer GOR from user to program vault
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.user_gor_account.to_account_info(),
+            to: ctx.accounts.program_vault.to_account_info(),
+            authority: ctx.accounts.user.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        
+        token::transfer(cpi_ctx, amount)?;
+        
+        let mining_account = &mut ctx.accounts.mining_account;
+        mining_account.balance += amount;
+        
+        Ok(())
+    }
+
+    pub fn charge_for_batch(ctx: Context<ChargeForBatch>, cost: u64) -> Result<()> {
+        let mining_account = &mut ctx.accounts.mining_account;
+        
+        require!(mining_account.balance >= cost, ErrorCode::InsufficientBalance);
+        
+        mining_account.balance -= cost;
+        mining_account.total_spent += cost;
+        
+        // Transfer to platform treasury
+        // ... CPI transfer to treasury account
+        
+        Ok(())
+    }
+
+    pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
+        let mining_account = &mut ctx.accounts.mining_account;
+        let amount = mining_account.balance;
+        
+        require!(amount > 0, ErrorCode::NoBalance);
+        
+        // Transfer back to user
+        // ... CPI transfer from vault to user
+        
+        mining_account.balance = 0;
+        Ok(())
+    }
+
+    pub fn record_match(ctx: Context<RecordMatch>, address: String) -> Result<()> {
+        let mining_account = &mut ctx.accounts.mining_account;
+        mining_account.matches_found += 1;
+        
+        // Emit event for indexing
+        emit!(MatchFound {
+            user: ctx.accounts.user.key(),
+            address,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+        
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct InitializeUser<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    
+    #[account(
+        init,
+        payer = user,
+        space = 8 + MiningAccount::SIZE,
+        seeds = [b"mining", user.key().as_ref()],
+        bump
+    )]
+    pub mining_account: Account<'info, MiningAccount>,
+    
+    pub system_program: Program<'info, System>,
+}
+
+#[account]
+pub struct MiningAccount {
+    pub owner: Pubkey,
+    pub balance: u64,        // GOR lamports
+    pub total_spent: u64,    // Lifetime spent
+    pub matches_found: u32,  // Total matches
+    pub is_active: bool,     // Currently mining
+}
+
+impl MiningAccount {
+    pub const SIZE: usize = 32 + 8 + 8 + 4 + 1;
+}
+
+#[event]
+pub struct MatchFound {
+    pub user: Pubkey,
+    pub address: String,
+    pub timestamp: i64,
+}
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Insufficient balance for batch")]
+    InsufficientBalance,
+    #[msg("No balance to withdraw")]
+    NoBalance,
+}
+KEY FEATURES SUMMARY
+Table
+Copy
+Feature	Implementation	User Benefit
+Live Cost Display	Real-time GOR calculation per batch	Transparency in spending
+Pre-paid Balance	Deposit once, mine continuously	No transaction per attempt
+Auto-charging	Deducted automatically per batch	Seamless experience
+Pause/Resume	Stop anytime, keep balance	Flexibility
+Withdraw Unused	Full refund of remaining balance	No lock-in
+Visual Progress	Hash rate, GOR spent, time elapsed	Clear feedback
+Difficulty Estimation	Predicted cost for pattern match	Informed decisions
+This model ensures users pay fairly for compute resources while maintaining the client-side security of key generation. The platform earns revenue from each batch processed, creating a sustainable business model.

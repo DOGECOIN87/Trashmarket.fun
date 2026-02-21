@@ -10,6 +10,10 @@ export interface WorkerConfig {
   onMatch?: (data: MatchData) => void;
   onError?: (error: Error) => void;
   onStopped?: (data: StoppedData) => void;
+  /** Called after each batch completes. Return true to continue, false to stop mining. */
+  onBatchComplete?: () => Promise<boolean>;
+  /** Number of batches to run before calling onBatchComplete for payment. Default: 10 */
+  batchesPerPayment?: number;
 }
 
 export interface ProgressData {
@@ -52,9 +56,13 @@ export class WorkerManager {
   private totalChecked = 0;
   private aggregatedRate = 0;
   private progressSnapshots: Map<number, ProgressData> = new Map();
+  private batchesSincePayment = 0;
+  private batchesPerPayment: number;
+  private paymentPending = false;
 
   constructor(config: WorkerConfig) {
     this.config = config;
+    this.batchesPerPayment = config.batchesPerPayment ?? 10;
   }
 
   /**
@@ -79,6 +87,8 @@ export class WorkerManager {
     this.isRunning = true;
     this.totalChecked = 0;
     this.aggregatedRate = 0;
+    this.batchesSincePayment = 0;
+    this.paymentPending = false;
     this.progressSnapshots.clear();
 
     console.log(`Starting ${workerCount} workers...`);
@@ -119,6 +129,7 @@ export class WorkerManager {
       case 'PROGRESS':
         this.progressSnapshots.set(workerId, data);
         this.aggregateProgress();
+        this.handleBatchPaymentCheck();
         break;
 
       case 'MATCH':
@@ -132,6 +143,38 @@ export class WorkerManager {
       case 'ERROR':
         this.config.onError?.(new Error(data.message));
         break;
+    }
+  }
+
+  /**
+   * Check if we need to trigger a payment after N batches.
+   * Pauses workers during payment, resumes on success, stops on failure.
+   */
+  private async handleBatchPaymentCheck(): Promise<void> {
+    if (!this.config.onBatchComplete || this.paymentPending) return;
+
+    this.batchesSincePayment++;
+
+    if (this.batchesSincePayment >= this.batchesPerPayment) {
+      this.batchesSincePayment = 0;
+      this.paymentPending = true;
+
+      // Pause workers while payment processes
+      this.pause();
+
+      try {
+        const shouldContinue = await this.config.onBatchComplete();
+        if (shouldContinue && this.isRunning) {
+          this.resume();
+        } else {
+          this.terminate();
+        }
+      } catch (err) {
+        console.error('Payment check failed:', err);
+        this.terminate();
+      } finally {
+        this.paymentPending = false;
+      }
     }
   }
 
