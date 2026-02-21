@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { MOCK_COLLECTIONS, MOCK_NFTS, generateChartData, generateActivity } from '../constants';
 import NFTCard from '../components/NFTCard';
 import PriceChart from '../components/PriceChart';
-import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { Filter, Search, Zap, Activity as ActivityIcon, ShoppingCart, RefreshCw, X, ChevronDown, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
 import { getGorbagioCollectionWithNFTs } from '../services/gorbagioService';
 import { Collection as CollectionType, NFT } from '../types';
@@ -61,8 +61,17 @@ const Collection: React.FC = () => {
   const [viewMode, setViewMode] = useState<'items' | 'activity'>('items');
   const [sweepCount, setSweepCount] = useState<number>(0);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
 
   const { currency, accentColor } = useNetwork();
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
 
   const [collection, setCollection] = useState<CollectionType | null>(() => {
     return id ? MOCK_COLLECTIONS.find((item) => item.id === id) || null : null;
@@ -146,7 +155,29 @@ const Collection: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+      {/* Background Video - Full Page with Full Opacity */}
+      <video
+        ref={videoRef}
+        autoPlay
+        loop
+        muted={isMuted}
+        playsInline
+        className="fixed top-0 left-0 w-full h-full object-cover -z-10"
+        src="/New-bg-hero-vide9.mp4"
+      />
+      {/* Mute Button */}
+      <button
+        onClick={toggleMute}
+        className="fixed top-20 right-4 z-50 p-2 bg-black/50 border border-white/20 rounded-full hover:bg-black/70 transition-all duration-200 group"
+        aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+      >
+        {isMuted ? (
+          <VolumeX className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+        ) : (
+          <Volume2 className="w-4 h-4 text-magic-green group-hover:text-magic-green/80 transition-colors" />
+        )}
+      </button>
 
       {/* API Error Banner */}
       {apiError && (
@@ -184,7 +215,7 @@ const Collection: React.FC = () => {
       )}
 
       {/* Top Bar: Collection Summary & Chart */}
-      <div className="bg-black border-b border-white/20">
+      <div className="bg-black/70 border-b border-white/20">
         <div className="max-w-[1600px] mx-auto">
           <div className="flex flex-col lg:flex-row border-l border-r border-white/20">
             {/* Collection Info */}
@@ -224,7 +255,7 @@ const Collection: React.FC = () => {
             </div>
 
             {/* Chart Area */}
-            <div className="lg:w-2/3 h-[200px] md:h-[250px] bg-black p-4 relative group overflow-hidden">
+            <div className="lg:w-2/3 h-[200px] md:h-[250px] bg-black/50 p-4 relative group overflow-hidden">
               <div className="absolute top-4 left-4 z-10 flex gap-4 text-[10px] md:text-xs font-bold font-mono pointer-events-none">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 ${accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green'}`}></div>
@@ -245,7 +276,7 @@ const Collection: React.FC = () => {
       <div className="flex-grow flex flex-col lg:flex-row max-w-[1600px] w-full mx-auto border-l border-r border-white/20">
 
         {/* Desktop Sidebar (Filters) */}
-        <div className="hidden lg:block w-72 border-r border-white/20 p-4 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-black">
+        <div className="hidden lg:block w-72 border-r border-white/20 p-4 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto">
           <div className="flex items-center justify-between text-white font-bold mb-6 pb-4 border-b border-white/20">
             <span className="flex items-center gap-2 uppercase tracking-wider text-sm"><Filter className={`w-4 h-4 ${accentColor}`} /> Filters</span>
             <ChevronDown className="w-4 h-4" />
@@ -254,10 +285,10 @@ const Collection: React.FC = () => {
         </div>
 
         {/* Center: Grid & Sweep Bar */}
-        <div className="flex-1 flex flex-col min-w-0 bg-black">
+        <div className="flex-1 flex flex-col min-w-0">
 
           {/* Sticky Action Bar */}
-          <div className="sticky top-16 z-30 bg-black/95 backdrop-blur border-b border-white/20 p-3">
+          <div className="sticky top-16 z-30 bg-black/70 backdrop-blur border-b border-white/20 p-3">
             <div className="flex flex-col gap-3">
               {/* Top Row: Controls */}
               <div className="flex items-center justify-between gap-2">
@@ -338,7 +369,7 @@ const Collection: React.FC = () => {
           </div>
 
           {/* Content Grid */}
-          <div className="p-2 md:p-4 bg-black min-h-screen">
+          <div className="p-2 md:p-4 min-h-screen">
             {viewMode === 'items' ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-4">
                 {filteredNfts?.map(nft => (
@@ -355,7 +386,7 @@ const Collection: React.FC = () => {
               </div>
             ) : (
               // Activity View
-              <div className="border border-white/20 bg-black overflow-x-auto">
+              <div className="border border-white/20 overflow-x-auto">
                 <table className="w-full text-left min-w-[500px]">
                   <thead className="bg-white/5 text-gray-500 font-mono text-xs uppercase">
                     <tr>
@@ -392,7 +423,7 @@ const Collection: React.FC = () => {
         </div>
 
         {/* Right Sidebar (Recent Activity - Desktop Only) */}
-        <div className="hidden xl:block w-80 border-l border-white/20 p-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto bg-black">
+        <div className="hidden xl:block w-80 border-l border-white/20 p-0 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto">
           <div className="p-4 border-b border-white/20 bg-white/5">
             <h3 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2">
               <ActivityIcon className={`w-3 h-3 ${accentColor}`} /> Live Feed
