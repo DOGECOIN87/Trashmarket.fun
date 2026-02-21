@@ -56,23 +56,19 @@ export const AnchorContextProvider: React.FC<{ children: React.ReactNode }> = ({
                 };
             }
 
-            // Don't initialize programs until wallet is connected
-            // Use stable string comparison instead of object reference
-            if (!walletConnected || !walletPublicKey) {
-                return {
-                    program: null,
-                    solanaProgram: null,
-                    provider: null,
-                    gorbaganaProvider: null,
-                    programId: GORBAGANA_PROGRAM_ID,
-                    sgorMint: SGOR_MINT_MAINNET,
-                };
-            }
-
             // Standard provider (uses current wallet connection - dynamically switched)
+            // If wallet is not connected, we use a dummy wallet for read-only access
+            const readOnlyWallet = {
+                publicKey: PublicKey.default,
+                signTransaction: async (tx: any) => tx,
+                signAllTransactions: async (txs: any) => txs,
+            };
+
+            const activeWallet = (walletConnected && wallet) ? wallet : readOnlyWallet;
+
             const provider = new AnchorAnchorProvider(
                 connection,
-                wallet as any,
+                activeWallet as any,
                 {
                     commitment: 'confirmed',
                     preflightCommitment: 'processed',
@@ -84,7 +80,7 @@ export const AnchorContextProvider: React.FC<{ children: React.ReactNode }> = ({
             const gorbaganaConnection = new Connection(GORBAGANA_CONFIG.rpcEndpoint, 'confirmed');
             const gorbaganaProvider = new AnchorAnchorProvider(
                 gorbaganaConnection,
-                wallet as any,
+                activeWallet as any,
                 {
                     commitment: 'confirmed',
                     preflightCommitment: 'processed',
