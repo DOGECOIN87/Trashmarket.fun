@@ -61,9 +61,9 @@ export const useBridgeService = () => {
       .accounts({
         maker: wallet.publicKey,
         order: orderPDA,
-        escrowTokenAccount: null,
-        makerTokenAccount: null,
-        sgorMint: null,
+        escrowTokenAccount: orderPDA, // Placeholder, not used for direction 1
+        makerTokenAccount: wallet.publicKey, // Placeholder, not used for direction 1
+        sgorMint: SGOR_MINT, // Placeholder, not used for direction 1
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -214,10 +214,10 @@ export const useBridgeService = () => {
       order: orderPDA,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-      escrowTokenAccount: null,
-      takerTokenAccount: null,
-      takerReceiveTokenAccount: null,
-      makerReceiveTokenAccount: null,
+      escrowTokenAccount: orderPDA, // Placeholder
+      takerTokenAccount: wallet.publicKey, // Placeholder
+      takerReceiveTokenAccount: wallet.publicKey, // Placeholder
+      makerReceiveTokenAccount: order.maker, // Placeholder
     };
 
     if (order.direction === 0) {
@@ -381,8 +381,8 @@ export const useBridgeService = () => {
       order: orderPDA,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-      escrowTokenAccount: null,
-      makerTokenAccount: null,
+      escrowTokenAccount: orderPDA, // Placeholder
+      makerTokenAccount: wallet.publicKey, // Placeholder
     };
 
     if (order.direction === 0) {
