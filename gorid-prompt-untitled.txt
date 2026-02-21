@@ -1,0 +1,319 @@
+FINAL IDE PROMPT - GORID INTEGRATION
+Filename: GORID_IMPLEMENTATION_PROMPT.md
+Markdown
+Copy
+Code
+Preview
+# Implementation Task: Gorid Name Trading on TrashMarket.fun
+
+## Project Context
+- **Repository**: dogecoin87.github.io/trashmarket.fun
+- **Chain**: Gorbagana (Solana-compatible sidechain)
+- **Existing**: Frontend dApp built with React 19 + TypeScript + Vite
+- **New Feature**: Enable trading of .gor domain names (Gorids) with verified on-chain functionality
+
+---
+
+## CRITICAL TOKEN CONFIGURATION (VERIFIED)
+
+### Gorbagana Token Architecture
+| Token | Address | Type | Decimals | Usage |
+|-------|---------|------|----------|-------|
+| **Native GOR** | `So1111111111111111111111111111111111111111` | System Program | **6** | Gas fees only |
+| **Wrapped GOR** | `So1111111111111111111111111111111111111112` | SPL Token | **9** | **ALL TRADING** |
+| **SGOR** | `71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg` | SPL Token (Solana only) | 9 | NOT USED ON GORBAGANA |
+
+**IMPORTANT**: Use WRAPPED GOR (9 decimals) for all marketplace transactions. Native GOR is only for gas.
+
+### Name Service Program (VERIFIED)
+- **Program ID**: `namesLPneVptA9Z5rqUDD9tMTWEJwofgaYwp8cawRkX`
+- **Domain Format**: `name.gor` (supports emojis: 🤑.gor, 🇺🇸.gor)
+- **Asset Type**: NFT (non-fungible, amount = 1)
+- **Total Registered**: 50+ domains (verified on TrashScan)
+- **Features**: Transferable, supports reverse lookup (domain → wallet)
+
+---
+
+## INFRASTRUCTURE ENDPOINTS
+
+```typescript
+const CONFIG = {
+  rpcUrl: 'https://rpc.trashscan.io',
+  wsUrl: 'wss://rpc.trashscan.io',
+  dasApiUrl: 'https://gorapi.trashscan.io/das',
+  tradingApiUrl: 'https://gorapi.trashscan.io/trading',
+  explorerUrl: 'https://trashscan.io',
+  chainId: 6666666666
+};
+REQUIRED IMPLEMENTATIONS
+1. Wallet Integration (Backpack Primary, Privy Fallback)
+TypeScript
+Copy
+// src/wallet-config.ts
+import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
+import { useWallet, WalletProvider } from '@solana/wallet-adapter-react';
+
+export const wallets = [
+  new BackpackWalletAdapter(), // Primary - native Gorbagana support
+  // Privy fallback configuration if needed
+];
+
+export function useGorbaganaWallet() {
+  const { publicKey, signTransaction, connected } = useWallet();
+  
+  return {
+    address: publicKey?.toString(),
+    isConnected: connected,
+    signTransaction
+  };
+}
+2. Decimal Conversion Utilities (CRITICAL - 9 decimals for trading)
+TypeScript
+Copy
+// src/utils/decimals.ts
+export const WRAPPED_GOR_DECIMALS = 9;
+export const WRAPPED_GOR_DIVISOR = 1_000_000_000;
+export const NATIVE_GOR_DECIMALS = 6;
+export const NATIVE_GOR_DIVISOR = 1_000_000;
+
+// For trading - ALWAYS use these (Wrapped GOR)
+export function humanToTradingAmount(amount: number): bigint {
+  return BigInt(Math.round(amount * WRAPPED_GOR_DIVISOR));
+}
+
+export function tradingAmountToHuman(amount: bigint): number {
+  return Number(amount) / WRAPPED_GOR_DIVISOR;
+}
+
+// For gas calculations only (Native GOR)
+export function humanToGasAmount(amount: number): bigint {
+  return BigInt(Math.round(amount * NATIVE_GOR_DIVISOR));
+}
+3. Domain Resolution Service
+TypeScript
+Copy
+// src/services/domain-service.ts
+const NAME_SERVICE_PROGRAM = 'namesLPneVptA9Z5rqUDD9tMTWEJwofgaYwp8cawRkX';
+const DAS_API_URL = 'https://gorapi.trashscan.io/das';
+
+export interface GoridDomain {
+  name: string;           // e.g., "🤑.gor"
+  address: string;        // Domain account address
+  owner: string;          // Wallet address
+  mint: string;          // NFT mint address
+  image?: string;
+}
+
+// Get all domains owned by wallet
+export async function getDomainsByOwner(ownerAddress: string): Promise<GoridDomain[]> {
+  const response = await fetch(DAS_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getAssetsByOwner',
+      params: {
+        ownerAddress,
+        page: 1,
+        limit: 1000
+      }
+    })
+  });
+  
+  const data = await response.json();
+  
+  return data.result.items
+    .filter((asset: any) => 
+      asset.interface === 'V1_NFT' && 
+      asset.content?.metadata?.name?.endsWith('.gor')
+    )
+    .map((asset: any) => ({
+      name: asset.content.metadata.name,
+      address: asset.id,
+      owner: asset.ownership.owner,
+      mint: asset.id,
+      image: asset.content.files?.[0]?.uri
+    }));
+}
+
+// Resolve domain name to wallet address
+export async function resolveDomain(domainName: string): Promise<string | null> {
+  const cleanName = domainName.toLowerCase().replace('.gor', '');
+  
+  // Query Name Service Program for domain record
+  const response = await fetch(CONFIG.rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getProgramAccounts',
+      params: [
+        NAME_SERVICE_PROGRAM,
+        {
+          filters: [
+            {
+              memcmp: {
+                offset: 32, // Domain name offset in account data
+                bytes: Buffer.from(cleanName).toString('base64')
+              }
+            }
+          ],
+          encoding: 'jsonParsed'
+        }
+      ]
+    })
+  });
+  
+  const data = await response.json();
+  return data.result?.[0]?.account?.owner || null;
+}
+4. Trading Fee Configuration
+TypeScript
+Copy
+// src/config/trading-config.ts
+export const TRADING_CONFIG = {
+  // Token constants
+  WRAPPED_GOR_MINT: 'So1111111111111111111111111111111111111112',
+  FEE_RECIPIENT: 'YOUR_PLATFORM_WALLET_ADDRESS', // Replace with your wallet
+  
+  // Fee structure (basis points)
+  PLATFORM_FEE_BPS: 250,      // 2.5%
+  CREATOR_ROYALTY_BPS: 500,   // 5% (optional)
+  
+  // Minimum fee in base units (9 decimals)
+  MINIMUM_FEE: 1_000_000n,    // 0.001 Wrapped GOR
+  
+  // Transaction limits
+  MIN_PRICE: 0.001,           // Minimum listing price
+  MAX_PRICE: 1000000,         // Maximum listing price
+};
+
+export interface TradeFees {
+  platformFee: bigint;
+  creatorRoyalty: bigint;
+  sellerReceives: bigint;
+  total: bigint;
+}
+
+export function calculateFees(salePrice: bigint): TradeFees {
+  const platformFee = (salePrice * BigInt(TRADING_CONFIG.PLATFORM_FEE_BPS)) / 10000n;
+  const creatorRoyalty = (salePrice * BigInt(TRADING_CONFIG.CREATOR_ROYALTY_BPS)) / 10000n;
+  
+  // Enforce minimum fee
+  const finalPlatformFee = platformFee < TRADING_CONFIG.MINIMUM_FEE 
+    ? TRADING_CONFIG.MINIMUM_FEE 
+    : platformFee;
+  
+  return {
+    platformFee: finalPlatformFee,
+    creatorRoyalty,
+    sellerReceives: salePrice - finalPlatformFee - creatorRoyalty,
+    total: salePrice
+  };
+}
+5. Marketplace Service with Escrow
+TypeScript
+Copy
+// src/services/marketplace-service.ts
+import { 
+  createSolanaRpc, 
+  transferToken,
+  createTransaction,
+  addInstruction
+} from '@solana/kit';
+import { Keypair, PublicKey } from '@solana/keys';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
+
+const rpc = createSolanaRpc('https://rpc.trashscan.io');
+
+export interface Listing {
+  domainMint: string;
+  seller: string;
+  price: bigint;        // In Wrapped GOR base units (9 decimals)
+  createdAt: number;
+}
+
+// Create listing (escrow domain NFT)
+export async function createListing(
+  seller: Keypair,
+  domainMint: string,
+  priceHuman: number
+): Promise<string> {
+  const price = humanToTradingAmount(priceHuman);
+  
+  // Verify seller owns the domain
+  const domains = await getDomainsByOwner(seller.publicKey.toString());
+  const hasDomain = domains.some(d => d.mint === domainMint);
+  if (!hasDomain) throw new Error('Seller does not own this domain');
+  
+  // Create escrow instruction
+  const transaction = await createEscrowTransaction({
+    domainMint,
+    seller: seller.publicKey,
+    price,
+    escrowAccount: getEscrowAccountPDA(domainMint)
+  });
+  
+  transaction.sign([seller]);
+  return await rpc.sendTransaction(transaction).send();
+}
+
+// Execute purchase
+export async function executePurchase(
+  buyer: Keypair,
+  listing: Listing
+): Promise<string> {
+  const fees = calculateFees(listing.price);
+  
+  // Get ATA addresses
+  const buyerWrappedGorATA = await getAssociatedTokenAddress(
+    new PublicKey(TRADING_CONFIG.WRAPPED_GOR_MINT),
+    buyer.publicKey
+  );
+  
+  const sellerATA = await getAssociatedTokenAddress(
+    new PublicKey(TRADING_CONFIG.WRAPPED_GOR_MINT),
+    new PublicKey(listing.seller)
+  );
+  
+  const feeRecipientATA = await getAssociatedTokenAddress(
+    new PublicKey(TRADING_CONFIG.WRAPPED_GOR_MINT),
+    new PublicKey(TRADING_CONFIG.FEE_RECIPIENT)
+  );
+  
+  // Build transaction
+  const transaction = await createTransaction({
+    feePayer: buyer.publicKey,
+    instructions: [
+      // 1. Transfer platform fee
+      createTransferInstruction(
+        buyerWrappedGorATA,
+        feeRecipientATA,
+        buyer.publicKey,
+        fees.platformFee
+      ),
+      
+      // 2. Transfer creator royalty (if applicable)
+      createTransferInstruction(
+        buyerWrappedGorATA,
+        getCreatorATA(listing.domainMint),
+        buyer.publicKey,
+        fees.creatorRoyalty
+      ),
+      
+      // 3. Transfer payment to seller
+      createTransferInstruction(
+        buyerWrappedGorATA,
+        sellerATA,
+        buyer.publicKey,
+        fees.sellerReceives
+      ),
+      
+      // 4. Transfer domain from escrow to buyer
+      createTransferInstruction(
+        getEscrowATA(listing.domainMint),
+        getBuyerDomainATA(buyer.public
+
+
