@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GameEngine } from '../../lib/GameEngine';
 import { Overlay } from './Overlay';
+import AudioPlayer from './AudioPlayer';
 import { GameState } from '../../types/types';
 import { useGameWallet } from './WalletAdapter';
 import { useJunkPusherOnChain } from '../../lib/useJunkPusherOnChain';
@@ -227,6 +228,7 @@ const JunkPusherGame: React.FC = () => {
                 onPauseToggle={handlePauseToggle}
                 wallet={wallet}
             />
+            <AudioPlayer src="/audio/bg-music.mp3" autoPlay={true} />
         </div>
     );
 };
