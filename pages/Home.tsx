@@ -5,7 +5,7 @@ import { getGorbagioCollection, getGorbagioNFTs } from '../services/gorbagioServ
 import { Collection, NFT } from '../types';
 import { MOCK_COLLECTIONS, MOCK_NFTS } from '../constants';
 
-import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio } from 'lucide-react';
+import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio, Volume2, VolumeX } from 'lucide-react';
 
 import { useNetwork } from '../contexts/NetworkContext';
 
@@ -30,6 +30,15 @@ const Home: React.FC = () => {
   const [featuredArtworks, setFeaturedArtworks] = useState<NFT[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -91,19 +100,31 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
-      {/* Background Video */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
-        src="/gorbagio-video-meeting.mp4"
-      />
-
-      {/* Hero / Spotlight */}
+      {/* Hero / Spotlight with Background Video */}
       {featuredCollection ? (
         <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20">
+          {/* Background Video - Hero Section Only */}
+          <video
+            ref={videoRef}
+            autoPlay
+            loop
+            muted={isMuted}
+            playsInline
+            className="absolute top-0 left-0 w-full h-full object-cover opacity-30"
+            src="/New-bg-hero-vide9.mp4"
+          />
+          {/* Mute Button */}
+          <button
+            onClick={toggleMute}
+            className="absolute top-4 right-4 z-20 p-2 bg-black/50 border border-white/20 rounded-full hover:bg-black/70 transition-all duration-200 group"
+            aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+          >
+            {isMuted ? (
+              <VolumeX className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+            ) : (
+              <Volume2 className="w-4 h-4 text-magic-green group-hover:text-magic-green/80 transition-colors" />
+            )}
+          </button>
           <div className="absolute inset-0">
             <div className="absolute inset-0 bg-black/60" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
