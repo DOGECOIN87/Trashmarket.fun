@@ -28,7 +28,16 @@ const Docs: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col md:flex-row max-w-[1600px] mx-auto border-l border-r border-white/10">
+    <div className="min-h-screen flex flex-col md:flex-row max-w-[1600px] mx-auto border-l border-r border-white/10">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
+        src="/gorbagio-video-robotaxi.mp4"
+      />
       
       {/* Sidebar Navigation */}
       <aside className="w-full md:w-64 border-b md:border-b-0 md:border-r border-white/10 sticky top-16 h-auto md:h-[calc(100vh-64px)] bg-black z-20 overflow-y-auto">

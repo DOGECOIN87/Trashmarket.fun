@@ -90,11 +90,20 @@ const Home: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black pb-20" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
-      
+    <div className="min-h-screen pb-20" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
+        src="/gorbagio-video-meeting.mp4"
+      />
+
       {/* Hero / Spotlight */}
       {featuredCollection ? (
-        <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20" style={{ backgroundImage: "url('/images/hero-bg.webp')", backgroundSize: 'cover', backgroundPosition: 'center top' }}>
+        <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20">
           <div className="absolute inset-0">
             <div className="absolute inset-0 bg-black/60" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />

@@ -223,7 +223,16 @@ const DexPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white font-mono">
+    <div className="min-h-screen text-white font-mono">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
+        src="/gorbagio-video-pill.mp4"
+      />
       {/* Header */}
       <div className="border-b border-white/10 bg-gradient-to-r from-black via-gray-900 to-black">
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between">

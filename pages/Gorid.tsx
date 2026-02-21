@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Tag, Activity, ShoppingCart, ExternalLink, ArrowRight, Clock, TrendingUp, User, Zap } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Search, Tag, Activity, ShoppingCart, ExternalLink, ArrowRight, Clock, TrendingUp, User, Zap, AlertTriangle, Loader2 } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { PublicKey } from '@solana/web3.js';
 import {
   getListedDomains,
   getRecentSales,
-  searchDomains,
   getDomainsOwnedBy,
   resolveGoridName,
   formatTimeAgo,
@@ -16,10 +16,17 @@ import {
   GoridName,
   GORID_CONFIG,
 } from '../services/goridService';
+import {
+  buildPurchaseTransaction,
+  confirmPurchase,
+  createListingViaAPI,
+} from '../services/marketplace-service';
+import { calculateFeesFromHuman, TRADING_CONFIG } from '../lib/trading-config';
 
 const Gorid: React.FC = () => {
   const { currency, accentColor, getExplorerLink } = useNetwork();
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey, signTransaction } = useWallet();
+  const { connection } = useConnection();
   const address = publicKey?.toBase58() || null;
 
   // State
@@ -33,6 +40,15 @@ const Gorid: React.FC = () => {
   const [lookupAddress, setLookupAddress] = useState('');
   const [lookupResult, setLookupResult] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
+
+  // Trading state
+  const [isBuying, setIsBuying] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const [buySuccess, setBuySuccess] = useState<string | null>(null);
+  const [isListing, setIsListing] = useState(false);
+  const [listingDomain, setListingDomain] = useState<GoridName | null>(null);
+  const [listingPrice, setListingPrice] = useState('');
+  const [listError, setListError] = useState<string | null>(null);
 
   // Stats
   const [floorPrice, setFloorPrice] = useState<number>(0);
@@ -92,12 +108,155 @@ const Gorid: React.FC = () => {
     setIsLookingUp(false);
   };
 
+  // Handle buy domain
+  const handleBuy = useCallback(async (listing: GoridListing) => {
+    if (!connected || !publicKey || !signTransaction) {
+      setBuyError('Please connect your wallet first');
+      return;
+    }
+
+    setIsBuying(true);
+    setBuyError(null);
+    setBuySuccess(null);
+
+    try {
+      // Build the purchase transaction
+      const transaction = await buildPurchaseTransaction(publicKey, {
+        id: listing.listingId || listing.domainKey,
+        domainName: listing.name,
+        domainMint: listing.domainMint || listing.domainKey,
+        seller: listing.owner,
+        price: listing.price,
+        priceRaw: BigInt(0), // Will be calculated from price
+        listedAt: listing.listedAt,
+      });
+
+      // Request wallet signature
+      const signedTx = await signTransaction(transaction);
+
+      // Send and confirm transaction
+      const txSignature = await connection.sendRawTransaction(signedTx.serialize());
+      await connection.confirmTransaction(txSignature, 'confirmed');
+
+      // Notify trading API of completed purchase
+      await confirmPurchase(
+        listing.listingId || listing.domainKey,
+        publicKey.toBase58(),
+        txSignature,
+      );
+
+      setBuySuccess(txSignature);
+      setSelectedDomain(null);
+
+      // Refresh data
+      const [updatedListings, updatedSales] = await Promise.all([
+        getListedDomains(),
+        getRecentSales(),
+      ]);
+      setListings(updatedListings);
+      setRecentSales(updatedSales);
+
+      if (address) {
+        getDomainsOwnedBy(address).then(setMyDomains).catch(console.error);
+      }
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      setBuyError(error.message || 'Transaction failed');
+    } finally {
+      setIsBuying(false);
+    }
+  }, [connected, publicKey, signTransaction, connection, address]);
+
+  // Handle list domain for sale
+  const handleListForSale = useCallback(async () => {
+    if (!connected || !address || !listingDomain || !listingPrice) return;
+
+    const price = parseFloat(listingPrice);
+    if (isNaN(price) || price < TRADING_CONFIG.MIN_PRICE || price > TRADING_CONFIG.MAX_PRICE) {
+      setListError(`Price must be between ${TRADING_CONFIG.MIN_PRICE} and ${TRADING_CONFIG.MAX_PRICE.toLocaleString()} GOR`);
+      return;
+    }
+
+    setIsListing(true);
+    setListError(null);
+
+    try {
+      const result = await createListingViaAPI(
+        address,
+        listingDomain.mint || listingDomain.domainKey,
+        listingDomain.name,
+        price,
+      );
+
+      if (!result) {
+        throw new Error('Failed to create listing');
+      }
+
+      // Close modal and refresh
+      setListingDomain(null);
+      setListingPrice('');
+
+      const updatedListings = await getListedDomains();
+      setListings(updatedListings);
+
+      if (address) {
+        getDomainsOwnedBy(address).then(setMyDomains).catch(console.error);
+      }
+    } catch (error: any) {
+      console.error('Listing error:', error);
+      setListError(error.message || 'Failed to create listing');
+    } finally {
+      setIsListing(false);
+    }
+  }, [connected, address, listingDomain, listingPrice]);
+
+  // Fee preview for listing
+  const feePreview = useMemo(() => {
+    const price = parseFloat(listingPrice);
+    if (isNaN(price) || price <= 0) return null;
+    return calculateFeesFromHuman(price);
+  }, [listingPrice]);
+
   // Styling
   const btnPrimary = 'bg-magic-green text-black hover:bg-white hover:text-black';
   const borderFocus = 'focus:border-magic-green';
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
+        src="/gorbagio-video-fence.mp4"
+      />
+
+      {/* Success Toast */}
+      {buySuccess && (
+        <div className="fixed top-20 right-4 z-50 bg-magic-green text-black p-4 border border-magic-green max-w-sm animate-in slide-in-from-right">
+          <div className="flex items-center gap-2 mb-1">
+            <Zap className="w-4 h-4" />
+            <span className="font-bold uppercase text-sm">Purchase Successful!</span>
+          </div>
+          <a
+            href={getExplorerLink('tx', buySuccess)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-mono underline"
+          >
+            View on TrashScan
+          </a>
+          <button
+            onClick={() => setBuySuccess(null)}
+            className="absolute top-2 right-2 text-black/60 hover:text-black"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Under Construction Banner */}
       <div className="bg-yellow-500/20 border-b border-yellow-500/50">
         <div className="max-w-[1600px] mx-auto px-4 py-3">
@@ -142,13 +301,13 @@ const Gorid: React.FC = () => {
               <div className="bg-black p-4 hover:bg-white/5 transition-colors">
                 <div className="text-gray-500 text-[10px] uppercase font-bold mb-1">Floor</div>
                 <div className="text-magic-green font-mono font-bold text-lg md:text-xl">
-                  {currency} {floorPrice}
+                  {floorPrice > 0 ? `${currency} ${floorPrice}` : '—'}
                 </div>
               </div>
               <div className="bg-black p-4 hover:bg-white/5 transition-colors">
                 <div className="text-gray-500 text-[10px] uppercase font-bold mb-1">Volume</div>
                 <div className="text-white font-mono font-bold text-lg md:text-xl">
-                  {currency} {totalVolume.toLocaleString()}
+                  {totalVolume > 0 ? `${currency} ${totalVolume.toLocaleString()}` : '—'}
                 </div>
               </div>
               <div className="bg-black p-4 hover:bg-white/5 transition-colors">
@@ -318,49 +477,58 @@ const Gorid: React.FC = () => {
                   {filteredListings.length === 0 && (
                     <div className="col-span-full text-center py-12">
                       <Tag className="w-12 h-12 text-gray-700 mx-auto mb-4" />
-                      <p className="text-gray-500 font-mono">No domains found</p>
+                      <p className="text-gray-500 font-mono">
+                        {listings.length === 0 ? 'No domains listed yet — marketplace launching soon' : 'No domains found'}
+                      </p>
                     </div>
                   )}
                 </div>
               ) : viewMode === 'activity' ? (
                 /* Activity Table */
                 <div className="border border-white/20 bg-black overflow-x-auto">
-                  <table className="w-full text-left min-w-[500px]">
-                    <thead className="bg-white/5 text-gray-500 font-mono text-xs uppercase">
-                      <tr>
-                        <th className="p-3">Domain</th>
-                        <th className="p-3 text-right">Price</th>
-                        <th className="p-3 text-right">From</th>
-                        <th className="p-3 text-right">To</th>
-                        <th className="p-3 text-right">Time</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/10 font-mono text-sm">
-                      {recentSales.map((sale) => (
-                        <tr key={sale.txSignature} className="hover:bg-white/5 transition-colors">
-                          <td className="p-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-magic-green/10 border border-magic-green/30 flex items-center justify-center">
-                                <Tag className="w-4 h-4 text-magic-green" />
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-white">{sale.name}</span>
-                                <span className="text-[9px] w-fit px-1 border border-magic-green text-magic-green uppercase">
-                                  sale
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-3 text-right text-magic-green font-bold">
-                            {currency} {sale.price}
-                          </td>
-                          <td className="p-3 text-right text-gray-400">{sale.from}</td>
-                          <td className="p-3 text-right text-gray-500">{sale.to}</td>
-                          <td className="p-3 text-right text-gray-600">{formatTimeAgo(sale.timestamp)}</td>
+                  {recentSales.length > 0 ? (
+                    <table className="w-full text-left min-w-[500px]">
+                      <thead className="bg-white/5 text-gray-500 font-mono text-xs uppercase">
+                        <tr>
+                          <th className="p-3">Domain</th>
+                          <th className="p-3 text-right">Price</th>
+                          <th className="p-3 text-right">From</th>
+                          <th className="p-3 text-right">To</th>
+                          <th className="p-3 text-right">Time</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-white/10 font-mono text-sm">
+                        {recentSales.map((sale) => (
+                          <tr key={sale.txSignature} className="hover:bg-white/5 transition-colors">
+                            <td className="p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-magic-green/10 border border-magic-green/30 flex items-center justify-center">
+                                  <Tag className="w-4 h-4 text-magic-green" />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-white">{sale.name}</span>
+                                  <span className="text-[9px] w-fit px-1 border border-magic-green text-magic-green uppercase">
+                                    sale
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3 text-right text-magic-green font-bold">
+                              {currency} {sale.price}
+                            </td>
+                            <td className="p-3 text-right text-gray-400">{sale.from}</td>
+                            <td className="p-3 text-right text-gray-500">{sale.to}</td>
+                            <td className="p-3 text-right text-gray-600">{formatTimeAgo(sale.timestamp)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Activity className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+                      <p className="text-gray-500 font-mono">No recent activity</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* My Domains */
@@ -398,12 +566,24 @@ const Gorid: React.FC = () => {
                           </div>
                           <h3 className="text-xl font-black text-white mb-4">{domain.name}</h3>
                           <div className="flex gap-2">
-                            <button className="flex-1 bg-white/10 text-white px-3 py-2 text-xs font-bold uppercase hover:bg-white/20 transition-colors">
+                            <button
+                              onClick={() => {
+                                setListingDomain(domain);
+                                setListingPrice('');
+                                setListError(null);
+                              }}
+                              className="flex-1 bg-white/10 text-white px-3 py-2 text-xs font-bold uppercase hover:bg-white/20 transition-colors"
+                            >
                               List for Sale
                             </button>
-                            <button className="flex-1 border border-white/20 text-gray-400 px-3 py-2 text-xs font-bold uppercase hover:border-white/40 hover:text-white transition-colors">
-                              Transfer
-                            </button>
+                            <a
+                              href={`https://gorid.com/${domain.name.replace('.gor', '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 border border-white/20 text-gray-400 px-3 py-2 text-xs font-bold uppercase hover:border-white/40 hover:text-white transition-colors text-center"
+                            >
+                              Manage
+                            </a>
                           </div>
                         </div>
                       ))}
@@ -423,43 +603,49 @@ const Gorid: React.FC = () => {
                 </h3>
               </div>
               <div className="divide-y divide-white/10 max-h-[calc(100vh-8rem)] overflow-y-auto">
-                {recentSales.map((sale) => (
-                  <div key={sale.txSignature} className="p-3 hover:bg-white/5 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-magic-green/10 border border-magic-green/30 flex items-center justify-center flex-shrink-0">
-                        <Tag className="w-4 h-4 text-magic-green" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-baseline mb-1">
-                          <span className="text-sm font-bold text-white truncate">{sale.name}</span>
-                          <span className="text-magic-green font-mono text-sm">
-                            {currency}{sale.price}
-                          </span>
+                {recentSales.length > 0 ? (
+                  recentSales.map((sale) => (
+                    <div key={sale.txSignature} className="p-3 hover:bg-white/5 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-magic-green/10 border border-magic-green/30 flex items-center justify-center flex-shrink-0">
+                          <Tag className="w-4 h-4 text-magic-green" />
                         </div>
-                        <div className="flex justify-between text-[10px] text-gray-500 font-mono">
-                          <span>{formatTimeAgo(sale.timestamp)}</span>
-                          <span className="text-gray-600">SALE</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline mb-1">
+                            <span className="text-sm font-bold text-white truncate">{sale.name}</span>
+                            <span className="text-magic-green font-mono text-sm">
+                              {currency}{sale.price}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-[10px] text-gray-500 font-mono">
+                            <span>{formatTimeAgo(sale.timestamp)}</span>
+                            <span className="text-gray-600">SALE</span>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="p-6 text-center">
+                    <p className="text-gray-600 text-xs font-mono">No recent sales</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Domain Detail Modal */}
+      {/* Domain Detail / Buy Modal */}
       {selectedDomain && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => setSelectedDomain(null)}
+            onClick={() => { setSelectedDomain(null); setBuyError(null); }}
           />
           <div className="relative bg-magic-dark border border-magic-green/30 p-6 max-w-md w-full animate-in zoom-in-95">
             <button
-              onClick={() => setSelectedDomain(null)}
+              onClick={() => { setSelectedDomain(null); setBuyError(null); }}
               className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl"
             >
               &times;
@@ -490,16 +676,58 @@ const Gorid: React.FC = () => {
                 <span className="text-gray-500 text-sm uppercase">Listed</span>
                 <span className="text-gray-400 font-mono text-sm">{formatTimeAgo(selectedDomain.listedAt)}</span>
               </div>
+
+              {/* Fee breakdown */}
+              {(() => {
+                const fees = calculateFeesFromHuman(selectedDomain.price);
+                return (
+                  <div className="py-3 border-b border-white/10">
+                    <div className="text-gray-500 text-sm uppercase mb-2">Fee Breakdown</div>
+                    <div className="space-y-1 text-xs font-mono">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Platform Fee (2.5%)</span>
+                        <span className="text-gray-400">{currency} {fees.platformFee.toFixed(3)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Creator Royalty (5%)</span>
+                        <span className="text-gray-400">{currency} {fees.creatorRoyalty.toFixed(3)}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-white/5 pt-1 mt-1">
+                        <span className="text-gray-400">Total</span>
+                        <span className="text-white">{currency} {fees.total.toFixed(3)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
+
+            {/* Error display */}
+            {buyError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-mono flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{buyError}</span>
+              </div>
+            )}
 
             <div className="space-y-3">
               <button
-                className={`w-full ${btnPrimary} py-3 font-bold uppercase tracking-widest flex items-center justify-center gap-2`}
+                onClick={() => handleBuy(selectedDomain)}
+                disabled={isBuying || !connected}
+                className={`w-full ${btnPrimary} py-3 font-bold uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                <ShoppingCart className="w-4 h-4" /> Buy Now
-              </button>
-              <button className="w-full border border-white/20 text-gray-400 py-3 font-bold uppercase tracking-widest hover:border-white/40 hover:text-white transition-colors">
-                Make Offer
+                {isBuying ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
+                    Confirming...
+                  </>
+                ) : !connected ? (
+                  'Connect Wallet to Buy'
+                ) : (
+                  <>
+                    <ShoppingCart className="w-4 h-4" /> Buy Now — {currency} {selectedDomain.price}
+                  </>
+                )}
               </button>
             </div>
 
@@ -513,6 +741,107 @@ const Gorid: React.FC = () => {
                 View on GorID.com <ExternalLink className="w-3 h-3" />
               </a>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* List for Sale Modal */}
+      {listingDomain && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => { setListingDomain(null); setListError(null); }}
+          />
+          <div className="relative bg-magic-dark border border-magic-green/30 p-6 max-w-md w-full animate-in zoom-in-95">
+            <button
+              onClick={() => { setListingDomain(null); setListError(null); }}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl"
+            >
+              &times;
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-magic-green text-black p-2">
+                <Tag className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-white">{listingDomain.name}</h2>
+                <p className="text-gray-500 text-sm font-mono">List for Sale</p>
+              </div>
+            </div>
+
+            {/* Price Input */}
+            <div className="mb-4">
+              <label className="text-gray-500 text-xs uppercase font-bold mb-2 block">
+                Sale Price (Wrapped GOR)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  name="listingPrice"
+                  value={listingPrice}
+                  onChange={(e) => setListingPrice(e.target.value)}
+                  placeholder="0.00"
+                  min={TRADING_CONFIG.MIN_PRICE}
+                  max={TRADING_CONFIG.MAX_PRICE}
+                  step="0.001"
+                  className={`w-full bg-black border border-white/20 px-4 py-3 text-white ${borderFocus} outline-none font-mono text-lg`}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono text-sm">
+                  {currency}
+                </span>
+              </div>
+            </div>
+
+            {/* Fee preview */}
+            {feePreview && (
+              <div className="mb-4 p-3 bg-white/5 border border-white/10">
+                <div className="text-gray-500 text-xs uppercase font-bold mb-2">You will receive</div>
+                <div className="space-y-1 text-xs font-mono">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Sale Price</span>
+                    <span className="text-white">{currency} {feePreview.total.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Platform Fee (2.5%)</span>
+                    <span className="text-red-400">-{currency} {feePreview.platformFee.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Creator Royalty (5%)</span>
+                    <span className="text-red-400">-{currency} {feePreview.creatorRoyalty.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-white/10 pt-1 mt-1">
+                    <span className="text-gray-400 font-bold">Net Proceeds</span>
+                    <span className="text-magic-green font-bold">{currency} {feePreview.sellerReceives.toFixed(3)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error */}
+            {listError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-mono flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{listError}</span>
+              </div>
+            )}
+
+            <button
+              onClick={handleListForSale}
+              disabled={isListing || !listingPrice || parseFloat(listingPrice) <= 0}
+              className={`w-full ${btnPrimary} py-3 font-bold uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {isListing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
+                  Creating Listing...
+                </>
+              ) : (
+                <>
+                  <Tag className="w-4 h-4" /> List for Sale
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}

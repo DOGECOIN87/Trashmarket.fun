@@ -28,7 +28,7 @@ const App: React.FC = () => {
         <DynamicConnectionProvider wallets={wallets}>
           <WalletModalProvider>
             <Router>
-              <div className="flex flex-col min-h-screen bg-magic-dark text-white font-mono antialiased selection:bg-magic-green selection:text-black">
+              <div className="flex flex-col min-h-screen text-white font-mono antialiased selection:bg-magic-green selection:text-black">
                 <Navbar />
                 <PriceTicker />
                 <main className="flex-grow">

@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @config "./tailwind.config.js";
 
+body {
+  background-color: black;
+}
+
 /* Gorbagana Brand — Custom Animations & Utilities */
 
 @keyframes scan {
