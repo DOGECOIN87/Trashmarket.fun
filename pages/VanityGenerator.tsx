@@ -49,6 +49,7 @@ const VanityGenerator: React.FC = () => {
   const [prefixLen, setPrefixLen] = useState(4);
   const [suffixLen, setSuffixLen] = useState(0);
   const [includeContains, setIncludeContains] = useState(false);
+  const [miningMode, setMiningMode] = useState<'prefix' | 'suffix' | 'both'>('prefix');
 
   // Mining state
   const [isMining, setIsMining] = useState(false);
@@ -89,11 +90,22 @@ const VanityGenerator: React.FC = () => {
   }, [prefixLen, suffixLen]);
 
   const pricingTier = React.useMemo(() => {
-    const maxLen = Math.max(prefixLen, suffixLen);
-    if (maxLen >= 6) return PRICING.ULTRA;
-    if (maxLen >= 5) return PRICING.PREMIUM;
-    if (maxLen >= 4) return PRICING.PRO;
+    const totalLen = prefixLen + suffixLen;
+    if (totalLen >= 6) return PRICING.ULTRA;
+    if (totalLen >= 5) return PRICING.PREMIUM;
+    if (totalLen >= 4) return PRICING.PRO;
     return PRICING.BASIC;
+  }, [prefixLen, suffixLen]);
+
+  // Update mining mode based on prefix/suffix lengths
+  useEffect(() => {
+    if (prefixLen > 0 && suffixLen === 0) {
+      setMiningMode('prefix');
+    } else if (prefixLen === 0 && suffixLen > 0) {
+      setMiningMode('suffix');
+    } else if (prefixLen > 0 && suffixLen > 0) {
+      setMiningMode('both');
+    }
   }, [prefixLen, suffixLen]);
 
   // Initialize character variants when input changes
@@ -304,35 +316,59 @@ const VanityGenerator: React.FC = () => {
             {charVariants.length > 0 && (
               <div className="border border-white/10 bg-black p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-bold uppercase tracking-wider">CHAR_VARIANTS</span>
+                  <div>
+                    <span className="text-sm font-bold uppercase tracking-wider">CHAR_VARIANTS</span>
+                    <div className="text-[10px] text-gray-500 mt-1">
+                      {miningMode === 'prefix' && `Positions 0-${prefixLen - 1} (PREFIX)`}
+                      {miningMode === 'suffix' && `Positions ${charVariants.length - suffixLen}-${charVariants.length - 1} (SUFFIX)`}
+                      {miningMode === 'both' && `Prefix: 0-${prefixLen - 1} | Suffix: ${charVariants.length - suffixLen}-${charVariants.length - 1}`}
+                    </div>
+                  </div>
                   <span className="text-[10px] text-gray-500">Click to toggle</span>
                 </div>
                 
                 <div className="overflow-x-auto">
                   <div className="flex gap-1 min-w-max">
-                    {charVariants.map((cv, idx) => (
-                      <div key={idx} className="flex flex-col gap-1">
-                        {/* Original char header */}
-                        <div className={`w-10 h-10 flex items-center justify-center border-2 ${accentBorder} text-lg font-bold ${accentColor}`}>
-                          {cv.char}
+                    {charVariants.map((cv, idx) => {
+                      const isInPrefix = idx < prefixLen && (miningMode === 'prefix' || miningMode === 'both');
+                      const isInSuffix = idx >= charVariants.length - suffixLen && (miningMode === 'suffix' || miningMode === 'both');
+                      const isRelevant = isInPrefix || isInSuffix;
+                      
+                      return (
+                        <div key={idx} className="flex flex-col gap-1">
+                          {/* Original char header with position indicator */}
+                          <div className={`w-10 h-10 flex items-center justify-center border-2 text-lg font-bold relative ${
+                            isRelevant
+                              ? `${accentBorder} ${accentColor}`
+                              : 'border-gray-700 text-gray-500 opacity-50'
+                          }`}>
+                            {cv.char}
+                            {isRelevant && (
+                              <span className="absolute -top-2 -right-2 text-[8px] bg-gray-900 border border-gray-700 px-1 rounded">
+                                {isInPrefix && isInSuffix ? 'B' : isInPrefix ? 'P' : 'S'}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Variant buttons */}
+                          {cv.variants.map((variant, vIdx) => (
+                            <button
+                              key={vIdx}
+                              onClick={() => toggleVariant(idx, variant)}
+                              disabled={!isRelevant}
+                              className={`w-10 h-10 flex items-center justify-center border text-sm font-bold transition-all ${
+                                !isRelevant ? 'opacity-30 cursor-not-allowed' :
+                                cv.selected.includes(variant)
+                                  ? `${accentBorder} ${accentColor} ${accentBg}/20`
+                                  : 'border-gray-700 text-gray-500 hover:border-gray-500'
+                              }`}
+                            >
+                              {variant}
+                            </button>
+                          ))}
                         </div>
-                        
-                        {/* Variant buttons */}
-                        {cv.variants.map((variant, vIdx) => (
-                          <button
-                            key={vIdx}
-                            onClick={() => toggleVariant(idx, variant)}
-                            className={`w-10 h-10 flex items-center justify-center border text-sm font-bold transition-all ${
-                              cv.selected.includes(variant)
-                                ? `${accentBorder} ${accentColor} ${accentBg}/20`
-                                : 'border-gray-700 text-gray-500 hover:border-gray-500'
-                            }`}
-                          >
-                            {variant}
-                          </button>
-                        ))}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
                 
@@ -349,15 +385,70 @@ const VanityGenerator: React.FC = () => {
                 <span className="text-sm font-bold uppercase tracking-wider">MINING_CONFIG</span>
               </div>
               
+              {/* Mining Mode Selector */}
+              <div className="mb-6 pb-6 border-b border-gray-800">
+                <label className="text-[10px] text-gray-500 uppercase block mb-3">MINING_MODE</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => {
+                      setPrefixLen(4);
+                      setSuffixLen(0);
+                    }}
+                    className={`py-2 px-3 text-xs font-bold uppercase transition-all ${
+                      miningMode === 'prefix' 
+                        ? `${accentBg} text-black` 
+                        : 'border border-gray-700 text-gray-500 hover:border-gray-500 hover:text-white'
+                    }`}
+                  >
+                    PREFIX
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPrefixLen(0);
+                      setSuffixLen(3);
+                    }}
+                    className={`py-2 px-3 text-xs font-bold uppercase transition-all ${
+                      miningMode === 'suffix' 
+                        ? `${accentBg} text-black` 
+                        : 'border border-gray-700 text-gray-500 hover:border-gray-500 hover:text-white'
+                    }`}
+                  >
+                    SUFFIX
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPrefixLen(3);
+                      setSuffixLen(2);
+                    }}
+                    className={`py-2 px-3 text-xs font-bold uppercase transition-all ${
+                      miningMode === 'both' 
+                        ? `${accentBg} text-black` 
+                        : 'border border-gray-700 text-gray-500 hover:border-gray-500 hover:text-white'
+                    }`}
+                  >
+                    BOTH
+                  </button>
+                </div>
+                <div className="mt-2 text-[10px] text-gray-500">
+                  {miningMode === 'prefix' && 'Mine addresses starting with your pattern'}
+                  {miningMode === 'suffix' && 'Mine addresses ending with your pattern'}
+                  {miningMode === 'both' && 'Mine addresses with both prefix and suffix patterns'}
+                </div>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] text-gray-500 uppercase block mb-2">PREFIX_LENGTH</label>
+                  <label className="text-[10px] text-gray-500 uppercase block mb-2">
+                    {miningMode === 'both' ? 'PREFIX_LENGTH' : 'PATTERN_LENGTH'}
+                  </label>
                   <div className="flex gap-px">
                     {[0, 2, 3, 4, 5, 6].map(len => (
                       <button
                         key={len}
                         onClick={() => setPrefixLen(len)}
+                        disabled={miningMode === 'suffix'}
                         className={`flex-1 py-2 text-xs font-bold ${
+                          miningMode === 'suffix' ? 'opacity-30 cursor-not-allowed' :
                           prefixLen === len 
                             ? `${accentBg} text-black` 
                             : 'bg-gray-900 text-gray-500 hover:text-white'
@@ -370,13 +461,17 @@ const VanityGenerator: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="text-[10px] text-gray-500 uppercase block mb-2">SUFFIX_LENGTH</label>
+                  <label className="text-[10px] text-gray-500 uppercase block mb-2">
+                    {miningMode === 'both' ? 'SUFFIX_LENGTH' : 'PATTERN_LENGTH'}
+                  </label>
                   <div className="flex gap-px">
                     {[0, 2, 3, 4].map(len => (
                       <button
                         key={len}
                         onClick={() => setSuffixLen(len)}
+                        disabled={miningMode === 'prefix'}
                         className={`flex-1 py-2 text-xs font-bold ${
+                          miningMode === 'prefix' ? 'opacity-30 cursor-not-allowed' :
                           suffixLen === len 
                             ? `${accentBg} text-black` 
                             : 'bg-gray-900 text-gray-500 hover:text-white'
@@ -414,7 +509,7 @@ const VanityGenerator: React.FC = () => {
                 </div>
                 <div className="flex justify-between mt-2 text-[10px] text-gray-500">
                   <span>EST_TIME: {formatDuration(difficulty.estimatedSeconds)}</span>
-                  <span>PATTERNS: {patterns?.prefixes.length || 0}</span>
+                  <span>PATTERNS: {(patterns?.prefixes.length || 0) + (patterns?.suffixes.length || 0)}</span>
                 </div>
               </div>
             </div>
@@ -424,12 +519,12 @@ const VanityGenerator: React.FC = () => {
               {!isMining ? (
                 <button
                   onClick={startMining}
-                  disabled={!inputName || prefixLen === 0}
+                  disabled={!inputName || (prefixLen === 0 && suffixLen === 0) || !connected}
                   className={`w-full ${accentBg} text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity`}
                 >
                   <Play className="w-4 h-4" />
                   START_MINING
-                  <span className="opacity-70">( {pricingTier.price} {currency} per unlock )</span>
+                  <span className="opacity-70">( {pricingTier.price} {currency} per unlock - {miningMode.toUpperCase()} )</span>
                 </button>
               ) : (
                 <div className="flex gap-1">
@@ -498,7 +593,6 @@ const VanityGenerator: React.FC = () => {
               </div>
             )}
 
-            {/* Matches Found */}
             <div className="border border-white/10 bg-black p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
