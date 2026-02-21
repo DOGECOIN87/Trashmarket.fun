@@ -13,7 +13,7 @@ import {
   getAccount,
 } from '@solana/spl-token';
 import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
-import { TRADING_CONFIG, calculateFees } from '../config/trading-config';
+import { TRADING_CONFIG, calculateFees } from '../lib/trading-config';
 import { humanToTradingAmount, tradingAmountToHuman } from '../utils/decimals';
 import { RPC_ENDPOINTS } from '../lib/rpcConfig';
 
