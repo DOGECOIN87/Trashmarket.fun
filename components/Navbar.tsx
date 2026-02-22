@@ -123,13 +123,27 @@ const Navbar: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex-shrink-0 flex items-center gap-2">
-              <Link to="/" className="flex items-center gap-2 group">
-                <div className="bg-magic-green text-black p-1 transition-colors duration-500">
-                  <Trash2 className="h-6 w-6" />
+              <Link to="/" className="flex items-center gap-3 group">
+                <div className="relative w-8 h-8 transition-transform duration-300 group-hover:scale-110">
+                  <img
+                    src="/logo-square.jpg"
+                    alt="Trash Market Logo"
+                    className="w-full h-full object-contain rounded-sm"
+                  />
+                  <div className="absolute inset-0 bg-magic-green/20 blur-md rounded-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
-                <span className="text-xl font-bold text-white tracking-tighter group-hover:text-magic-green transition-colors">
-                  TRASHMARKET<span className="text-magic-green">.FUN</span>
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-xl font-black text-white tracking-tighter leading-none">
+                    TRASHMARKET<span className="text-magic-green">.FUN</span>
+                  </span>
+                  <div className="flex justify-between w-full -mt-0.5">
+                    {"NFT-DEFI-GAME-TOOL-DEX".split('').map((char, i) => (
+                      <span key={i} className="text-[7.5px] text-gray-500 font-mono uppercase leading-tight select-none font-bold">
+                        {char}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </Link>
             </div>
 
@@ -201,8 +215,8 @@ const Navbar: React.FC = () => {
                 <button
                   onClick={() => setIsNetworkMenuOpen(!isNetworkMenuOpen)}
                   className={`flex items-center gap-2 px-4 py-2 border transition-colors ${isDevnet
-                      ? 'border-blue-500 bg-blue-500/10 hover:bg-blue-500/20'
-                      : 'border-white/20 bg-black hover:bg-white/5'
+                    ? 'border-blue-500 bg-blue-500/10 hover:bg-blue-500/20'
+                    : 'border-white/20 bg-black hover:bg-white/5'
                     }`}
                 >
                   <Globe className="w-4 h-4" />
