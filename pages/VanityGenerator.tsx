@@ -526,6 +526,18 @@ const VanityGenerator: React.FC = () => {
               </div>
             </div>
 
+            {/* NON-REFUNDABLE DEPOSIT NOTICE */}
+            <div className="bg-red-900/20 border border-red-500/30 p-4 rounded">
+              <h4 className="text-red-400 font-bold text-sm mb-2 uppercase tracking-wider flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                NON-REFUNDABLE DEPOSIT
+              </h4>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Deposits are used to pay for mining computation and are committed to the platform.
+                <span className="text-red-400 font-semibold"> No withdrawals are permitted — all funds are non-refundable once deposited.</span>
+              </p>
+            </div>
+
             {/* LIVE COST DISPLAY */}
             <div className={`border-2 ${accentBorder} bg-black p-6`}>
               <div className="flex justify-between items-center mb-4">
@@ -822,7 +834,10 @@ const VanityGenerator: React.FC = () => {
               <div className="text-[11px] text-yellow-500/80">
                 <span className="font-bold uppercase">SECURITY_NOTICE:</span> All keypairs are generated
                 client-side in your browser. Private keys never leave your device. {currency} payments
-                are processed on-chain to the platform treasury. Mining charges are non-refundable.
+                are processed on-chain to the platform treasury.{' '}
+                <span className="font-bold text-red-400">
+                  Mining charges are strictly non-refundable. No withdrawals are permitted once funds are deposited.
+                </span>
               </div>
             </div>
           </div>

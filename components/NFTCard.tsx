@@ -8,9 +8,11 @@ interface NFTCardProps {
   collectionName: string;
   isSelected?: boolean;
   onToggle?: () => void;
+  /** When false, the card is on the wrong network and buy actions should be visually disabled */
+  isNetworkCompatible?: boolean;
 }
 
-const NFTCard: React.FC<NFTCardProps> = ({ nft, collectionName, isSelected, onToggle }) => {
+const NFTCard: React.FC<NFTCardProps> = ({ nft, collectionName, isSelected, onToggle, isNetworkCompatible = true }) => {
   const { currency, accentColor } = useNetwork();
   
   // Dynamic classes based on accent color
@@ -47,9 +49,15 @@ const NFTCard: React.FC<NFTCardProps> = ({ nft, collectionName, isSelected, onTo
         {/* Hover Quick Buy */}
         {!isSelected && (
             <div className="absolute bottom-0 left-0 w-full opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <div className={`${bgSelected} text-black text-center text-xs font-bold py-2 uppercase tracking-widest`}>
-                    Quick Buy
-                </div>
+                {isNetworkCompatible ? (
+                  <div className={`${bgSelected} text-black text-center text-xs font-bold py-2 uppercase tracking-widest`}>
+                      Quick Buy
+                  </div>
+                ) : (
+                  <div className="bg-gray-700 text-gray-300 text-center text-xs font-bold py-2 uppercase tracking-widest">
+                      Switch to Solana
+                  </div>
+                )}
             </div>
         )}
       </div>

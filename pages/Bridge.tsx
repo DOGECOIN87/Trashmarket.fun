@@ -697,12 +697,13 @@ const Bridge: React.FC = () => {
                     <th className="p-4 font-bold">Selling</th>
                     <th className="p-4 font-bold">Amount</th>
                     <th className="p-4 font-bold">Buying</th>
+                    <th className="p-4 font-bold">Network</th>
                     <th className="p-4 font-bold text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm">
                   {filteredOrders.length === 0 ? (
-                    <tr><td colSpan={5} className="p-10 text-center text-gray-500">NO_ACTIVE_ORDERS</td></tr>
+                    <tr><td colSpan={6} className="p-10 text-center text-gray-500">NO_ACTIVE_ORDERS</td></tr>
                   ) : (
                     filteredOrders.map(order => {
                       const { sell, buy } = getTokenInfo(order.direction);
@@ -718,6 +719,15 @@ const Bridge: React.FC = () => {
                           </td>
                           <td className="p-4 font-bold">{formatAmount(order.amount)} {sell}</td>
                           <td className="p-4 text-gray-400 text-xs">{buy}</td>
+                          <td className="p-4">
+                            <span className={`text-[10px] px-2 py-1 rounded font-bold ${
+                              order.network === 'GORBAGANA'
+                                ? 'bg-magic-green/20 text-magic-green'
+                                : 'bg-purple-500/20 text-purple-400'
+                            }`}>
+                              {order.network ?? 'UNKNOWN'}
+                            </span>
+                          </td>
                           <td className="p-4 text-right">
                             {isMyOrder && currentRpcEndpoint === GORBAGANA_CONFIG.rpcEndpoint && ( // Conditionally render CANCEL button
                               <button
