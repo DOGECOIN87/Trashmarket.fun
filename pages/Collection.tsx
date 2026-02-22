@@ -165,7 +165,7 @@ const Collection: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative">
+    <div className="min-h-screen flex flex-col relative z-10">
       {/* Background Video - Full Page with Full Opacity */}
       <video
         ref={videoRef}
@@ -173,7 +173,7 @@ const Collection: React.FC = () => {
         loop
         muted={isMuted}
         playsInline
-        className="fixed top-0 left-0 w-full h-full object-cover -z-10"
+        className="fixed top-0 left-0 w-full h-full object-cover z-0"
         src="/New-bg-hero-vide9.mp4"
       />
       {/* Mute Button */}
