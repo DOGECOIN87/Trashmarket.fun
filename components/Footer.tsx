@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div className="md:col-span-1">
                         <div className="flex items-center gap-3 mb-4">
-                            <img src="/logo-square.jpg" alt="Logo" className="w-8 h-8 rounded-sm opacity-80" />
+                            <img src="/assets/logo.svg" alt="Logo" className="w-8 h-8 rounded-sm opacity-80" />
                             <h3 className="text-xl font-bold bg-gradient-to-r from-magic-green to-white bg-clip-text text-transparent tracking-tighter leading-none">TRASHMARKET.FUN</h3>
                         </div>
                         <p className="text-gray-500 text-sm font-mono">

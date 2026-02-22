@@ -126,7 +126,7 @@ const Navbar: React.FC = () => {
               <Link to="/" className="flex items-center gap-3 group">
                 <div className="relative w-8 h-8 transition-transform duration-300 group-hover:scale-110">
                   <img
-                    src="/logo-square.jpg"
+                    src="/assets/logo.svg"
                     alt="Trash Market Logo"
                     className="w-full h-full object-contain rounded-sm"
                   />

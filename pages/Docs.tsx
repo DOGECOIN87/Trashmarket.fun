@@ -146,10 +146,10 @@ const Docs: React.FC = () => {
                 <div className="flex justify-center mb-12">
                   <div className="border border-white/20 bg-black p-8 flex flex-col items-center justify-center gap-4 group w-full max-w-md">
                     <div className="relative w-32 h-32 transition-transform group-hover:scale-105">
-                      <img src="/logo-square.jpg" alt="Square Logomark" className="w-full h-full object-contain" />
+                      <img src="/assets/logo.svg" alt="Official Logomark" className="w-full h-full object-contain" />
                       <div className="absolute inset-0 bg-magic-green/10 blur-xl rounded-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     </div>
-                    <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Primary_Variant (JPG)</div>
+                    <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Official_SVG_Variant</div>
                   </div>
                 </div>
 
@@ -247,7 +247,7 @@ const Docs: React.FC = () => {
               <div className="relative group mb-12">
                 <div className="absolute inset-0 bg-magic-green/30 blur-[80px] rounded-full scale-125 opacity-40 group-hover:opacity-100 transition-opacity duration-1000"></div>
                 <img
-                  src="/logo-circle.png"
+                  src="/assets/logo.svg"
                   alt="Trashmarket Token"
                   className="w-56 h-56 relative z-10 transition-transform duration-1000 group-hover:rotate-[360deg] drop-shadow-[0_0_20px_rgba(173,255,2,0.4)]"
                 />
