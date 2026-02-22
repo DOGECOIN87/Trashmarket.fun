@@ -25,6 +25,7 @@ import {
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import { RPC_ENDPOINTS } from '../lib/rpcConfig';
+import type { NetworkType } from '../contexts/NetworkContext';
 import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
@@ -94,6 +95,7 @@ export interface TradeResult {
 /**
  * Create a new listing for a Gorbagio NFT.
  * The seller must own the NFT on Solana.
+ * @param currentNetwork - The user's currently active network. Must be SOLANA_MAINNET.
  */
 export async function createListing(
   connection: Connection,
@@ -102,7 +104,14 @@ export async function createListing(
   priceSol: number,
   name: string,
   image: string,
+  currentNetwork?: NetworkType,
 ): Promise<void> {
+  // Block listing if not on Solana Mainnet
+  if (currentNetwork && currentNetwork !== 'SOLANA_MAINNET') {
+    throw new Error(
+      'Please switch to Solana network to list Gorbagio NFTs. Gorbagana network does not support Solana NFTs.',
+    );
+  }
   // Verify seller owns the NFT
   const mint = new PublicKey(mintAddress);
   const sellerAta = await getAssociatedTokenAddress(mint, sellerWallet);
@@ -279,13 +288,23 @@ export async function buildBuyTransaction(
  * Execute the buy: send payment, then mark listing as sold in Firestore.
  *
  * Returns the transaction signature on success.
+ * @param currentNetwork - The user's currently active network. Must be SOLANA_MAINNET.
  */
 export async function executeBuy(
   connection: Connection,
   buyerWallet: PublicKey,
   signTransaction: (tx: Transaction) => Promise<Transaction>,
   listing: GorbagioListing,
+  currentNetwork?: NetworkType,
 ): Promise<TradeResult> {
+  // Block trades if not on Solana Mainnet
+  if (currentNetwork && currentNetwork !== 'SOLANA_MAINNET') {
+    return {
+      success: false,
+      error:
+        'Please switch to Solana network to trade Gorbagio NFTs. Gorbagana network does not support Solana NFTs.',
+    };
+  }
   try {
     // Re-verify listing is still active
     const listingRef = doc(db, LISTINGS_COLLECTION, listing.mintAddress);

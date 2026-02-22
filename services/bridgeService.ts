@@ -25,6 +25,8 @@ export interface BridgeOrder {
   expirationSlot: BN;
   isFilled: boolean;
   bump: number;
+  /** The source network this order was fetched from */
+  network?: 'GORBAGANA' | 'SOLANA';
 }
 
 export const useBridgeService = () => {
@@ -431,28 +433,55 @@ export const useBridgeService = () => {
     return txid;
   };
 
-  // Fetch all orders — memoized so Bridge.tsx useEffect doesn't loop
+  // Fetch all orders from BOTH programs simultaneously so orders are visible regardless of active network.
+  // Gorbagana program holds gGOR orders; Solana program holds sGOR orders.
   const fetchAllOrders = useCallback(async (): Promise<BridgeOrder[]> => {
-    // Use the correct program based on current network
-    const currentProgram = activeProgram;
-    if (!currentProgram) return [];
+    const orders: BridgeOrder[] = [];
 
-    try {
-      const accounts = await currentProgram.account.order.all();
-      return accounts.map(acc => ({
-        orderPDA: acc.publicKey,
-        maker: acc.account.maker,
-        amount: acc.account.amount,
-        direction: acc.account.direction || 0, // Solana devnet program doesn't have direction field
-        expirationSlot: acc.account.expirationSlot,
-        isFilled: acc.account.isFilled,
-        bump: acc.account.bump,
-      }));
-    } catch (error) {
-      console.error('Failed to fetch orders:', error);
-      return [];
+    // Always attempt to fetch from Gorbagana program
+    if (program) {
+      try {
+        const gorbaganaAccounts = await program.account.order.all();
+        orders.push(
+          ...gorbaganaAccounts.map(acc => ({
+            orderPDA: acc.publicKey,
+            maker: acc.account.maker,
+            amount: acc.account.amount,
+            direction: acc.account.direction || 0,
+            expirationSlot: acc.account.expirationSlot,
+            isFilled: acc.account.isFilled,
+            bump: acc.account.bump,
+            network: 'GORBAGANA' as const,
+          }))
+        );
+      } catch (err) {
+        console.error('[BridgeService] Failed to fetch Gorbagana orders:', err);
+      }
     }
-  }, [activeProgram]);
+
+    // Always attempt to fetch from Solana program
+    if (solanaProgram) {
+      try {
+        const solanaAccounts = await solanaProgram.account.order.all();
+        orders.push(
+          ...solanaAccounts.map(acc => ({
+            orderPDA: acc.publicKey,
+            maker: acc.account.maker,
+            amount: acc.account.amount,
+            direction: acc.account.direction || 0,
+            expirationSlot: acc.account.expirationSlot,
+            isFilled: acc.account.isFilled,
+            bump: acc.account.bump,
+            network: 'SOLANA' as const,
+          }))
+        );
+      } catch (err) {
+        console.error('[BridgeService] Failed to fetch Solana orders:', err);
+      }
+    }
+
+    return orders;
+  }, [program, solanaProgram]);
 
   return {
     createOrderGGOR,

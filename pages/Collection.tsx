@@ -8,6 +8,7 @@ import { useNetwork } from '../contexts/NetworkContext';
 import { getGorbagioCollectionWithNFTs } from '../services/gorbagioService';
 import { Collection as CollectionType, NFT } from '../types';
 
+
 // ─── FilterContent extracted as a standalone component to avoid React Error #185 ───
 interface FilterContentProps {
   accentColor: string;
@@ -64,7 +65,16 @@ const Collection: React.FC = () => {
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
-  const { currency, accentColor } = useNetwork();
+  const { currency, accentColor, currentNetwork } = useNetwork();
+
+  // Guard: block buy/select actions when not on Solana Mainnet
+  const handleNFTToggle = (nft: NFT) => {
+    if (currentNetwork !== 'SOLANA_MAINNET') {
+      alert('Switch to Solana network to buy this NFT');
+      return;
+    }
+    // In a full implementation, this would open a buy modal
+  };
 
   const toggleMute = () => {
     if (videoRef.current) {
@@ -378,9 +388,8 @@ const Collection: React.FC = () => {
                     nft={nft}
                     collectionName={collection.name}
                     isSelected={selectedNfts.has(nft.id)}
-                    onToggle={() => {
-                      // Logic handled by parent or context in real app
-                    }}
+                    onToggle={() => handleNFTToggle(nft)}
+                    isNetworkCompatible={currentNetwork === 'SOLANA_MAINNET'}
                   />
                 ))}
               </div>
