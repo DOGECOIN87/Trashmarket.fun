@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Github, Twitter, Send } from 'lucide-react';
+import LotteryTickets from './LotteryTickets';
 
 const Footer: React.FC = () => {
     return (
@@ -31,6 +32,9 @@ const Footer: React.FC = () => {
                             <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/docs">Brand Kit</Link></li>
 
                         </ul>
+                    </div>
+                    <div className="md:col-span-2">
+                        <LotteryTickets />
                     </div>
                     <div>
                         <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs px-1">Community</h4>
