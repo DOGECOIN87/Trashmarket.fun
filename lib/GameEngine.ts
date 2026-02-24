@@ -273,6 +273,10 @@ export class GameEngine {
     const width = DIMENSIONS.PLAYFIELD_WIDTH - 0.2;
     const length = 4;
     const height = 1;
+    // Massive rear extension that goes well past the back wall so coins
+    // can never slip behind the pusher regardless of its position.
+    const rearExtLength = DIMENSIONS.PLAYFIELD_LENGTH;
+    const wallExtHeight = DIMENSIONS.WALL_HEIGHT;
 
     const geo = new THREE.BoxGeometry(width, height, length);
     const mat = new THREE.MeshStandardMaterial({
@@ -288,34 +292,36 @@ export class GameEngine {
       .setTranslation(0, height / 2 + 0.05, -DIMENSIONS.PLAYFIELD_LENGTH / 2 + 2);
     this.pusherBody = this.world.createRigidBody(bodyDesc);
     
-    // Main pusher collider
+    // Main pusher collider (the visible part)
     this.world.createCollider(
       RAPIER.ColliderDesc.cuboid(width / 2, height / 2, length / 2)
         .setFriction(PHYSICS.COIN_FRICTION),
       this.pusherBody
     );
     
-    // Extended side walls to prevent coins from falling behind the pusher
-    // Left wall extension
+    // --- REAR EXTENSION: a massive invisible slab behind the pusher ---
+    // This extends far enough back that coins can never fall behind.
+    // Half-length = rearExtLength/2, centered at z = length/2 + rearExtLength/2
     this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(0.3, height / 2, length / 2 + 1)
-        .setTranslation(-width / 2 - 0.3, 0, 0)
+      RAPIER.ColliderDesc.cuboid(width / 2, height / 2, rearExtLength / 2)
+        .setTranslation(0, 0, length / 2 + rearExtLength / 2)
         .setFriction(PHYSICS.COIN_FRICTION),
       this.pusherBody
     );
     
-    // Right wall extension
+    // --- TALL SIDE WALLS that travel with the pusher ---
+    // Left wall extension (full height, extends back)
     this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(0.3, height / 2, length / 2 + 1)
-        .setTranslation(width / 2 + 0.3, 0, 0)
+      RAPIER.ColliderDesc.cuboid(0.5, wallExtHeight / 2, length / 2 + rearExtLength / 2)
+        .setTranslation(-width / 2 - 0.5, wallExtHeight / 2 - height / 2, rearExtLength / 4)
         .setFriction(PHYSICS.COIN_FRICTION),
       this.pusherBody
     );
     
-    // Rear wall extension to prevent coins from falling behind
+    // Right wall extension (full height, extends back)
     this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(width / 2, height / 2, 0.3)
-        .setTranslation(0, 0, length / 2 + 0.3)
+      RAPIER.ColliderDesc.cuboid(0.5, wallExtHeight / 2, length / 2 + rearExtLength / 2)
+        .setTranslation(width / 2 + 0.5, wallExtHeight / 2 - height / 2, rearExtLength / 4)
         .setFriction(PHYSICS.COIN_FRICTION),
       this.pusherBody
     );
