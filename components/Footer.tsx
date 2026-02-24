@@ -33,10 +33,10 @@ const Footer: React.FC = () => {
 
                         </ul>
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 flex flex-col justify-start">
                         <LotteryTickets />
                     </div>
-                    <div>
+                    <div className="flex flex-col">
                         <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs px-1">Community</h4>
                         <div className="flex gap-4">
                             <a
