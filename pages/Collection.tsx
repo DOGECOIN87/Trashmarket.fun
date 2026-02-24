@@ -63,9 +63,18 @@ const Collection: React.FC = () => {
   const [sweepCount, setSweepCount] = useState<number>(0);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [showVideo, setShowVideo] = useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
   const { currency, accentColor, currentNetwork } = useNetwork();
+
+  useEffect(() => {
+    // Check if we came from a link with "executeView=true"
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('executeView') === 'true') {
+      setShowVideo(false);
+    }
+  }, []);
 
   // Guard: block buy/select actions when not on Solana Mainnet
   const handleNFTToggle = (nft: NFT) => {
@@ -167,15 +176,27 @@ const Collection: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col relative z-10">
       {/* Background Video - Full Page with Full Opacity */}
-      <video
-        ref={videoRef}
-        autoPlay
-        loop
-        muted={isMuted}
-        playsInline
-        className="fixed top-0 left-0 w-full h-full object-cover z-0"
-        src="/New-bg-hero-vide9.mp4"
-      />
+      <div className="fixed top-0 left-0 w-full h-full bg-black z-0">
+        {showVideo && (
+          <video
+            ref={videoRef}
+            autoPlay
+            loop
+            muted={isMuted}
+            playsInline
+            className="w-full h-full object-cover"
+            src="/New-bg-hero-vide9.mp4"
+          />
+        )}
+        {!showVideo && (
+          <audio
+            autoPlay
+            loop
+            muted={isMuted}
+            src="/New-bg-hero-vide9.mp4"
+          />
+        )}
+      </div>
       {/* Mute Button */}
       <button
         onClick={toggleMute}

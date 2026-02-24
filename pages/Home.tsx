@@ -166,7 +166,7 @@ const Home: React.FC = () => {
                   </div>
 
                   <Link
-                    to={`/collection/${featuredCollection.id}`}
+                    to={`/collection/${featuredCollection.id}?executeView=true`}
                     className={`group relative px-8 py-3 bg-black border ${accentColor === 'text-magic-purple' ? 'border-magic-purple text-magic-purple hover:bg-magic-purple' : 'border-magic-green text-magic-green hover:bg-magic-green'} font-bold uppercase tracking-widest text-xs hover:text-black transition-all duration-200`}
                   >
                     <span className="relative z-10 flex items-center gap-2">

@@ -558,7 +558,7 @@ const Bridge: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2 text-gray-400 text-xs">
                       <Heart className="w-3 h-3 text-magic-red" />
-                      <span>No goal — every GOR counts</span>
+                      <span>The bridge is code-complete. If the community wants it enough, the funds will come to finalize the Solana program deployment.</span>
                     </div>
                   </div>
                 </div>
