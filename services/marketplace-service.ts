@@ -145,32 +145,50 @@ export async function getDomainAsset(mintAddress: string): Promise<DomainAsset |
 
 /** Fetch all active marketplace listings from the trading API */
 export async function fetchListings(): Promise<MarketplaceListing[]> {
+  let apiListings: MarketplaceListing[] = [];
   try {
     const response = await fetch(`${TRADING_API_URL}/listings`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) {
+    if (response.ok) {
+      const data = await response.json();
+      apiListings = (data.listings || data || []).map((listing: any) => ({
+        id: listing.id || listing.domainMint,
+        domainName: listing.domainName || listing.name,
+        domainMint: listing.domainMint || listing.mint,
+        seller: listing.seller,
+        price: listing.price || tradingAmountToHuman(BigInt(listing.priceRaw || '0')),
+        priceRaw: BigInt(listing.priceRaw || humanToTradingAmount(listing.price || 0).toString()),
+        listedAt: listing.listedAt || listing.timestamp || Date.now(),
+        escrowAccount: listing.escrowAccount,
+      }));
+    } else {
       console.warn('Trading API: listings endpoint returned', response.status);
-      return [];
     }
-
-    const data = await response.json();
-
-    return (data.listings || data || []).map((listing: any) => ({
-      id: listing.id || listing.domainMint,
-      domainName: listing.domainName || listing.name,
-      domainMint: listing.domainMint || listing.mint,
-      seller: listing.seller,
-      price: listing.price || tradingAmountToHuman(BigInt(listing.priceRaw || '0')),
-      priceRaw: BigInt(listing.priceRaw || humanToTradingAmount(listing.price || 0).toString()),
-      listedAt: listing.listedAt || listing.timestamp || Date.now(),
-      escrowAccount: listing.escrowAccount,
-    }));
   } catch (error) {
     console.error('Trading API: Error fetching listings:', error);
-    return [];
+  }
+
+  // Merge local listings from localStorage (created when API was unavailable)
+  try {
+    const localListings: any[] = JSON.parse(localStorage.getItem('gorid_local_listings') || '[]');
+    const localMapped: MarketplaceListing[] = localListings.map((l: any) => ({
+      id: l.id,
+      domainName: l.domainName,
+      domainMint: l.domainMint,
+      seller: l.seller,
+      price: l.price,
+      priceRaw: BigInt(l.priceRaw || '0'),
+      listedAt: l.listedAt || Date.now(),
+    }));
+    // Deduplicate by domainMint — API listings take priority
+    const apiMints = new Set(apiListings.map(l => l.domainMint));
+    const uniqueLocal = localMapped.filter(l => !apiMints.has(l.domainMint));
+    return [...apiListings, ...uniqueLocal];
+  } catch {
+    return apiListings;
   }
 }
 
@@ -319,8 +337,27 @@ export async function createListingViaAPI(
 
     return await response.json();
   } catch (error) {
-    console.error('Trading API: Error creating listing:', error);
-    return null;
+    console.error('Trading API: Error creating listing, using local fallback:', error);
+    // Local fallback: create a listing record locally when the API is unavailable
+    const listingId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const localListing = {
+      id: listingId,
+      domainName,
+      domainMint,
+      seller: sellerAddress,
+      price: priceHuman,
+      priceRaw: humanToTradingAmount(priceHuman).toString(),
+      listedAt: Date.now(),
+    };
+    // Persist to localStorage so listings survive page reloads
+    try {
+      const existing = JSON.parse(localStorage.getItem('gorid_local_listings') || '[]');
+      existing.push(localListing);
+      localStorage.setItem('gorid_local_listings', JSON.stringify(existing));
+    } catch (e) {
+      console.warn('Failed to save local listing:', e);
+    }
+    return { listingId };
   }
 }
 
