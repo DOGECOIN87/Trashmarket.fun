@@ -271,14 +271,26 @@ export class GameEngine {
 
   private buildPusher() {
     const width = DIMENSIONS.PLAYFIELD_WIDTH - 0.2;
-    const length = 4;
     const height = 1;
-    // Massive rear extension that goes well past the back wall so coins
-    // can never slip behind the pusher regardless of its position.
-    const rearExtLength = DIMENSIONS.PLAYFIELD_LENGTH;
-    const wallExtHeight = DIMENSIONS.WALL_HEIGHT;
 
-    const geo = new THREE.BoxGeometry(width, height, length);
+    // --- Geometry math (movement logic is NOT changed) ---
+    // Body pivot at rest: Z = -PLAYFIELD_LENGTH/2 + 2 = -3
+    // Max backward (pivot): -3 + PUSHER_AMPLITUDE = -1.9
+    // Rear wall inner face: Z = -PLAYFIELD_LENGTH/2 = -5
+    //
+    // We need the rear face of the pusher to always reach Z = -5.
+    // Worst case is max-backward where pivot = -1.9.
+    //   rearHalf >= |-1.9 - (-5)| = 3.1
+    // Keep the front half-extent the same as before (2.0) so the
+    // pushing face doesn't change position.
+    const frontHalf = 2.0;                              // original front half-extent (unchanged)
+    const neededRearHalf = 2 + PHYSICS.PUSHER_AMPLITUDE; // 3.1 — guarantees rear face reaches back wall
+    const totalLength = frontHalf + neededRearHalf;      // 5.1
+    const zOffset = -(neededRearHalf - frontHalf) / 2;   // -0.55  (shifts geometry toward rear only)
+
+    // --- Visible mesh: sized to totalLength, offset so front face stays put ---
+    const geo = new THREE.BoxGeometry(width, height, totalLength);
+    geo.translate(0, 0, zOffset);  // shift verts backward in local space
     const mat = new THREE.MeshStandardMaterial({
       color: COLORS.PUSHER,
       roughness: 0.5,
@@ -288,40 +300,15 @@ export class GameEngine {
     mesh.castShadow = true;
     this.scene.add(mesh);
 
+    // --- Rigid body (position & movement are UNCHANGED) ---
     const bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased()
       .setTranslation(0, height / 2 + 0.05, -DIMENSIONS.PLAYFIELD_LENGTH / 2 + 2);
     this.pusherBody = this.world.createRigidBody(bodyDesc);
-    
-    // Main pusher collider (the visible part)
+
+    // Single collider matching the extended mesh, offset the same way
     this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(width / 2, height / 2, length / 2)
-        .setFriction(PHYSICS.COIN_FRICTION),
-      this.pusherBody
-    );
-    
-    // --- REAR EXTENSION: a massive invisible slab behind the pusher ---
-    // This extends far enough back that coins can never fall behind.
-    // Half-length = rearExtLength/2, centered at z = length/2 + rearExtLength/2
-    this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(width / 2, height / 2, rearExtLength / 2)
-        .setTranslation(0, 0, length / 2 + rearExtLength / 2)
-        .setFriction(PHYSICS.COIN_FRICTION),
-      this.pusherBody
-    );
-    
-    // --- TALL SIDE WALLS that travel with the pusher ---
-    // Left wall extension (full height, extends back)
-    this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(0.5, wallExtHeight / 2, length / 2 + rearExtLength / 2)
-        .setTranslation(-width / 2 - 0.5, wallExtHeight / 2 - height / 2, rearExtLength / 4)
-        .setFriction(PHYSICS.COIN_FRICTION),
-      this.pusherBody
-    );
-    
-    // Right wall extension (full height, extends back)
-    this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(0.5, wallExtHeight / 2, length / 2 + rearExtLength / 2)
-        .setTranslation(width / 2 + 0.5, wallExtHeight / 2 - height / 2, rearExtLength / 4)
+      RAPIER.ColliderDesc.cuboid(width / 2, height / 2, totalLength / 2)
+        .setTranslation(0, 0, zOffset)
         .setFriction(PHYSICS.COIN_FRICTION),
       this.pusherBody
     );
