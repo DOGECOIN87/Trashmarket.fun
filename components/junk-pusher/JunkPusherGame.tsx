@@ -177,6 +177,66 @@ const JunkPusherGame: React.FC = () => {
 
     return (
         <div className="relative w-full h-screen overflow-hidden bg-black">
+            {/* Floating Background Images */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {/* Trash Character 1 - Top Left */}
+                <img
+                    src="/assets/backgrounds/trash-character-1.png"
+                    alt=""
+                    className="absolute w-32 h-32 opacity-20 animate-float-slow"
+                    style={{ left: '5%', top: '10%', animationDelay: '0s' }}
+                />
+                {/* Trash Character 2 - Top Right */}
+                <img
+                    src="/assets/backgrounds/trash-character-2.png"
+                    alt=""
+                    className="absolute w-40 h-40 opacity-15 animate-float-slow"
+                    style={{ right: '8%', top: '15%', animationDelay: '2s' }}
+                />
+                {/* Trash Character 3 - Middle Left */}
+                <img
+                    src="/assets/backgrounds/trash-character-3.png"
+                    alt=""
+                    className="absolute w-36 h-36 opacity-20 animate-float-slow"
+                    style={{ left: '10%', top: '45%', animationDelay: '4s' }}
+                />
+                {/* Trash Character 4 - Middle Right */}
+                <img
+                    src="/assets/backgrounds/trash-character-4.png"
+                    alt=""
+                    className="absolute w-32 h-32 opacity-15 animate-float-slow"
+                    style={{ right: '12%', top: '50%', animationDelay: '1s' }}
+                />
+                {/* Trash Character 5 - Bottom Left */}
+                <img
+                    src="/assets/backgrounds/trash-character-5.png"
+                    alt=""
+                    className="absolute w-40 h-40 opacity-20 animate-float-slow"
+                    style={{ left: '8%', bottom: '10%', animationDelay: '3s' }}
+                />
+                {/* Trash Character 6 - Bottom Right */}
+                <img
+                    src="/assets/backgrounds/trash-character-6.png"
+                    alt=""
+                    className="absolute w-36 h-36 opacity-15 animate-float-slow"
+                    style={{ right: '5%', bottom: '15%', animationDelay: '5s' }}
+                />
+                {/* Chains - Top Center */}
+                <img
+                    src="/assets/backgrounds/chains.png"
+                    alt=""
+                    className="absolute w-48 h-48 opacity-10 animate-float-slow"
+                    style={{ left: '50%', top: '5%', transform: 'translateX(-50%)', animationDelay: '2.5s' }}
+                />
+                {/* Trash Bin - Center */}
+                <img
+                    src="/assets/backgrounds/trash-bin.png"
+                    alt=""
+                    className="absolute w-44 h-44 opacity-12 animate-float-slow"
+                    style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', animationDelay: '1.5s' }}
+                />
+            </div>
+
             {/* On-chain status indicator */}
             {wallet.isConnected && (
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
