@@ -139,6 +139,7 @@ export class GameEngine {
 
     // 4. Build Level
     this.buildStaticGeometry();
+    this.buildOcclusionPanel();
     this.buildPusher();
     this.initCoinSystem();
     this.initTrashcoinSystem();
@@ -269,6 +270,48 @@ export class GameEngine {
 
   }
 
+  private buildOcclusionPanel() {
+    const pfWidth = DIMENSIONS.PLAYFIELD_WIDTH;
+    const wallHeight = DIMENSIONS.WALL_HEIGHT;
+    const rearWallZ = -DIMENSIONS.PLAYFIELD_LENGTH / 2;
+    
+    // Panel dimensions: wider and taller than the opening for FOV safety
+    const panelWidth = pfWidth + 4;      // Extra 2 units on each side
+    const panelHeight = wallHeight + 3;  // Extra 1.5 units top and bottom
+    const panelDepth = 5;                // Deep enough to hide any overextension
+    
+    // Position: centered behind the rear wall opening
+    const panelZ = rearWallZ - panelDepth / 2;  // -5 - 2.5 = -7.5
+    const panelY = wallHeight / 2;               // Centered vertically on wall
+    
+    // Create unlit black material (no shadows, no lighting)
+    const occlusionMat = new THREE.MeshBasicMaterial({
+      color: 0x000000,  // Pure black matching background
+      side: THREE.FrontSide,
+      fog: false,
+      transparent: false,
+      depthWrite: true,
+      depthTest: true
+    });
+    
+    // Create geometry
+    const occlusionGeo = new THREE.BoxGeometry(panelWidth, panelHeight, panelDepth);
+    const occlusionMesh = new THREE.Mesh(occlusionGeo, occlusionMat);
+    
+    // Position in world space
+    occlusionMesh.position.set(0, panelY, panelZ);
+    
+    // Disable all lighting and shadow interactions
+    occlusionMesh.castShadow = false;
+    occlusionMesh.receiveShadow = false;
+    occlusionMesh.matrixAutoUpdate = true;
+    
+    // Add to scene
+    this.scene.add(occlusionMesh);
+    
+    // NO physics collider - purely visual occlusion only
+  }
+
   private buildPusher() {
     const width = DIMENSIONS.PLAYFIELD_WIDTH - 0.2;
     const height = 1;
@@ -291,10 +334,16 @@ export class GameEngine {
     // --- Visible mesh: sized to totalLength, offset so front face stays put ---
     const geo = new THREE.BoxGeometry(width, height, totalLength);
     geo.translate(0, 0, zOffset);  // shift verts backward in local space
+    // Realistic stainless steel material (PBR)
+    // Color: neutral stainless steel (light silver-gray)
+    // Metalness: 0.9 (highly metallic)
+    // Roughness: 0.35 (brushed, not mirror-like)
     const mat = new THREE.MeshStandardMaterial({
-      color: COLORS.PUSHER,
-      roughness: 0.5,
-      metalness: 0.5
+      color: 0xc0c0c0,        // Neutral stainless steel color
+      metalness: 0.9,         // Highly metallic for realistic metal appearance
+      roughness: 0.35,        // Brushed finish (not mirror-like)
+      envMapIntensity: 1.0,   // Respond to environment lighting
+      side: THREE.FrontSide   // Only front-facing surfaces
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = true;
