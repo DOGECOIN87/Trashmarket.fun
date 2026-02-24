@@ -18,7 +18,7 @@ const JunkPusherGame: React.FC = () => {
 
     const [gameState, setGameState] = useState<GameState>({
         score: 0,
-        balance: 0,
+        balance: 100,
         netProfit: 0,
         fps: 0,
         isPaused: false,
@@ -150,7 +150,7 @@ const JunkPusherGame: React.FC = () => {
             engineRef.current.reset();
             setGameState({
                 score: 0,
-                balance: 0,
+                balance: 100,
                 netProfit: 0,
                 fps: currentState.fps,
                 isPaused: false,

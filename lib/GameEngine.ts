@@ -44,7 +44,7 @@ export class GameEngine {
 
   // Game Variables
   private score = 0;
-  private balance = 0;
+  private balance = 100;
   private netProfit = 0;
   private coinsCollectedRecently = 0;
   private lastCollectionTime = 0;
@@ -287,8 +287,35 @@ export class GameEngine {
     const bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased()
       .setTranslation(0, height / 2 + 0.05, -DIMENSIONS.PLAYFIELD_LENGTH / 2 + 2);
     this.pusherBody = this.world.createRigidBody(bodyDesc);
+    
+    // Main pusher collider
     this.world.createCollider(
       RAPIER.ColliderDesc.cuboid(width / 2, height / 2, length / 2)
+        .setFriction(PHYSICS.COIN_FRICTION),
+      this.pusherBody
+    );
+    
+    // Extended side walls to prevent coins from falling behind the pusher
+    // Left wall extension
+    this.world.createCollider(
+      RAPIER.ColliderDesc.cuboid(0.3, height / 2, length / 2 + 1)
+        .setTranslation(-width / 2 - 0.3, 0, 0)
+        .setFriction(PHYSICS.COIN_FRICTION),
+      this.pusherBody
+    );
+    
+    // Right wall extension
+    this.world.createCollider(
+      RAPIER.ColliderDesc.cuboid(0.3, height / 2, length / 2 + 1)
+        .setTranslation(width / 2 + 0.3, 0, 0)
+        .setFriction(PHYSICS.COIN_FRICTION),
+      this.pusherBody
+    );
+    
+    // Rear wall extension to prevent coins from falling behind
+    this.world.createCollider(
+      RAPIER.ColliderDesc.cuboid(width / 2, height / 2, 0.3)
+        .setTranslation(0, 0, length / 2 + 0.3)
         .setFriction(PHYSICS.COIN_FRICTION),
       this.pusherBody
     );
@@ -305,158 +332,121 @@ export class GameEngine {
       32
     );
 
-    // Load JUNK token texture for coin faces
-    const textureLoader = new THREE.TextureLoader();
-    const junkTexture = textureLoader.load('/junk.png');
-    junkTexture.colorSpace = THREE.SRGBColorSpace;
-
-    // Rim material (side of the coin) — Neon Green brand
-    const rimMaterial = new THREE.MeshStandardMaterial({
+    const material = new THREE.MeshStandardMaterial({
       color: COLORS.COIN,
-      metalness: 0.85,
-      roughness: 0.12,
-      emissive: 0x003300,
-      emissiveIntensity: 0.4
+      roughness: 0.3,
+      metalness: 0.8,
+      emissive: COLORS.COIN,
+      emissiveIntensity: 0.2
     });
 
-    // Face material with JUNK token image (top & bottom caps)
-    const faceMaterial = new THREE.MeshStandardMaterial({
-      map: junkTexture,
-      metalness: 0.3,
-      roughness: 0.35,
-      emissive: 0x002200,
-      emissiveIntensity: 0.3
-    });
+    this.coinProto = new THREE.Mesh(geometry, material);
+    this.coinProto.castShadow = true;
+    this.coinProto.receiveShadow = true;
 
-    // CylinderGeometry material groups: [0]=side, [1]=top cap, [2]=bottom cap
-    const materials = [rimMaterial, faceMaterial, faceMaterial];
-
-    this.coinInstancedMesh = new THREE.InstancedMesh(geometry, materials, PHYSICS.MAX_COINS);
+    this.coinInstancedMesh = new THREE.InstancedMesh(
+      geometry,
+      material,
+      PHYSICS.MAX_COINS
+    );
     this.coinInstancedMesh.castShadow = true;
     this.coinInstancedMesh.receiveShadow = true;
-    this.coinInstancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.scene.add(this.coinInstancedMesh);
-
-    const dummy = new THREE.Object3D();
-    dummy.scale.set(0, 0, 0);
-    dummy.updateMatrix();
-    for (let i = 0; i < PHYSICS.MAX_COINS; i++) {
-      this.coinInstancedMesh.setMatrixAt(i, dummy.matrix);
-    }
-    this.coinInstancedMesh.instanceMatrix.needsUpdate = true;
   }
 
   private initTrashcoinSystem() {
     const geometry = new THREE.CylinderGeometry(
-      PHYSICS.COIN_RADIUS * 1.05,
-      PHYSICS.COIN_RADIUS * 1.05,
-      PHYSICS.COIN_HEIGHT * 1.2,
+      PHYSICS.COIN_RADIUS,
+      PHYSICS.COIN_RADIUS,
+      PHYSICS.COIN_HEIGHT,
       32
     );
 
-    const textureLoader = new THREE.TextureLoader();
-    const trashTexture = textureLoader.load('/trashcoin.png');
-    trashTexture.colorSpace = THREE.SRGBColorSpace;
+    // Create a material with a golden rim for trashcoins
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
 
-    const rimMaterial = new THREE.MeshStandardMaterial({
-      color: TRASHCOIN.RIM_COLOR,
-      metalness: 0.85,
-      roughness: 0.12,
-      emissive: 0x443300,
-      emissiveIntensity: 0.25,
+    // Base green
+    ctx.fillStyle = '#00ff00';
+    ctx.fillRect(0, 0, 64, 64);
+
+    // Golden rim
+    ctx.strokeStyle = '#daa520';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(32, 32, 30, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      roughness: 0.2,
+      metalness: 0.9,
+      emissive: 0xdaa520,
+      emissiveIntensity: 0.3
     });
 
-    const faceMaterial = new THREE.MeshStandardMaterial({
-      map: trashTexture,
-      metalness: 0.4,
-      roughness: 0.25,
-      emissive: 0x332200,
-      emissiveIntensity: 0.2,
-    });
-
-    const materials = [rimMaterial, faceMaterial, faceMaterial];
-
-    this.trashcoinInstancedMesh = new THREE.InstancedMesh(geometry, materials, TRASHCOIN.MAX_COUNT);
+    this.trashcoinInstancedMesh = new THREE.InstancedMesh(
+      geometry,
+      material,
+      TRASHCOIN.MAX_COUNT
+    );
     this.trashcoinInstancedMesh.castShadow = true;
     this.trashcoinInstancedMesh.receiveShadow = true;
-    this.trashcoinInstancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.scene.add(this.trashcoinInstancedMesh);
-
-    const dummy = new THREE.Object3D();
-    dummy.scale.set(0, 0, 0);
-    dummy.updateMatrix();
-    for (let i = 0; i < TRASHCOIN.MAX_COUNT; i++) {
-      this.trashcoinInstancedMesh.setMatrixAt(i, dummy.matrix);
-    }
-    this.trashcoinInstancedMesh.instanceMatrix.needsUpdate = true;
   }
 
   private spawnInitialCoins() {
-    const count = 80;
-    for (let i = 0; i < count; i++) {
-      const x = (Math.random() - 0.5) * (DIMENSIONS.PLAYFIELD_WIDTH - 1);
-      const z = (Math.random() - 0.5) * (DIMENSIONS.PLAYFIELD_LENGTH - 4);
-      const y = 2 + Math.random() * 5;
-      if (Math.random() < TRASHCOIN.SPAWN_CHANCE && this.trashcoinBodies.length < TRASHCOIN.MAX_COUNT) {
-        this.spawnTrashcoin(x, y, z);
-      } else {
-        this.spawnCoin(x, y, z);
-      }
+    const numInitial = 20;
+    for (let i = 0; i < numInitial; i++) {
+      const x = (Math.random() - 0.5) * 6;
+      const z = (Math.random() - 0.5) * 4;
+      this.spawnCoin(x, 2 + Math.random() * 2, z);
     }
   }
 
-  public spawnCoin(x: number, y: number, z: number) {
+  private spawnCoin(x: number, y: number, z: number) {
     if (this.coinBodies.length >= PHYSICS.MAX_COINS) return;
-
-    // Build a proper unit quaternion from random Euler tilt angles
-    const tiltX = (Math.random() - 0.5) * 0.5;
-    const tiltZ = (Math.random() - 0.5) * 0.5;
-    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(tiltX, 0, tiltZ));
 
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(x, y, z)
-      .setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
       .setLinearDamping(PHYSICS.COIN_LINEAR_DAMPING)
-      .setAngularDamping(PHYSICS.COIN_ANGULAR_DAMPING)
-      .setCcdEnabled(true); // Critical for thin coins
+      .setAngularDamping(PHYSICS.COIN_ANGULAR_DAMPING);
 
     const body = this.world.createRigidBody(bodyDesc);
-    const collider = RAPIER.ColliderDesc.cylinder(PHYSICS.COIN_HEIGHT / 2, PHYSICS.COIN_RADIUS)
-      .setFriction(PHYSICS.COIN_FRICTION)
-      .setRestitution(PHYSICS.COIN_RESTITUTION)
-      .setDensity(PHYSICS.COIN_DENSITY)
-      .setContactSkin(0.015);
-    this.world.createCollider(collider, body);
+    this.world.createCollider(
+      RAPIER.ColliderDesc.cylinder(PHYSICS.COIN_HEIGHT / 2, PHYSICS.COIN_RADIUS)
+        .setRestitution(PHYSICS.COIN_RESTITUTION)
+        .setFriction(PHYSICS.COIN_FRICTION)
+        .setDensity(PHYSICS.COIN_DENSITY),
+      body
+    );
 
-    this.coinBodies.push({ body, id: body.handle });
+    const id = this.coinBodies.length;
+    this.coinBodies.push({ body, id });
   }
 
   private spawnTrashcoin(x: number, y: number, z: number) {
     if (this.trashcoinBodies.length >= TRASHCOIN.MAX_COUNT) return;
 
-    const tiltX = (Math.random() - 0.5) * 0.5;
-    const tiltZ = (Math.random() - 0.5) * 0.5;
-    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(tiltX, 0, tiltZ));
-
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(x, y, z)
-      .setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
       .setLinearDamping(PHYSICS.COIN_LINEAR_DAMPING)
-      .setAngularDamping(PHYSICS.COIN_ANGULAR_DAMPING)
-      .setCcdEnabled(true);
+      .setAngularDamping(PHYSICS.COIN_ANGULAR_DAMPING);
 
     const body = this.world.createRigidBody(bodyDesc);
-    const collider = RAPIER.ColliderDesc.cylinder(
-      PHYSICS.COIN_HEIGHT * 1.2 / 2,
-      PHYSICS.COIN_RADIUS * 1.05
-    )
-      .setFriction(PHYSICS.COIN_FRICTION)
-      .setRestitution(PHYSICS.COIN_RESTITUTION)
-      .setDensity(PHYSICS.COIN_DENSITY)
-      .setContactSkin(0.015);
-    this.world.createCollider(collider, body);
+    this.world.createCollider(
+      RAPIER.ColliderDesc.cylinder(PHYSICS.COIN_HEIGHT / 2, PHYSICS.COIN_RADIUS)
+        .setRestitution(PHYSICS.COIN_RESTITUTION)
+        .setFriction(PHYSICS.COIN_FRICTION)
+        .setDensity(PHYSICS.COIN_DENSITY),
+      body
+    );
 
-    this.trashcoinBodies.push({ body, id: body.handle });
+    const id = this.trashcoinBodies.length;
+    this.trashcoinBodies.push({ body, id });
   }
 
   public dropUserCoin(normalizedX: number) {
@@ -498,7 +488,7 @@ export class GameEngine {
   public bump() {
     // Apply fee (50 JUNK)
     this.balance -= 50;
-    this.netProfit -= 50;
+
     this.updateGameState();
 
     // Play bump sound
@@ -549,7 +539,7 @@ export class GameEngine {
 
   public reset() {
     this.score = 0;
-    this.balance = 0;
+    this.balance = 100;
     this.netProfit = 0;
     this.coinBodies.forEach(c => this.world.removeRigidBody(c.body));
     this.coinBodies = [];

@@ -26,7 +26,7 @@ export const TOKEN_CONFIG = {
   
   // Game Configuration
   GAME: {
-    INITIAL_BALANCE: 0, // Starting JUNK balance (Paid to play)
+    INITIAL_BALANCE: 100, // Starting JUNK balance (Default tokens provided)
     BUMP_COST: 50, // Cost in JUNK to bump the machine
     DROP_COST: 1, // Cost in JUNK to drop a coin
   },
