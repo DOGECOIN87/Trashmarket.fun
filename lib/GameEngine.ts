@@ -44,7 +44,7 @@ export class GameEngine {
 
   // Game Variables
   private score = 0;
-  private balance = 100;
+  private balance = 0;
   private netProfit = 0;
   private coinsCollectedRecently = 0;
   private lastCollectionTime = 0;
@@ -549,7 +549,7 @@ export class GameEngine {
 
   public reset() {
     this.score = 0;
-    this.balance = 100;
+    this.balance = 0;
     this.netProfit = 0;
     this.coinBodies.forEach(c => this.world.removeRigidBody(c.body));
     this.coinBodies = [];
