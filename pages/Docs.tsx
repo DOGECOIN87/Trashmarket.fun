@@ -254,8 +254,7 @@ const Docs: React.FC = () => {
               </div>
 
               <div className="text-center relative z-10">
-                <h2 className="text-4xl md:text-5xl font-heading text-white uppercase tracking-tight mb-8 flex items-center justify-center gap-3">
-                  <Coins className="w-8 h-8 text-magic-green animate-pulse" />
+                <h2 className="text-4xl md:text-5xl font-heading text-white uppercase tracking-tight mb-8">
                   Trashmarket.fun Token
                 </h2>
                 <p className="text-gray-300 font-heading text-lg md:text-xl max-w-md mx-auto opacity-80 leading-relaxed uppercase tracking-widest mb-8">
