@@ -8,10 +8,10 @@ const Footer: React.FC = () => {
         <footer className="relative bg-magic-dark border-t border-white/10 pt-16 pb-8 overflow-hidden">
             {/* Animated SVG Background */}
             <div 
-                className="absolute inset-0 pointer-events-none opacity-45 z-0"
+                className="absolute inset-0 pointer-events-none opacity-30 z-0"
                 style={{
                     backgroundImage: 'url("/assets/enhanced_logo_v6.svg")',
-                    backgroundSize: '250px 250px',
+                    backgroundSize: '350px 350px',
                     backgroundPosition: '0 0',
                     backgroundRepeat: 'repeat'
                 }}
