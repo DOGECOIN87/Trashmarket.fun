@@ -11,7 +11,7 @@ const Footer: React.FC = () => {
                 className="absolute inset-0 pointer-events-none opacity-45 z-0"
                 style={{
                     backgroundImage: 'url("/assets/enhanced_logo_v6.svg")',
-                    backgroundSize: 'cover',
+                    backgroundSize: '40%',
                     backgroundPosition: 'center',
                     backgroundRepeat: 'no-repeat'
                 }}
