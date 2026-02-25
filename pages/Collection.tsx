@@ -74,7 +74,7 @@ const Collection: React.FC = () => {
     if (params.get('executeView') === 'true') {
       setShowVideo(false);
     }
-  }, []);
+  }, [window.location.search]);
 
   // Guard: block buy/select actions when not on Solana Mainnet
   const handleNFTToggle = (nft: NFT) => {
@@ -177,7 +177,7 @@ const Collection: React.FC = () => {
     <div className="min-h-screen flex flex-col relative z-10">
       {/* Background Video - Full Page with Full Opacity */}
       <div className="fixed top-0 left-0 w-full h-full bg-black z-0">
-        {showVideo && (
+        {showVideo ? (
           <video
             ref={videoRef}
             autoPlay
@@ -187,28 +187,24 @@ const Collection: React.FC = () => {
             className="w-full h-full object-cover"
             src="/New-bg-hero-vide9.mp4"
           />
-        )}
-        {!showVideo && (
-          <audio
-            autoPlay
-            loop
-            muted={isMuted}
-            src="/New-bg-hero-vide9.mp4"
-          />
+        ) : (
+          <div className="w-full h-full bg-black" />
         )}
       </div>
       {/* Mute Button */}
-      <button
-        onClick={toggleMute}
-        className="fixed top-20 right-4 z-50 p-2 bg-black/50 border border-white/20 rounded-full hover:bg-black/70 transition-all duration-200 group"
-        aria-label={isMuted ? 'Unmute video' : 'Mute video'}
-      >
-        {isMuted ? (
-          <VolumeX className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-        ) : (
-          <Volume2 className="w-4 h-4 text-magic-green group-hover:text-magic-green/80 transition-colors" />
-        )}
-      </button>
+      {showVideo && (
+        <button
+          onClick={toggleMute}
+          className="fixed top-20 right-4 z-50 p-2 bg-black/50 border border-white/20 rounded-full hover:bg-black/70 transition-all duration-200 group"
+          aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+        >
+          {isMuted ? (
+            <VolumeX className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+          ) : (
+            <Volume2 className="w-4 h-4 text-magic-green group-hover:text-magic-green/80 transition-colors" />
+          )}
+        </button>
+      )}
 
       {/* API Error Banner */}
       {apiError && (
