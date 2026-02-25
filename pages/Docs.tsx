@@ -247,18 +247,18 @@ const Docs: React.FC = () => {
               <div className="relative group mb-12">
                 <div className="absolute inset-0 bg-magic-green/30 blur-[80px] rounded-full scale-125 opacity-40 group-hover:opacity-100 transition-opacity duration-1000"></div>
                 <img
-                  src="/assets/logo.svg"
+                  src="/assets/logo-circle-transparent.png"
                   alt="Trashmarket Token"
                   className="w-56 h-56 relative z-10 transition-transform duration-1000 group-hover:rotate-[360deg] drop-shadow-[0_0_20px_rgba(173,255,2,0.4)]"
                 />
               </div>
 
               <div className="text-center relative z-10">
-                <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-4 flex items-center justify-center gap-4">
+                <h2 className="text-5xl font-black font-heading text-white uppercase tracking-tighter mb-4 flex items-center justify-center gap-4">
                   <Coins className="w-10 h-10 text-magic-green animate-pulse" />
                   Trashmarket.fun Token
                 </h2>
-                <div className="inline-block bg-magic-green text-black px-10 py-3 text-4xl font-black font-mono skew-x-[-15deg] mb-8 shadow-[8px_8px_0_rgba(255,255,255,0.3)] animate-bounce">
+                <div className="inline-block bg-magic-green text-black px-10 py-3 text-4xl font-black font-heading skew-x-[-15deg] mb-8 shadow-[8px_8px_0_rgba(255,255,255,0.3)] animate-bounce">
                   TBA
                 </div>
                 <p className="text-gray-300 font-mono text-base max-w-md mx-auto opacity-70 leading-relaxed uppercase tracking-widest">
