@@ -5,8 +5,19 @@ import LotteryTickets from './LotteryTickets';
 
 const Footer: React.FC = () => {
     return (
-        <footer className="bg-magic-dark border-t border-white/10 pt-16 pb-8">
-            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <footer className="relative bg-magic-dark border-t border-white/10 pt-16 pb-8 overflow-hidden">
+            {/* Animated SVG Background */}
+            <div 
+                className="absolute inset-0 pointer-events-none opacity-45 z-0"
+                style={{
+                    backgroundImage: 'url("/assets/enhanced_logo_v6.svg")',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
+                }}
+            />
+
+            <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-12 mb-16">
                     {/* Brand Section */}
                     <div className="md:col-span-2">
