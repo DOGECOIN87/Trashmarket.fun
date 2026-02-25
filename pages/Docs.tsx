@@ -254,14 +254,14 @@ const Docs: React.FC = () => {
               </div>
 
               <div className="text-center relative z-10">
-                <h2 className="text-5xl font-black font-heading text-white uppercase tracking-tighter mb-4 flex items-center justify-center gap-4">
-                  <Coins className="w-10 h-10 text-magic-green animate-pulse" />
+                <h2 className="text-4xl md:text-5xl font-heading text-white uppercase tracking-tight mb-8 flex items-center justify-center gap-3">
+                  <Coins className="w-8 h-8 text-magic-green animate-pulse" />
                   Trashmarket.fun Token
                 </h2>
-                <div className="inline-block bg-magic-green text-black px-10 py-3 text-4xl font-black font-heading skew-x-[-15deg] mb-8 shadow-[8px_8px_0_rgba(255,255,255,0.3)] animate-bounce">
-                  TBA
-                </div>
-                <p className="text-gray-300 font-mono text-base max-w-md mx-auto opacity-70 leading-relaxed uppercase tracking-widest">
+                <p className="text-gray-300 font-heading text-lg md:text-xl max-w-md mx-auto opacity-80 leading-relaxed uppercase tracking-widest mb-8">
+                  To Be Announced
+                </p>
+                <p className="text-gray-300 font-heading text-sm md:text-base max-w-md mx-auto opacity-70 leading-relaxed uppercase tracking-widest">
                   The ultimate garbage-powered economy. Ready to dump soon.
                 </p>
               </div>
