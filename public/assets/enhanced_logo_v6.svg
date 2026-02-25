@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <!-- Gold Gradient (Preserved) -->
+    <linearGradient id="luxury-gold" x1="-50%" y1="-50%" x2="150%" y2="150%">
+      <stop offset="0%" stop-color="#C59B42"/>
+      <stop offset="25%" stop-color="#FDF0A6"/>
+      <stop offset="50%" stop-color="#A67B27"/>
+      <stop offset="75%" stop-color="#FFF8C9"/>
+      <stop offset="100%" stop-color="#916112"/>
+      <animate attributeName="x1" values="-50%;150%;-50%" dur="12s" repeatCount="indefinite"/>
+      <animate attributeName="x2" values="50%;250%;50%" dur="12s" repeatCount="indefinite"/>
+    </linearGradient>
+
+    <!-- Platinum Gradient (Preserved) -->
+    <linearGradient id="luxury-platinum" x1="150%" y1="-50%" x2="-50%" y2="150%">
+      <stop offset="0%" stop-color="#A0A5AA"/>
+      <stop offset="30%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#E1E5E9"/>
+      <stop offset="70%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#8B9096"/>
+      <animate attributeName="x1" values="150%;-50%;150%" dur="10s" repeatCount="indefinite"/>
+      <animate attributeName="x2" values="250%;50%;250%" dur="10s" repeatCount="indefinite"/>
+    </linearGradient>
+
+    <!-- Gold Specular Sweep Gradient -->
+    <linearGradient id="gold-sweep" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="white" stop-opacity="0"/>
+      <stop offset="50%" stop-color="white" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Mask (Preserved) -->
+    <mask id="hole-mask">
+      <rect x="-40" y="-40" width="80" height="80" fill="white"/>
+      <circle cx="0" cy="0" r="5" fill="black"/>
+    </mask>
+
+    <!-- ORIGINAL FULL LOGO (Preserved) -->
+    <symbol id="logo-path" viewBox="0 0 600 600">
+      <g transform="translate(0,600) scale(0.1,-0.1)" stroke="none">
+        <path fill="url(#luxury-gold)" d="M1140 3980 l0 -320 350 0 350 0 0 -985 0 -985 345 0 c190 0 345 2 345 5 0 4 -7 19 -15 34 -20 40 -32 1392 -13 1431 21 40 74 61 125 50 23 -6 136 -26 250 -45 114 -20 267 -46 338 -60 72 -13 187 -33 257 -45 145 -23 166 -30 191 -58 34 -37 31 -87 -12 -272 -78 -338 -171 -753 -168 -756 1 -2 24 36 51 84 147 261 179 319 251 442 43 74 114 198 158 275 44 77 95 166 113 198 19 32 35 64 36 70 2 7 5 -294 8 -668 l5 -680 328 -3 327 -2 0 1305 0 1305 -336 -2 -337 -3 -110 -180 c-255 -417 -368 -604 -403 -660 -28 -46 -39 -56 -46 -45 -4 8 -47 80 -95 160 -87 147 -277 469 -374 637 l-54 92 -932 1 -933 0 0 -320z m2049 -349 c174 -31 185 -36 197 -91 3 -14 12 -48 20 -76 l14 -51 82 -16 c46 -9 127 -23 181 -32 110 -17 133 -26 142 -54 9 -30 -23 -172 -43 -188 -20 -16 -40 -14 -237 22 -77 14 -165 30 -195 34 -30 5 -122 21 -205 36 -82 15 -213 38 -290 51 -77 14 -180 32 -230 40 -187 31 -191 35 -165 157 26 119 17 116 227 79 98 -18 187 -32 198 -32 14 1 31 20 56 63 20 34 47 68 60 74 13 7 24 13 24 13 0 0 74 -13 164 -29z"/>
+        <path fill="url(#luxury-platinum)" d="M3025 3519 c-9 -17 -15 -32 -13 -33 7 -6 278 -48 286 -44 5 1 5 17 0 34 -8 31 -9 32 -121 53 -61 12 -118 21 -124 21 -7 0 -20 -14 -28 -31z"/>
+        
+        <!-- Specular Sweep Overlay -->
+        <rect width="6000" height="6000" fill="url(#gold-sweep)" pointer-events="none">
+          <animateTransform attributeName="transform" type="translate" values="-6000,-6000; 6000,6000" dur="8s" repeatCount="indefinite" />
+        </rect>
+
+        <!-- Tiny Sparkle Glint -->
+        <circle cx="2500" cy="3500" r="15" fill="white" opacity="0.4">
+          <animate attributeName="opacity" values="0.1;0.5;0.1" dur="5s" repeatCount="indefinite" />
+        </circle>
+      </g>
+    </symbol>
+
+    <!-- Flower Round (Background Square updated to Black with 45% opacity) -->
+    <g id="flower-round">
+      <circle cx="0" cy="0" r="24" fill="none" stroke="url(#luxury-gold)" stroke-width="3.5"/>
+      <!-- This is the background square that rises up, now black with 45% opacity -->
+      <rect x="-10" y="-10" width="20" height="20" fill="black" fill-opacity="0.45"/>
+      <g fill="url(#luxury-platinum)" mask="url(#hole-mask)">
+        <circle cx="0" cy="-10" r="9"/>
+        <circle cx="0" cy="10" r="9"/>
+        <circle cx="-10" cy="0" r="9"/>
+        <circle cx="10" cy="0" r="9"/>
+      </g>
+    </g>
+
+    <!-- Flower Point (Purple #9945ff with 45% opacity) -->
+    <g id="flower-point">
+      <path d="M 0,-27 Q 4,-4 27,0 Q 4,4 0,27 Q -4,4 -27,0 Q -4,-4 0,-27 Z" fill="#9945ff" fill-opacity="0.45"/>
+    </g>
+
+    <!-- Diamond (Enhanced) -->
+    <g id="diamond-star">
+      <polygon points="0,-30 30,0 0,30 -30,0" fill="none" stroke="url(#luxury-gold)" stroke-width="2.5"/>
+      <path d="M 0,-14 Q 3,-3 14,0 Q 3,3 0,14 Q -3,3 -14,0 Q -3,-3 0,-14 Z" fill="url(#luxury-platinum)"/>
+      
+      <!-- Facet Reflections -->
+      <polygon points="-2,-4 2,-2 1,-6" fill="white" opacity="0.15">
+        <animate attributeName="opacity" values="0.05;0.18;0.05" dur="7s" repeatCount="indefinite" />
+      </polygon>
+      <polygon points="4,2 6,5 3,4" fill="white" opacity="0.12">
+        <animate attributeName="opacity" values="0.05;0.15;0.05" dur="6.3s" repeatCount="indefinite" />
+      </polygon>
+    </g>
+
+    <!-- Pattern (Preserved) -->
+    <pattern id="lv-pattern" width="300" height="300" patternUnits="userSpaceOnUse">
+      <animateTransform attributeName="patternTransform" type="translate" values="0,0;-300,-300" dur="40s" repeatCount="indefinite"/>
+      <!-- Corners -->
+      <use href="#logo-path" x="-45" y="-45" width="90" height="90"/>
+      <use href="#logo-path" x="255" y="-45" width="90" height="90"/>
+      <use href="#logo-path" x="-45" y="255" width="90" height="90"/>
+      <use href="#logo-path" x="255" y="255" width="90" height="90"/>
+      <!-- Center -->
+      <use href="#logo-path" x="105" y="105" width="90" height="90"/>
+      <!-- Flowers -->
+      <g transform="translate(150,0)"><use href="#flower-round"/></g>
+      <g transform="translate(150,300)"><use href="#flower-round"/></g>
+      <g transform="translate(0,150)"><use href="#flower-round"/></g>
+      <g transform="translate(300,150)"><use href="#flower-round"/></g>
+      <!-- Stars / Diamonds -->
+      <g transform="translate(75,75)"><use href="#flower-point"/></g>
+      <g transform="translate(225,75)"><use href="#diamond-star"/></g>
+      <g transform="translate(75,225)"><use href="#diamond-star"/></g>
+      <g transform="translate(225,225)"><use href="#flower-point"/></g>
+    </pattern>
+  </defs>
+  <!-- Transparent Background -->
+  <rect width="100%" height="100%" fill="url(#lv-pattern)"/>
+</svg>
