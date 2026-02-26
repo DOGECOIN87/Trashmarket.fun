@@ -3,10 +3,8 @@ import {
   PublicKey,
   Transaction,
   SystemProgram,
-  LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import {
-  TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   createTransferInstruction,
   createAssociatedTokenAccountInstruction,
@@ -23,6 +21,7 @@ const TRADING_API_URL = `${RPC_ENDPOINTS.GORBAGANA_API}/trading`;
 
 // Name Service Program
 const NAME_SERVICE_PROGRAM = new PublicKey('namesLPneVptA9Z5rqUDD9tMTWEJwofgaYwp8cawRkX');
+const GORID_ESCROW_PROGRAM_ID = new PublicKey('SNSm5hSYiaeYvyweSGoioyyD2hP7mJK1SsVQoC6uo3P'); 
 const WRAPPED_GOR_MINT = new PublicKey(TRADING_CONFIG.WRAPPED_GOR_MINT);
 const FEE_RECIPIENT = new PublicKey(TRADING_CONFIG.FEE_RECIPIENT);
 
@@ -171,25 +170,7 @@ export async function fetchListings(): Promise<MarketplaceListing[]> {
     console.error('Trading API: Error fetching listings:', error);
   }
 
-  // Merge local listings from localStorage (created when API was unavailable)
-  try {
-    const localListings: any[] = JSON.parse(localStorage.getItem('gorid_local_listings') || '[]');
-    const localMapped: MarketplaceListing[] = localListings.map((l: any) => ({
-      id: l.id,
-      domainName: l.domainName,
-      domainMint: l.domainMint,
-      seller: l.seller,
-      price: l.price,
-      priceRaw: BigInt(l.priceRaw || '0'),
-      listedAt: l.listedAt || Date.now(),
-    }));
-    // Deduplicate by domainMint — API listings take priority
-    const apiMints = new Set(apiListings.map(l => l.domainMint));
-    const uniqueLocal = localMapped.filter(l => !apiMints.has(l.domainMint));
-    return [...apiListings, ...uniqueLocal];
-  } catch {
-    return apiListings;
-  }
+  return apiListings;
 }
 
 /** Fetch recent sales from the trading API */
@@ -247,14 +228,6 @@ async function ensureATA(
 
 /**
  * Build a purchase transaction for a listed domain.
- *
- * The transaction:
- * 1. Transfers platform fee (Wrapped GOR) to fee recipient
- * 2. Transfers payment to seller (Wrapped GOR)
- * 3. Records the sale via the trading API
- *
- * NOTE: Domain transfer from escrow is handled by the trading API backend
- * after verifying the payment transaction on-chain.
  */
 export async function buildPurchaseTransaction(
   buyerPubkey: PublicKey,
@@ -262,10 +235,9 @@ export async function buildPurchaseTransaction(
   useNative: boolean = false,
 ): Promise<Transaction> {
   const conn = getConnection();
-  const decimals = useNative ? TRADING_CONFIG.NATIVE_DECIMALS : TRADING_CONFIG.WRAPPED_DECIMALS;
   const mint = useNative ? new PublicKey(TRADING_CONFIG.NATIVE_GOR_MINT) : WRAPPED_GOR_MINT;
   
-  const priceRaw = humanToAmount(listing.price, decimals);
+  const priceRaw = humanToTradingAmount(listing.price);
   const fees = calculateFees(priceRaw);
 
   const transaction = new Transaction();
@@ -331,26 +303,56 @@ export async function buildPurchaseTransaction(
 
 /**
  * Build a listing transaction.
- *
- * Posts the listing intent to the trading API which will
- * generate an escrow transaction for the seller to sign.
  */
 export async function createListingViaAPI(
-  sellerAddress: string,
-  domainMint: string,
+  sellerPubkey: PublicKey,
+  domainMint: PublicKey,
   domainName: string,
   priceHuman: number,
-): Promise<{ listingId: string; transaction?: string } | null> {
+): Promise<{ transaction: Transaction; listingId: string }> {
   try {
+    const conn = getConnection();
+    const transaction = new Transaction();
+
+    // 1. Create a PDA for the escrow account
+    const [escrowAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from("gorid_escrow"), domainMint.toBuffer()],
+      GORID_ESCROW_PROGRAM_ID
+    );
+
+    // 2. Transfer the domain NFT to the escrow account
+    const sellerATA = await getAssociatedTokenAddress(domainMint, sellerPubkey);
+    const escrowATA = await getAssociatedTokenAddress(domainMint, escrowAccount, true);
+
+    // Ensure escrow ATA exists
+    try {
+      await getAccount(conn, escrowATA);
+    } catch {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(sellerPubkey, escrowATA, escrowAccount, domainMint)
+      );
+    }
+
+    transaction.add(
+      createTransferInstruction(
+        sellerATA,
+        escrowATA,
+        sellerPubkey,
+        1, // Transfer 1 NFT
+      )
+    );
+
+    // 3. Create the listing on the backend
     const response = await fetch(`${TRADING_API_URL}/listings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        seller: sellerAddress,
-        domainMint,
+        seller: sellerPubkey.toBase58(),
+        domainMint: domainMint.toBase58(),
         domainName,
         price: priceHuman,
         priceRaw: humanToTradingAmount(priceHuman).toString(),
+        escrowAccount: escrowAccount.toBase58(),
       }),
     });
 
@@ -359,35 +361,23 @@ export async function createListingViaAPI(
       throw new Error(errorData?.error || `Failed to create listing (${response.status})`);
     }
 
-    return await response.json();
+    const { listingId } = await response.json();
+
+    // Set recent blockhash and fee payer
+    const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = sellerPubkey;
+
+    return { transaction, listingId };
   } catch (error) {
-    console.error('Trading API: Error creating listing, using local fallback:', error);
-    // Local fallback: create a listing record locally when the API is unavailable
-    const listingId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const localListing = {
-      id: listingId,
-      domainName,
-      domainMint,
-      seller: sellerAddress,
-      price: priceHuman,
-      priceRaw: humanToTradingAmount(priceHuman).toString(),
-      listedAt: Date.now(),
-    };
-    // Persist to localStorage so listings survive page reloads
-    try {
-      const existing = JSON.parse(localStorage.getItem('gorid_local_listings') || '[]');
-      existing.push(localListing);
-      localStorage.setItem('gorid_local_listings', JSON.stringify(existing));
-    } catch (e) {
-      console.warn('Failed to save local listing:', e);
-    }
-    return { listingId };
+    console.error('Trading API: Error creating listing:', error);
+    throw error;
   }
 }
 
 /**
  * Confirm a purchase with the trading API after the on-chain transaction is confirmed.
- * This triggers the backend to release the domain NFT from escrow to the buyer.
  */
 export async function confirmPurchase(
   listingId: string,
@@ -414,41 +404,40 @@ export async function confirmPurchase(
 
 /**
  * Cancel a listing via the trading API.
- * Returns the domain from escrow back to the seller.
  */
 export async function cancelListing(
   listingId: string,
-  sellerAddress: string,
-): Promise<boolean> {
-  try {
-    const response = await fetch(`${TRADING_API_URL}/listings/${listingId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seller: sellerAddress }),
-    });
+  sellerPubkey: PublicKey,
+): Promise<{ transaction: Transaction }> {
+  const conn = getConnection();
+  const transaction = new Transaction();
 
-    if (response.ok && listingId.startsWith('local-')) {
-      try {
-        const existing = JSON.parse(localStorage.getItem('gorid_local_listings') || '[]');
-        const updated = existing.filter((l: any) => l.id !== listingId);
-        localStorage.setItem('gorid_local_listings', JSON.stringify(updated));
-      } catch (e) {
-        console.warn('Failed to remove local listing:', e);
-      }
-    }
-    return response.ok;
-  } catch (error) {
-    console.error('Trading API: Error cancelling listing:', error);
-    if (listingId.startsWith('local-')) {
-      try {
-        const existing = JSON.parse(localStorage.getItem('gorid_local_listings') || '[]');
-        const updated = existing.filter((l: any) => l.id !== listingId);
-        localStorage.setItem('gorid_local_listings', JSON.stringify(updated));
-        return true;
-      } catch (e) {
-        console.warn('Failed to remove local listing:', e);
-      }
-    }
-    return false;
+  // 1. Notify trading API of cancellation
+  const response = await fetch(`${TRADING_API_URL}/listings/${listingId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seller: sellerPubkey.toBase58() }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.error || `Failed to cancel listing (${response.status})`);
   }
+
+  // Dummy transaction for wallet signature
+  transaction.add(
+    SystemProgram.transfer({
+      fromPubkey: sellerPubkey,
+      toPubkey: sellerPubkey,
+      lamports: 0,
+    })
+  );
+
+  // Set recent blockhash and fee payer
+  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
+  transaction.recentBlockhash = blockhash;
+  transaction.lastValidBlockHeight = lastValidBlockHeight;
+  transaction.feePayer = sellerPubkey;
+
+  return { transaction };
 }

@@ -39,8 +39,8 @@ export function calculateFees(salePrice: bigint): TradeFees {
   const creatorRoyalty = (salePrice * BigInt(TRADING_CONFIG.CREATOR_ROYALTY_BPS)) / 10000n;
 
   // Enforce minimum platform fee
-  const finalPlatformFee = platformFee < TRADING_CONFIG.MINIMUM_FEE
-    ? TRADING_CONFIG.MINIMUM_FEE
+  const finalPlatformFee = platformFee < TRADING_CONFIG.MINIMUM_FEE_WRAPPED
+    ? TRADING_CONFIG.MINIMUM_FEE_WRAPPED
     : platformFee;
 
   return {

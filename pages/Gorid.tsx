@@ -190,23 +190,36 @@ const Gorid: React.FC = () => {
     setListError(null);
 
     try {
-      const result = await createListingViaAPI(
-        address,
-        listingDomain.mint || listingDomain.domainKey,
+      const { transaction, listingId } = await createListingViaAPI(
+        publicKey,
+        new PublicKey(listingDomain.mint || listingDomain.domainKey),
         listingDomain.name,
         price,
       );
 
-      if (!result) {
-        throw new Error('Failed to create listing');
-      }
+      // Sign and send the transaction
+      const signedTx = await signTransaction(transaction);
+      const txSignature = await connection.sendRawTransaction(signedTx.serialize());
+      await connection.confirmTransaction(txSignature, 'confirmed');
+
+      // Update UI after successful on-chain listing
+      // No need to explicitly add to local storage anymore, as it's on-chain
+      // The fetchListings will pick it up
+
+
 
       // Close modal and refresh
       setListingDomain(null);
       setListingPrice('');
 
-      const updatedListings = await getListedDomains();
+      const [updatedListings, updatedSales] = await Promise.all([
+        getListedDomains(),
+        getRecentSales(),
+      ]);
       setListings(updatedListings);
+      setRecentSales(updatedSales);
+      const domainsMap = new Map(updatedListings.map(d => [d.domainKey, d]));
+      setListedDomainsMap(domainsMap);
 
       if (address) {
         getDomainsOwnedBy(address).then(setMyDomains).catch(console.error);
@@ -240,22 +253,16 @@ const Gorid: React.FC = () => {
         throw new Error('Domain is not listed for sale');
       }
 
-      const success = await cancelListing(
+      const { transaction } = await cancelListing(
         listedDomain.listingId || listedDomain.domainKey,
-        address
+        publicKey
       );
+      // Sign and send the transaction
+      const signedTx = await signTransaction(transaction);
+      const txSignature = await connection.sendRawTransaction(signedTx.serialize());
+      await connection.confirmTransaction(txSignature, 'confirmed');
 
-      if (!success) {
-        throw new Error('Failed to cancel listing');
-      }
-
-      const newMap = new Map(listedDomainsMap);
-      newMap.delete(domain.domainKey);
-      setListedDomainsMap(newMap);
-      setListings(prev => prev.filter(l => l.domainKey !== domain.domainKey));
-
-      setCancelSuccess(domain.name + ' listing cancelled');
-
+      // After successful on-chain cancellation, refresh data
       const [updatedListings, updatedSales] = await Promise.all([
         getListedDomains(),
         getRecentSales(),
@@ -268,6 +275,11 @@ const Gorid: React.FC = () => {
       if (address) {
         getDomainsOwnedBy(address).then(setMyDomains).catch(console.error);
       }
+      setCancelSuccess(domain.name + ' listing cancelled');
+
+
+
+
     } catch (error: any) {
       console.error('Cancel listing error:', error);
       setCancelError(error.message || 'Failed to cancel listing');
