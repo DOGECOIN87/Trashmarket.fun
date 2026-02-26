@@ -11,6 +11,7 @@ import Home from './pages/Home';
 import Collection from './pages/Collection';
 import Docs from './pages/Docs';
 import OfficialDocs from './pages/OfficialDocs';
+import GorbagioMarket from './pages/GorbagioMarket';
 import Gorid from './pages/Gorid';
 import Bridge from './pages/Bridge';
 import JunkPusherPage from './pages/JunkPusher';
@@ -39,6 +40,7 @@ const App: React.FC = () => {
                     <Route path="/gorid" element={<Gorid />} />
                     <Route path="/docs" element={<Docs />} />
                     <Route path="/official-docs" element={<OfficialDocs />} />
+                    <Route path="/gorbagio-market" element={<GorbagioMarket />} />
                     <Route path="/bridge" element={<Bridge />} />
                     <Route path="/junk-pusher" element={<JunkPusherPage />} />
                     <Route path="/dex" element={<Dex />} />
