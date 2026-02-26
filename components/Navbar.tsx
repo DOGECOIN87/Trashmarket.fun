@@ -113,7 +113,7 @@ const Navbar: React.FC = () => {
     { name: 'JUNKPUSHER', path: '/junk-pusher' },
     { name: 'DEX', path: '/dex' },
     { name: 'Vanity', path: '/vanity' },
-    { name: 'Docs', path: '/docs' },
+    { name: 'Docs', path: '/official-docs' },
   ];
 
   return (
