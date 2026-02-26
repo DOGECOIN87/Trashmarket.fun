@@ -259,42 +259,66 @@ async function ensureATA(
 export async function buildPurchaseTransaction(
   buyerPubkey: PublicKey,
   listing: MarketplaceListing,
+  useNative: boolean = false,
 ): Promise<Transaction> {
   const conn = getConnection();
-  const priceRaw = humanToTradingAmount(listing.price);
+  const decimals = useNative ? TRADING_CONFIG.NATIVE_DECIMALS : TRADING_CONFIG.WRAPPED_DECIMALS;
+  const mint = useNative ? new PublicKey(TRADING_CONFIG.NATIVE_GOR_MINT) : WRAPPED_GOR_MINT;
+  
+  const priceRaw = humanToAmount(listing.price, decimals);
   const fees = calculateFees(priceRaw);
 
   const transaction = new Transaction();
 
-  // Buyer's Wrapped GOR ATA
-  const buyerATA = await getAssociatedTokenAddress(WRAPPED_GOR_MINT, buyerPubkey);
+  if (useNative) {
+    // 1. Transfer platform fee (Native GOR)
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: buyerPubkey,
+        toPubkey: FEE_RECIPIENT,
+        lamports: Number(fees.platformFee),
+      })
+    );
 
-  // Seller's Wrapped GOR ATA (ensure it exists)
-  const sellerPubkey = new PublicKey(listing.seller);
-  const sellerATA = await ensureATA(conn, WRAPPED_GOR_MINT, sellerPubkey, buyerPubkey, transaction);
+    // 2. Transfer payment to seller (Native GOR)
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: buyerPubkey,
+        toPubkey: new PublicKey(listing.seller),
+        lamports: Number(fees.sellerReceives),
+      })
+    );
+  } else {
+    // Buyer's Wrapped GOR ATA
+    const buyerATA = await getAssociatedTokenAddress(mint, buyerPubkey);
 
-  // Fee recipient ATA (ensure it exists)
-  const feeATA = await ensureATA(conn, WRAPPED_GOR_MINT, FEE_RECIPIENT, buyerPubkey, transaction);
+    // Seller's Wrapped GOR ATA (ensure it exists)
+    const sellerPubkey = new PublicKey(listing.seller);
+    const sellerATA = await ensureATA(conn, mint, sellerPubkey, buyerPubkey, transaction);
 
-  // 1. Transfer platform fee
-  transaction.add(
-    createTransferInstruction(
-      buyerATA,
-      feeATA,
-      buyerPubkey,
-      fees.platformFee,
-    )
-  );
+    // Fee recipient ATA (ensure it exists)
+    const feeATA = await ensureATA(conn, mint, FEE_RECIPIENT, buyerPubkey, transaction);
 
-  // 2. Transfer payment to seller
-  transaction.add(
-    createTransferInstruction(
-      buyerATA,
-      sellerATA,
-      buyerPubkey,
-      fees.sellerReceives,
-    )
-  );
+    // 1. Transfer platform fee
+    transaction.add(
+      createTransferInstruction(
+        buyerATA,
+        feeATA,
+        buyerPubkey,
+        fees.platformFee,
+      )
+    );
+
+    // 2. Transfer payment to seller
+    transaction.add(
+      createTransferInstruction(
+        buyerATA,
+        sellerATA,
+        buyerPubkey,
+        fees.sellerReceives,
+      )
+    );
+  }
 
   // Set recent blockhash and fee payer
   const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');

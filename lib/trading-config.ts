@@ -6,6 +6,10 @@ export const TRADING_CONFIG = {
   WRAPPED_GOR_MINT: 'So11111111111111111111111111111111111111112',
   NATIVE_GOR_MINT: 'So11111111111111111111111111111111111111111',
 
+  // Decimals
+  NATIVE_DECIMALS: 6,
+  WRAPPED_DECIMALS: 9,
+
   // Platform fee recipient wallet
   FEE_RECIPIENT: 'TMABDMgLHfmmRNyHgbHTP9P5XP1zrAMFfbRAef69o9f', // TrashMarket platform treasury
 
@@ -13,8 +17,9 @@ export const TRADING_CONFIG = {
   PLATFORM_FEE_BPS: 250,    // 2.5%
   CREATOR_ROYALTY_BPS: 500,  // 5% (optional, per-domain)
 
-  // Minimum fee in base units (9 decimals)
-  MINIMUM_FEE: 1_000_000n,  // 0.001 Wrapped GOR
+  // Minimum fee in base units (9 decimals for wrapped, 6 for native)
+  MINIMUM_FEE_WRAPPED: 1_000_000n,  // 0.001 Wrapped GOR
+  MINIMUM_FEE_NATIVE: 1_000n,       // 0.001 Native GOR
 
   // Transaction limits (human-readable)
   MIN_PRICE: 0.001,         // Minimum listing price in GOR

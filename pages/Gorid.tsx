@@ -46,6 +46,7 @@ const Gorid: React.FC = () => {
   const [isBuying, setIsBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
   const [buySuccess, setBuySuccess] = useState<string | null>(null);
+  const [useNativeForBuy, setUseNativeForBuy] = useState(false);
   const [isListing, setIsListing] = useState(false);
   const [listingDomain, setListingDomain] = useState<GoridName | null>(null);
   const [listingPrice, setListingPrice] = useState('');
@@ -117,7 +118,7 @@ const Gorid: React.FC = () => {
   };
 
   // Handle buy domain
-  const handleBuy = useCallback(async (listing: GoridListing) => {
+  const handleBuy = useCallback(async (listing: GoridListing, useNative: boolean = false) => {
     if (!connected || !publicKey || !signTransaction) {
       setBuyError('Please connect your wallet first');
       return;
@@ -137,7 +138,7 @@ const Gorid: React.FC = () => {
         price: listing.price,
         priceRaw: BigInt(0), // Will be calculated from price
         listedAt: listing.listedAt,
-      });
+      }, useNative);
 
       // Request wallet signature
       const signedTx = await signTransaction(transaction);
@@ -779,8 +780,22 @@ const Gorid: React.FC = () => {
             )}
 
             <div className="space-y-3">
+              {/* Native GOR Toggle */}
+              <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 mb-4">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-white uppercase">Pay with Native GOR</span>
+                  <span className="text-[10px] text-gray-500 font-mono">Uses 6 decimals (Gas Token)</span>
+                </div>
+                <button
+                  onClick={() => setUseNativeForBuy(!useNativeForBuy)}
+                  className={`w-10 h-5 rounded-full relative transition-colors ${useNativeForBuy ? 'bg-magic-green' : 'bg-white/20'}`}
+                >
+                  <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${useNativeForBuy ? 'left-6' : 'left-1'}`} />
+                </button>
+              </div>
+
               <button
-                onClick={() => handleBuy(selectedDomain)}
+                onClick={() => handleBuy(selectedDomain, useNativeForBuy)}
                 disabled={isBuying || !connected}
                 className={`w-full ${btnPrimary} py-3 font-bold uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
@@ -793,7 +808,7 @@ const Gorid: React.FC = () => {
                   'Connect Wallet to Buy'
                 ) : (
                   <>
-                    <ShoppingCart className="w-4 h-4" /> Buy Now — {currency} {selectedDomain.price}
+                    <ShoppingCart className="w-4 h-4" /> Buy Now — {useNativeForBuy ? 'GOR' : 'wGOR'} {selectedDomain.price}
                   </>
                 )}
               </button>
