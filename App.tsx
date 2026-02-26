@@ -8,7 +8,7 @@ import Navbar from './components/Navbar';
 import PriceTicker, { ActivityTicker } from './components/PriceTicker';
 import Footer from './components/Footer';
 import Home from './pages/Home';
-import Collection from './pages/Collection';
+// import Collection from './pages/Collection'; // Replaced with GorbagioMarket
 import Docs from './pages/Docs';
 import OfficialDocs from './pages/OfficialDocs';
 import GorbagioMarket from './pages/GorbagioMarket';
@@ -36,11 +36,11 @@ const App: React.FC = () => {
                 <main className="flex-grow">
                   <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/collection/:id" element={<Collection />} />
+                    <Route path="/collection/:id" element={<GorbagioMarket />} />
                     <Route path="/gorid" element={<Gorid />} />
                     <Route path="/docs" element={<Docs />} />
                     <Route path="/official-docs" element={<OfficialDocs />} />
-                    <Route path="/gorbagio-market" element={<GorbagioMarket />} />
+
                     <Route path="/bridge" element={<Bridge />} />
                     <Route path="/junk-pusher" element={<JunkPusherPage />} />
                     <Route path="/dex" element={<Dex />} />
