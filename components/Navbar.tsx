@@ -114,6 +114,7 @@ const Navbar: React.FC = () => {
     { name: 'DEX', path: '/dex' },
     { name: 'Vanity', path: '/vanity' },
     { name: 'Docs', path: '/official-docs' },
+    { name: 'Brand', path: '/docs' },
   ];
 
   return (
