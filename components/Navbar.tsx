@@ -267,24 +267,7 @@ const Navbar: React.FC = () => {
                 )}
               </div>
 
-              {/* Connected Network Badge */}
-              {connected && (
-                <div className="flex items-center gap-1.5 px-3 py-1 border border-white/10 bg-black/50">
-                  <Globe className="w-3 h-3" />
-                  <span className={`text-[10px] font-bold uppercase tracking-widest font-mono ${detectedNetwork === 'gorbagana' ? 'text-magic-green' :
-                    detectedNetwork === 'solana' ? 'text-purple-400' :
-                      'text-gray-500'
-                    }`}>
-                    {detectedNetwork === 'gorbagana' ? '🗑️ GORBAGANA' :
-                      detectedNetwork === 'solana' ? '◎ SOLANA' :
-                        'DETECTING...'}
-                  </span>
-                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${detectedNetwork === 'gorbagana' ? 'bg-magic-green' :
-                    detectedNetwork === 'solana' ? 'bg-purple-400' :
-                      'bg-gray-500'
-                    }`}></span>
-                </div>
-              )}
+
 
               {/* Wallet Button */}
               <button
