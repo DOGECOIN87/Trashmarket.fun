@@ -403,9 +403,28 @@ export async function cancelListing(
       body: JSON.stringify({ seller: sellerAddress }),
     });
 
+    if (response.ok && listingId.startsWith('local-')) {
+      try {
+        const existing = JSON.parse(localStorage.getItem('gorid_local_listings') || '[]');
+        const updated = existing.filter((l: any) => l.id !== listingId);
+        localStorage.setItem('gorid_local_listings', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to remove local listing:', e);
+      }
+    }
     return response.ok;
   } catch (error) {
     console.error('Trading API: Error cancelling listing:', error);
+    if (listingId.startsWith('local-')) {
+      try {
+        const existing = JSON.parse(localStorage.getItem('gorid_local_listings') || '[]');
+        const updated = existing.filter((l: any) => l.id !== listingId);
+        localStorage.setItem('gorid_local_listings', JSON.stringify(updated));
+        return true;
+      } catch (e) {
+        console.warn('Failed to remove local listing:', e);
+      }
+    }
     return false;
   }
 }

@@ -20,6 +20,7 @@ import {
   buildPurchaseTransaction,
   confirmPurchase,
   createListingViaAPI,
+  cancelListing,
 } from '../services/marketplace-service';
 import { calculateFeesFromHuman, TRADING_CONFIG } from '../lib/trading-config';
 
@@ -49,6 +50,10 @@ const Gorid: React.FC = () => {
   const [listingDomain, setListingDomain] = useState<GoridName | null>(null);
   const [listingPrice, setListingPrice] = useState('');
   const [listError, setListError] = useState<string | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
+  const [listedDomainsMap, setListedDomainsMap] = useState<Map<string, GoridListing>>(new Map());
 
   // Stats
   const [floorPrice, setFloorPrice] = useState<number>(0);
@@ -69,6 +74,9 @@ const Gorid: React.FC = () => {
         setRecentSales(sales);
         setFloorPrice(floor);
         setTotalVolume(volume);
+        // Create a map for quick lookup of listed domains
+        const domainsMap = new Map(listedDomains.map(d => [d.domainKey, d]));
+        setListedDomainsMap(domainsMap);
       } catch (error) {
         console.error('Error loading gorid data:', error);
       }
@@ -216,6 +224,51 @@ const Gorid: React.FC = () => {
     if (isNaN(price) || price <= 0) return null;
     return calculateFeesFromHuman(price);
   }, [listingPrice]);
+
+  // Handle cancel listing
+  const handleCancelListing = useCallback(async (domain: GoridName) => {
+    if (!connected || !address) return;
+
+    setIsCanceling(true);
+    setCancelError(null);
+    setCancelSuccess(null);
+
+    try {
+      const listedDomain = listedDomainsMap.get(domain.domainKey);
+      if (!listedDomain) {
+        throw new Error('Domain is not listed for sale');
+      }
+
+      const success = await cancelListing(
+        listedDomain.listingId || listedDomain.domainKey,
+        address
+      );
+
+      if (!success) {
+        throw new Error('Failed to cancel listing');
+      }
+
+      setCancelSuccess(domain.name + ' listing cancelled');
+
+      const [updatedListings, updatedSales] = await Promise.all([
+        getListedDomains(),
+        getRecentSales(),
+      ]);
+      setListings(updatedListings);
+      setRecentSales(updatedSales);
+      const domainsMap = new Map(updatedListings.map(d => [d.domainKey, d]));
+      setListedDomainsMap(domainsMap);
+
+      if (address) {
+        getDomainsOwnedBy(address).then(setMyDomains).catch(console.error);
+      }
+    } catch (error: any) {
+      console.error('Cancel listing error:', error);
+      setCancelError(error.message || 'Failed to cancel listing');
+    } finally {
+      setIsCanceling(false);
+    }
+  }, [connected, address, listedDomainsMap]);
 
   // Styling
   const btnPrimary = 'bg-magic-green text-black hover:bg-white hover:text-black';
@@ -566,16 +619,26 @@ const Gorid: React.FC = () => {
                           </div>
                           <h3 className="text-xl font-black text-white mb-4">{domain.name}</h3>
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                setListingDomain(domain);
-                                setListingPrice('');
-                                setListError(null);
-                              }}
-                              className="flex-1 bg-white/10 text-white px-3 py-2 text-xs font-bold uppercase hover:bg-white/20 transition-colors"
-                            >
-                              List for Sale
-                            </button>
+                            {listedDomainsMap.has(domain.domainKey) ? (
+                              <button
+                                onClick={() => handleCancelListing(domain)}
+                                disabled={isCanceling}
+                                className="flex-1 bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-2 text-xs font-bold uppercase hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                              >
+                                {isCanceling ? 'Canceling...' : 'Cancel Listing'}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setListingDomain(domain);
+                                  setListingPrice('');
+                                  setListError(null);
+                                }}
+                                className="flex-1 bg-white/10 text-white px-3 py-2 text-xs font-bold uppercase hover:bg-white/20 transition-colors"
+                              >
+                                List for Sale
+                              </button>
+                            )}
                             <a
                               href={`https://gorid.com/${domain.name.replace('.gor', '')}`}
                               target="_blank"
