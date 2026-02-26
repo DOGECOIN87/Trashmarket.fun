@@ -178,28 +178,7 @@ const Navbar: React.FC = () => {
                 ))}
               </div>
 
-              {/* Network Indicator (Gorbagana Only) */}
-              <a
-                href={explorerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden lg:flex items-center gap-3 px-4 py-1 border-l border-r border-white/10 cursor-pointer hover:bg-white/5 transition-colors group"
-                title="View on Trashscan"
-              >
-                <div className="flex flex-col items-end">
-                  <span className="text-[9px] text-gray-500 uppercase tracking-widest font-mono mb-0.5 group-hover:text-white transition-colors">{networkName}</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`w-1.5 h-1.5 rounded-full ${status.bg} animate-pulse`}></span>
-                    <span className={`text-[10px] font-bold ${status.color} font-mono`}>{status.label}</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[9px] text-gray-500 uppercase tracking-widest font-mono mb-0.5">{tpsLabel}</div>
-                  <div className="text-xs font-bold text-white font-mono flex items-center gap-1">
-                    {gps.toLocaleString()} <Activity className="w-3 h-3 text-gray-600" />
-                  </div>
-                </div>
-              </a>
+
 
               {/* Devnet Warning Badge (Prominent) */}
               {isDevnet && (
@@ -317,12 +296,7 @@ const Navbar: React.FC = () => {
               >
                 <Wallet className="w-4 h-4" />
                 {connected && address ? (
-                  <span className="flex items-center gap-2">
-                    {formatAddress(address)}
-                    {balance !== null && (
-                      <span className="text-xs opacity-70">({balance.toFixed(2)} G)</span>
-                    )}
-                  </span>
+                  <span>{formatAddress(address)}</span>
                 ) : (
                   'CONNECT'
                 )}
