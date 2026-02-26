@@ -248,6 +248,11 @@ const Gorid: React.FC = () => {
         throw new Error('Failed to cancel listing');
       }
 
+      const newMap = new Map(listedDomainsMap);
+      newMap.delete(domain.domainKey);
+      setListedDomainsMap(newMap);
+      setListings(prev => prev.filter(l => l.domainKey !== domain.domainKey));
+
       setCancelSuccess(domain.name + ' listing cancelled');
 
       const [updatedListings, updatedSales] = await Promise.all([
