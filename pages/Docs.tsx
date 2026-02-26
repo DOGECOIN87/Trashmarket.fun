@@ -43,7 +43,7 @@ const Docs: React.FC = () => {
       <aside className="w-full md:w-64 border-b md:border-b-0 md:border-r border-white/10 sticky top-16 h-auto md:h-[calc(100vh-64px)] bg-black/80 z-20 overflow-y-auto">
         <div className="p-6">
           <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-            <Hash className="w-3 h-3" /> Documentation
+            <Hash className="w-3 h-3" /> Brand Kit
           </h2>
           <nav className="space-y-1">
             {SECTIONS.map((section) => (
@@ -76,10 +76,10 @@ const Docs: React.FC = () => {
           {/* HEADER */}
           <div className="mb-12 border-b border-white/20 pb-8">
             <h1 className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter">
-              Official_Docs
+              Brand_Kit
             </h1>
             <p className="text-gray-400 font-mono text-sm max-w-2xl">
-              The authoritative source for the Trash Market visual language, philosophy, and developer endpoints. Use these assets to build compatible garbage.
+              The authoritative source for the Trash Market visual language, design system, and brand assets. Use these guidelines to build compatible experiences.
             </p>
           </div>
 
