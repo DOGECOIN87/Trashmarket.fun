@@ -146,7 +146,7 @@ const Docs: React.FC = () => {
                 <div className="flex justify-center mb-12">
                   <div className="border border-white/20 bg-black p-8 flex flex-col items-center justify-center gap-4 group w-full max-w-md">
                     <div className="relative w-32 h-32 transition-transform group-hover:scale-105">
-                      <img src="/assets/logo.svg" alt="Official Logomark" className="w-full h-full object-contain" />
+                      <img src="/assets/enhanced_logo_v6.svg" alt="Official Logomark" className="w-full h-full object-contain" />
                       <div className="absolute inset-0 bg-magic-green/10 blur-xl rounded-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     </div>
                     <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Official_SVG_Variant</div>
@@ -246,11 +246,18 @@ const Docs: React.FC = () => {
 
               <div className="relative group mb-12">
                 <div className="absolute inset-0 bg-magic-green/30 blur-[80px] rounded-full scale-125 opacity-40 group-hover:opacity-100 transition-opacity duration-1000"></div>
-                <img
-                  src="/assets/logo-circle-transparent.png"
-                  alt="Trashmarket Token"
-                  className="w-56 h-56 relative z-10 transition-transform duration-1000 group-hover:rotate-[360deg] drop-shadow-[0_0_20px_rgba(173,255,2,0.4)]"
-                />
+                <div className="flex flex-col md:flex-row gap-8 items-center">
+                  <img
+                    src="/assets/grok_image_1772074136993.jpg"
+                    alt="Trashmarket Token"
+                    className="w-56 h-56 relative z-10 transition-transform duration-1000 group-hover:scale-105 drop-shadow-[0_0_20px_rgba(173,255,2,0.4)] rounded-full"
+                  />
+                  <img
+                    src="/assets/Debri-Intro2.jpg"
+                    alt="Debri Intro"
+                    className="w-full max-w-md relative z-10 transition-transform duration-1000 group-hover:scale-105 drop-shadow-[0_0_20px_rgba(173,255,2,0.4)] rounded-lg"
+                  />
+                </div>
               </div>
 
               <div className="text-center relative z-10">
