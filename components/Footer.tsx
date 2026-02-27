@@ -5,7 +5,7 @@ import LotteryTickets from './LotteryTickets';
 
 const Footer: React.FC = () => {
     return (
-        <footer className="relative bg-magic-dark border-t border-white/10 pt-16 pb-8 overflow-hidden">
+        <footer className="relative bg-magic-dark border-t border-white/10 pt-8 md:pt-16 pb-4 md:pb-8 overflow-hidden">
             {/* Animated SVG Background */}
             <div 
                 className="absolute inset-0 pointer-events-none opacity-30 z-0"
@@ -18,9 +18,9 @@ const Footer: React.FC = () => {
             />
 
             <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-12 mb-16">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-6 md:gap-12 mb-8 md:mb-16">
                     {/* Brand Section */}
-                    <div className="md:col-span-2">
+                    <div className="sm:col-span-2 md:col-span-2">
                         <div className="flex items-center gap-3 mb-6">
                             <img src="/assets/logo.svg" alt="Logo" className="w-8 h-8" />
                             <span className="text-xl font-black text-white tracking-tighter">
@@ -52,7 +52,7 @@ const Footer: React.FC = () => {
                     </div>
 
                     {/* Lottery Section - New Modal Trigger */}
-                    <div className="md:col-span-1 flex flex-col items-start">
+                    <div className="md:col-span-1 flex flex-col items-start sm:hidden md:flex">
                         <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs px-1">Lottery</h4>
                         <LotteryTickets />
                     </div>
@@ -90,7 +90,7 @@ const Footer: React.FC = () => {
                 </div>
 
                 {/* Bottom Bar */}
-                <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="pt-4 md:pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-4">
                     <p className="text-gray-600 text-[10px] font-mono uppercase tracking-[0.2em]">
                         © 2026 TRASHMARKET.FUN. ALL RIGHTS RESERVED.
                     </p>
