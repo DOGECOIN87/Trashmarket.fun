@@ -374,7 +374,12 @@ export class GameEngine {
       32
     );
 
-    const material = new THREE.MeshStandardMaterial({
+    // Load the logo texture
+    const loader = new THREE.TextureLoader();
+    const logoTexture = loader.load('/assets/enhanced_logo_v6.svg');
+
+    // Create materials for the cylinder: [side, top, bottom]
+    const sideMaterial = new THREE.MeshStandardMaterial({
       color: COLORS.COIN,
       roughness: 0.3,
       metalness: 0.8,
@@ -382,13 +387,24 @@ export class GameEngine {
       emissiveIntensity: 0.2
     });
 
-    this.coinProto = new THREE.Mesh(geometry, material);
+    const faceMaterial = new THREE.MeshStandardMaterial({
+      color: COLORS.COIN,
+      map: logoTexture,
+      roughness: 0.3,
+      metalness: 0.8,
+      emissive: COLORS.COIN,
+      emissiveIntensity: 0.1
+    });
+
+    const materials = [sideMaterial, faceMaterial, faceMaterial];
+
+    this.coinProto = new THREE.Mesh(geometry, materials);
     this.coinProto.castShadow = true;
     this.coinProto.receiveShadow = true;
 
     this.coinInstancedMesh = new THREE.InstancedMesh(
       geometry,
-      material,
+      materials,
       PHYSICS.MAX_COINS
     );
     this.coinInstancedMesh.castShadow = true;
@@ -403,6 +419,10 @@ export class GameEngine {
       PHYSICS.COIN_HEIGHT,
       32
     );
+
+    // Load the logo texture
+    const loader = new THREE.TextureLoader();
+    const logoTexture = loader.load('/assets/enhanced_logo_v6.svg');
 
     // Create a material with a golden rim for trashcoins
     const canvas = document.createElement('canvas');
@@ -421,18 +441,30 @@ export class GameEngine {
     ctx.arc(32, 32, 30, 0, Math.PI * 2);
     ctx.stroke();
 
-    const texture = new THREE.CanvasTexture(canvas);
-    const material = new THREE.MeshStandardMaterial({
-      map: texture,
+    const rimTexture = new THREE.CanvasTexture(canvas);
+    
+    const sideMaterial = new THREE.MeshStandardMaterial({
+      map: rimTexture,
       roughness: 0.2,
       metalness: 0.9,
       emissive: 0xdaa520,
       emissiveIntensity: 0.3
     });
 
+    const faceMaterial = new THREE.MeshStandardMaterial({
+      color: 0xdaa520, // Golden face for trashcoins
+      map: logoTexture,
+      roughness: 0.2,
+      metalness: 0.9,
+      emissive: 0xdaa520,
+      emissiveIntensity: 0.2
+    });
+
+    const materials = [sideMaterial, faceMaterial, faceMaterial];
+
     this.trashcoinInstancedMesh = new THREE.InstancedMesh(
       geometry,
-      material,
+      materials,
       TRASHCOIN.MAX_COUNT
     );
     this.trashcoinInstancedMesh.castShadow = true;
