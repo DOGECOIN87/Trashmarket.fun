@@ -246,17 +246,17 @@ const Collection: React.FC = () => {
         <div className="max-w-[1600px] mx-auto">
           <div className="flex flex-col lg:flex-row border-l border-r border-white/20">
             {/* Collection Info */}
-            <div className="lg:w-1/3 p-4 md:p-6 border-b lg:border-b-0 lg:border-r border-white/20">
+            <div className="lg:w-1/3 p-3 sm:p-4 md:p-6 border-b lg:border-b-0 lg:border-r border-white/20">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-900 border-2 border-white grayscale flex-shrink-0">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-gray-900 border-2 border-white grayscale flex-shrink-0">
                   <img src={collection.image} className="w-full h-full object-cover" alt={collection.name} />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2 uppercase tracking-tight truncate">
+                  <h1 className="text-lg sm:text-xl md:text-2xl font-black text-white flex items-center gap-2 uppercase tracking-tight truncate">
                     {collection.name}
                     {collection.isVerified && <Zap className={`w-4 h-4 md:w-5 md:h-5 ${accentColor} fill-current flex-shrink-0`} />}
                   </h1>
-                  <p className="text-gray-500 text-[10px] md:text-xs font-mono mt-1 line-clamp-2">{collection.description}</p>
+                  <p className="text-gray-500 text-[9px] sm:text-[10px] md:text-xs font-mono mt-1 line-clamp-2">{collection.description}</p>
                   {isSyncing && (
                     <div className="text-[9px] font-mono uppercase tracking-widest text-gray-600 mt-2">
                       Syncing Gorbagio API...
@@ -266,24 +266,24 @@ const Collection: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-3 gap-px bg-white/20 border border-white/20">
-                <div className="bg-black p-2 md:p-3 hover:bg-white/5 transition-colors">
-                  <div className="text-gray-500 text-[9px] md:text-[10px] uppercase font-bold mb-1">Floor</div>
-                  <div className={`${accentColor} font-mono font-bold text-base md:text-lg`}>{currency} {collection.floorPrice}</div>
+                <div className="bg-black p-1.5 sm:p-2 md:p-3 hover:bg-white/5 transition-colors">
+                  <div className="text-gray-500 text-[8px] sm:text-[9px] md:text-[10px] uppercase font-bold mb-0.5 sm:mb-1">Floor</div>
+                  <div className={`${accentColor} font-mono font-bold text-sm sm:text-base md:text-lg`}>{currency} {collection.floorPrice}</div>
                 </div>
-                <div className="bg-black p-2 md:p-3 hover:bg-white/5 transition-colors">
-                  <div className="text-gray-500 text-[9px] md:text-[10px] uppercase font-bold mb-1">Vol (24h)</div>
-                  <div className="text-white font-mono font-bold text-base md:text-lg">{(collection.totalVolume / 1000).toFixed(1)}k</div>
+                <div className="bg-black p-1.5 sm:p-2 md:p-3 hover:bg-white/5 transition-colors">
+                  <div className="text-gray-500 text-[8px] sm:text-[9px] md:text-[10px] uppercase font-bold mb-0.5 sm:mb-1">Vol (24h)</div>
+                  <div className="text-white font-mono font-bold text-sm sm:text-base md:text-lg">{(collection.totalVolume / 1000).toFixed(1)}k</div>
                 </div>
-                <div className="bg-black p-2 md:p-3 hover:bg-white/5 transition-colors">
-                  <div className="text-gray-500 text-[9px] md:text-[10px] uppercase font-bold mb-1">Listed</div>
-                  <div className="text-white font-mono font-bold text-base md:text-lg">{collection.listedCount}</div>
+                <div className="bg-black p-1.5 sm:p-2 md:p-3 hover:bg-white/5 transition-colors">
+                  <div className="text-gray-500 text-[8px] sm:text-[9px] md:text-[10px] uppercase font-bold mb-0.5 sm:mb-1">Listed</div>
+                  <div className="text-white font-mono font-bold text-sm sm:text-base md:text-lg">{collection.listedCount}</div>
                 </div>
               </div>
             </div>
 
             {/* Chart Area */}
-            <div className="lg:w-2/3 h-[200px] md:h-[250px] bg-black/50 p-4 relative group overflow-hidden">
-              <div className="absolute top-4 left-4 z-10 flex gap-4 text-[10px] md:text-xs font-bold font-mono pointer-events-none">
+            <div className="lg:w-2/3 h-[150px] sm:h-[200px] md:h-[250px] bg-black/50 p-2 sm:p-4 relative group overflow-hidden">
+              <div className="absolute top-2 left-2 sm:top-4 sm:left-4 z-10 flex gap-2 sm:gap-4 text-[8px] sm:text-[10px] md:text-xs font-bold font-mono pointer-events-none">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 ${accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green'}`}></div>
                   <span className="text-white">FLOOR_PRICE</span>
@@ -396,9 +396,9 @@ const Collection: React.FC = () => {
           </div>
 
           {/* Content Grid */}
-          <div className="p-2 md:p-4 min-h-screen">
+          <div className="p-1.5 sm:p-2 md:p-4 min-h-screen">
             {viewMode === 'items' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1.5 sm:gap-2 md:gap-4">
                 {filteredNfts?.map(nft => (
                   <NFTCard
                     key={nft.id}

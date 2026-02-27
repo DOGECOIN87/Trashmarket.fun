@@ -11,6 +11,25 @@ import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 type DetectedNetwork = 'gorbagana' | 'solana' | 'unknown';
 
 const Navbar: React.FC = () => {
+  const navRef = React.useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (navRef.current) {
+      const updateHeight = () => {
+        const height = navRef.current?.offsetHeight || 0;
+        document.documentElement.style.setProperty('--navbar-height', `${height}px`);
+      };
+      updateHeight();
+      window.addEventListener('resize', updateHeight);
+      const observer = new ResizeObserver(updateHeight);
+      observer.observe(navRef.current);
+      return () => {
+        window.removeEventListener('resize', updateHeight);
+        observer.disconnect();
+      };
+    }
+  }, []);
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
   const [gps, setGps] = useState<number>(7842);
@@ -114,13 +133,11 @@ const Navbar: React.FC = () => {
     { name: 'JUNKPUSHER', path: '/junk-pusher' },
     { name: 'DEX', path: '/dex' },
     { name: 'Vanity', path: '/vanity' },
-    { name: 'Docs', path: '/official-docs' },
-    { name: 'Brand', path: '/docs' },
   ];
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-magic-dark border-b border-white/20">
+      <nav ref={navRef} className="sticky top-0 z-50 bg-magic-dark border-b border-white/20">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -150,7 +167,7 @@ const Navbar: React.FC = () => {
             </div>
 
             {/* Desktop Search */}
-            <div className="hidden lg:flex flex-1 max-w-lg mx-8">
+            <div className="hidden xl:flex flex-1 max-w-lg mx-8">
               <div className="relative w-full group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-4 w-4 text-gray-500 group-hover:text-magic-green" />
@@ -166,20 +183,19 @@ const Navbar: React.FC = () => {
 
             {/* Desktop Menu & Network Status */}
             <div className="hidden md:flex items-center gap-6">
+              {/* Nav links inline only on xl+ screens */}
               <div className="hidden xl:flex items-center gap-6 mr-4">
                 {navLinks.map((link) => (
                   <Link
                     key={link.name}
                     to={link.path}
-                    className={`text-sm font-bold uppercase tracking-wide transition-colors hover:text-magic-green ${location.pathname === link.path ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400'
+                    className={`text-sm font-bold uppercase tracking-wide transition-colors hover:text-magic-green whitespace-nowrap ${location.pathname === link.path ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400'
                       }`}
                   >
                     {link.name}
                   </Link>
                 ))}
               </div>
-
-
 
               {/* Devnet Warning Badge (Prominent) */}
               {isDevnet && (
@@ -295,6 +311,24 @@ const Navbar: React.FC = () => {
               >
                 {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tablet Navigation Row - Visible between md and xl */}
+        <div className="hidden md:flex xl:hidden border-t border-white/10">
+          <div className="max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-center gap-4 py-2">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  className={`text-xs font-bold uppercase tracking-wide transition-colors hover:text-magic-green whitespace-nowrap ${location.pathname === link.path ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400'
+                    }`}
+                >
+                  {link.name}
+                </Link>
+              ))}
             </div>
           </div>
         </div>

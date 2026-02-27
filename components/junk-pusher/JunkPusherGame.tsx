@@ -67,10 +67,19 @@ const JunkPusherGame: React.FC = () => {
         if (!gameCanvasRef.current) return;
 
         const canvas = gameCanvasRef.current;
-        const width = canvas.clientWidth || window.innerWidth;
-        const height = canvas.clientHeight || window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
+        
+        // Use a more robust way to get dimensions that accounts for the parent container
+        const updateDimensions = () => {
+            const parent = canvas.parentElement;
+            const width = parent ? parent.clientWidth : window.innerWidth;
+            const height = parent ? parent.clientHeight : window.innerHeight;
+            
+            canvas.width = width;
+            canvas.height = height;
+            return { width, height };
+        };
+
+        const { width, height } = updateDimensions();
 
         if (width === 0 || height === 0) return;
 
@@ -83,6 +92,9 @@ const JunkPusherGame: React.FC = () => {
         engine.initialize(canvas, handleUpdate).then(() => {
             if (!disposed) {
                 engineRef.current = engine;
+                // Force a resize after init to ensure correct aspect ratio
+                const dims = updateDimensions();
+                engine.resize(dims.width, dims.height);
             } else {
                 engine.cleanup();
             }
@@ -92,9 +104,8 @@ const JunkPusherGame: React.FC = () => {
 
         const handleResize = () => {
             if (engineRef.current) {
-                const w = canvas.clientWidth || window.innerWidth;
-                const h = canvas.clientHeight || window.innerHeight;
-                engineRef.current.resize(w, h);
+                const dims = updateDimensions();
+                engineRef.current.resize(dims.width, dims.height);
             }
         };
         window.addEventListener('resize', handleResize);
@@ -176,7 +187,7 @@ const JunkPusherGame: React.FC = () => {
     };
 
     return (
-        <div className="relative w-full h-screen overflow-hidden bg-black">
+        <div className="relative w-full h-full overflow-hidden bg-black">
             {/* Floating Background Images */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 {/* Trash Character 1 - Top Left */}

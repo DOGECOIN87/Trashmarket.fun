@@ -44,10 +44,10 @@ export default function JunkPusherPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black">
+        <div className="h-[calc(100vh-var(--navbar-height,0px))] bg-gradient-to-b from-gray-900 via-gray-800 to-black overflow-hidden">
             <Suspense
                 fallback={
-                    <div className="flex min-h-screen items-center justify-center">
+                    <div className="flex h-full items-center justify-center">
                         <div className="text-center">
                             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-green-500 mx-auto mb-4"></div>
                             <p className="text-green-400 text-lg font-bold">Loading Junk Pusher...</p>

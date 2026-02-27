@@ -102,7 +102,7 @@ const Home: React.FC = () => {
     <div className="min-h-screen pb-20" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
       {/* Hero / Spotlight with Background Video */}
       {featuredCollection ? (
-        <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20">
+        <div className="relative h-[300px] sm:h-[400px] md:h-[450px] w-full overflow-hidden border-b border-white/20">
           {/* Background Video - Hero Section Only */}
           <video
             ref={videoRef}
@@ -131,7 +131,7 @@ const Home: React.FC = () => {
             <div className="absolute inset-0 bg-[linear-gradient(rgba(18,18,18,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(18,18,18,0.3)_1px,transparent_1px)] bg-[size:40px_40px] opacity-10"></div>
           </div>
 
-          <div className="absolute bottom-0 left-0 w-full p-4 md:p-12 z-10">
+          <div className="absolute bottom-0 left-0 w-full p-3 sm:p-6 md:p-12 z-10">
             <div className="max-w-[1600px] mx-auto flex flex-col gap-6">
               <div className="max-w-3xl w-full">
                 <div className={`flex items-center justify-between mb-2 w-full border-b ${accentColor === 'text-magic-purple' ? 'border-magic-purple/30' : 'border-magic-green/30'} pb-2`}>
@@ -149,7 +149,7 @@ const Home: React.FC = () => {
                   </div>
                 </div>
 
-                <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter uppercase leading-none">
+                <h1 className="text-3xl sm:text-5xl md:text-7xl font-black text-white mb-4 sm:mb-6 tracking-tighter uppercase leading-none">
                   {featuredCollection.name}
                 </h1>
 
@@ -206,7 +206,7 @@ const Home: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="relative h-[450px] w-full overflow-hidden border-b border-white/20 flex items-center justify-center">
+        <div className="relative h-[300px] sm:h-[400px] md:h-[450px] w-full overflow-hidden border-b border-white/20 flex items-center justify-center">
           <div className="text-magic-green animate-pulse font-mono uppercase tracking-widest text-xl">
             LOADING SPOTLIGHT...
           </div>
@@ -214,7 +214,7 @@ const Home: React.FC = () => {
       )}
 
       {/* Pro Table Section */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-12">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-2">
             <Activity className={`w-5 h-5 ${accentColor}`} />
@@ -232,22 +232,22 @@ const Home: React.FC = () => {
           <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green'}`}></div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-white/10 text-[10px] text-gray-500 uppercase font-mono tracking-widest bg-white/5">
-                  <th className="p-4 font-bold">Rank / Collection</th>
-                  <th className="p-4 font-bold text-right">Floor</th>
-                  <th className="p-4 font-bold text-right">24h %</th>
-                  <th className="p-4 font-bold text-right">24h Vol</th>
-                  <th className="p-4 font-bold text-right">Sales</th>
-                  <th className="p-4 font-bold text-right">Supply</th>
+                <tr className="border-b border-white/10 text-[8px] sm:text-[10px] text-gray-500 uppercase font-mono tracking-widest bg-white/5">
+                  <th className="p-2 sm:p-4 font-bold">Rank / Collection</th>
+                  <th className="p-2 sm:p-4 font-bold text-right">Floor</th>
+                  <th className="p-2 sm:p-4 font-bold text-right hidden sm:table-cell">24h %</th>
+                  <th className="p-2 sm:p-4 font-bold text-right hidden md:table-cell">24h Vol</th>
+                  <th className="p-2 sm:p-4 font-bold text-right hidden lg:table-cell">Sales</th>
+                  <th className="p-2 sm:p-4 font-bold text-right hidden lg:table-cell">Supply</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {collections.map((collection, idx) => (
                   <tr key={collection.id} className="group hover:bg-white/5 transition-colors">
 
-                    <td className="p-4">
+                    <td className="p-2 sm:p-4">
                       <Link to={`/collection/${collection.id}`} className="flex items-center gap-4">
                         <span className="text-gray-700 font-mono text-sm w-4 text-center group-hover:text-white transition-colors">0{idx + 1}</span>
                         <div className={`w-8 h-8 min-w-[32px] max-w-[32px] min-h-[32px] max-h-[32px] border border-white/20 overflow-hidden bg-gray-900 ${accentColor === 'text-magic-purple' ? 'group-hover:border-magic-purple' : 'group-hover:border-magic-green'} transition-colors`}>
@@ -261,22 +261,22 @@ const Home: React.FC = () => {
                         </div>
                       </Link>
                     </td>
-                    <td className={`p-4 text-right font-mono font-bold text-gray-300 group-hover:${accentColor} transition-colors`}>
+                    <td className={`p-2 sm:p-4 text-right font-mono font-bold text-gray-300 group-hover:${accentColor} transition-colors`}>
                       {currency} {collection.floorPrice}
                     </td>
-                    <td className={`p-4 text-right font-mono font-bold text-xs ${collection.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}`}>
+                    <td className={`p-2 sm:p-4 text-right font-mono font-bold text-xs ${collection.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'} hidden sm:table-cell`}>
                       <div className="flex items-center justify-end gap-1">
                         {collection.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                         {Math.abs(collection.change24h)}%
                       </div>
                     </td>
-                    <td className="p-4 text-right font-mono text-gray-500 text-xs">
+                    <td className="p-2 sm:p-4 text-right font-mono text-gray-500 text-xs hidden md:table-cell">
                       {currency} {(collection.totalVolume / 1000).toFixed(1)}k
                     </td>
-                    <td className="p-4 text-right font-mono text-gray-500 text-xs">
+                    <td className="p-2 sm:p-4 text-right font-mono text-gray-500 text-xs hidden lg:table-cell">
                       {collection.listedCount * 2}
                     </td>
-                    <td className="p-4 text-right font-mono text-gray-600 text-xs">
+                    <td className="p-2 sm:p-4 text-right font-mono text-gray-600 text-xs hidden lg:table-cell">
                       {collection.supply}
                     </td>
                   </tr>
@@ -284,8 +284,8 @@ const Home: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <div className="p-3 border-t border-white/10 text-center bg-black hover:bg-white/5 cursor-pointer transition-colors">
-            <button className="text-[10px] text-gray-400 font-bold flex items-center justify-center gap-2 w-full uppercase tracking-widest hover:text-white">
+          <div className="p-2 sm:p-3 border-t border-white/10 text-center bg-black hover:bg-white/5 cursor-pointer transition-colors">
+            <button className="text-[8px] sm:text-[10px] text-gray-400 font-bold flex items-center justify-center gap-2 w-full uppercase tracking-widest hover:text-white">
               [ LOAD_MORE_DATA ]
             </button>
           </div>
