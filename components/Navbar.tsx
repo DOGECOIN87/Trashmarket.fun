@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Menu, X, Wallet, Trash2, Activity, ExternalLink, Globe, ChevronDown } from 'lucide-react';
+import { Search, Menu, X, Wallet, Trash2, Activity, ExternalLink, Globe, ChevronDown, Gamepad2 } from 'lucide-react';
 import { useNetwork, GORBAGANA_CONFIG, NetworkType } from '../contexts/NetworkContext';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
@@ -32,6 +32,7 @@ const Navbar: React.FC = () => {
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNetworkMenuOpen, setIsNetworkMenuOpen] = useState(false);
+  const [isGamesMenuOpen, setIsGamesMenuOpen] = useState(false);
   const [gps, setGps] = useState<number>(7842);
   const [balance, setBalance] = useState<number | null>(null);
   const [detectedNetwork, setDetectedNetwork] = useState<DetectedNetwork>('unknown');
@@ -130,10 +131,16 @@ const Navbar: React.FC = () => {
     { name: 'Gorbagio', path: '/collection/gorbagio' },
     { name: 'GorID', path: '/gorid' },
     { name: 'Bridge', path: '/bridge' },
-    { name: 'JUNKPUSHER', path: '/junk-pusher' },
     { name: 'DEX', path: '/dex' },
     { name: 'Vanity', path: '/vanity' },
   ];
+
+  const gameLinks = [
+    { name: 'JunkPusher', path: '/junk-pusher' },
+    { name: 'Slots', path: '/slots' },
+  ];
+
+  const isGamesActive = location.pathname === '/junk-pusher' || location.pathname === '/slots';
 
   return (
     <>
@@ -195,6 +202,41 @@ const Navbar: React.FC = () => {
                     {link.name}
                   </Link>
                 ))}
+
+                {/* Games Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsGamesMenuOpen(!isGamesMenuOpen)}
+                    className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${isGamesActive ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400 hover:text-magic-green'
+                      }`}
+                  >
+                    <Gamepad2 className="w-4 h-4" />
+                    GAMES
+                    <ChevronDown className={`w-3 h-3 transition-transform ${isGamesMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Games Dropdown Menu */}
+                  {isGamesMenuOpen && (
+                    <div className="absolute left-0 mt-2 w-48 bg-magic-dark border border-white/20 shadow-lg z-50">
+                      <div className="p-2">
+                        {gameLinks.map((link) => (
+                          <Link
+                            key={link.name}
+                            to={link.path}
+                            onClick={() => setIsGamesMenuOpen(false)}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${location.pathname === link.path ? 'bg-magic-green/10 border border-magic-green/30' : 'border border-transparent'
+                              }`}
+                          >
+                            <span className="text-white font-mono uppercase">{link.name}</span>
+                            {location.pathname === link.path && (
+                              <span className="w-2 h-2 rounded-full bg-magic-green animate-pulse"></span>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Devnet Warning Badge (Prominent) */}
@@ -318,7 +360,7 @@ const Navbar: React.FC = () => {
         {/* Tablet Navigation Row - Visible between md and xl */}
         <div className="hidden md:flex xl:hidden border-t border-white/10">
           <div className="max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-center gap-4 py-2">
+            <div className="flex items-center justify-center gap-4 py-2 flex-wrap">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
@@ -329,6 +371,41 @@ const Navbar: React.FC = () => {
                   {link.name}
                 </Link>
               ))}
+
+              {/* Games Dropdown for Tablet */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsGamesMenuOpen(!isGamesMenuOpen)}
+                  className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${isGamesActive ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400 hover:text-magic-green'
+                    }`}
+                >
+                  <Gamepad2 className="w-4 h-4" />
+                  GAMES
+                  <ChevronDown className={`w-3 h-3 transition-transform ${isGamesMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Games Dropdown Menu */}
+                {isGamesMenuOpen && (
+                  <div className="absolute left-0 mt-2 w-48 bg-magic-dark border border-white/20 shadow-lg z-50">
+                    <div className="p-2">
+                      {gameLinks.map((link) => (
+                        <Link
+                          key={link.name}
+                          to={link.path}
+                          onClick={() => setIsGamesMenuOpen(false)}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${location.pathname === link.path ? 'bg-magic-green/10 border border-magic-green/30' : 'border border-transparent'
+                            }`}
+                        >
+                          <span className="text-white font-mono uppercase">{link.name}</span>
+                          {location.pathname === link.path && (
+                            <span className="w-2 h-2 rounded-full bg-magic-green animate-pulse"></span>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -372,6 +449,22 @@ const Navbar: React.FC = () => {
                   {link.name}
                 </Link>
               ))}
+
+              {/* Mobile Games Links */}
+              <div className="border-t border-white/10 pt-2 mt-2">
+                <div className="px-3 py-2 text-base font-bold text-magic-green uppercase font-mono">GAMES</div>
+                {gameLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    to={link.path}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block px-6 py-2 text-base font-bold text-gray-300 hover:text-magic-green hover:bg-white/5 uppercase font-mono"
+                  >
+                    {link.name}
+                  </Link>
+                ))}
+              </div>
+
               {/* Mobile Connected Network Badge */}
               {connected && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-black border border-white/10 mt-2">

@@ -1,0 +1,513 @@
+/* Slots Game - Trashmarket.fun Style */
+
+.slots-game-container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #000000, #080808, #000000);
+  color: white;
+  padding: 2rem 1rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.slots-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.slots-title-section {
+  text-align: center;
+  flex: 1;
+}
+
+.slots-title {
+  font-size: 3.5rem;
+  margin: 0;
+  color: #adff02;
+  text-shadow: 0 0 20px rgba(173, 255, 2, 0.5);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.slots-subtitle {
+  font-size: 0.9rem;
+  color: #999;
+  margin: 0.5rem 0 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: bold;
+}
+
+.slots-sound-btn {
+  background: black;
+  border: 2px solid #adff02;
+  color: #adff02;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.slots-sound-btn:hover {
+  background: #adff02;
+  color: black;
+  box-shadow: 0 0 15px rgba(173, 255, 2, 0.5);
+}
+
+.slots-sound-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Balance Section */
+.slots-balance-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.slots-balance-display {
+  background: rgba(173, 255, 2, 0.05);
+  border: 2px solid #adff02;
+  padding: 1rem 2rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.slots-balance-label {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.slots-balance-amount {
+  color: #adff02;
+  font-size: 1.8rem;
+  font-weight: 900;
+}
+
+.slots-balance-unit {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+/* Reels Container */
+.slots-reels-container {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  perspective: 1000px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.slots-reel {
+  width: 150px;
+  height: 300px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 3px solid #adff02;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(173, 255, 2, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.slots-reel.spinning {
+  animation: slots-spin 0.1s linear infinite;
+}
+
+@keyframes slots-spin {
+  0% {
+    transform: rotateX(0deg);
+  }
+  100% {
+    transform: rotateX(360deg);
+  }
+}
+
+.slots-symbol-slot {
+  width: 100%;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  box-sizing: border-box;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.slots-symbol-slot.active {
+  opacity: 1;
+  background: rgba(173, 255, 2, 0.1);
+  border-top: 2px solid #adff02;
+  border-bottom: 2px solid #adff02;
+  box-shadow: inset 0 0 10px rgba(173, 255, 2, 0.2);
+}
+
+.slots-symbol-image {
+  width: 80px;
+  height: 60px;
+  object-fit: contain;
+  margin-bottom: 0.3rem;
+}
+
+.slots-symbol-label {
+  font-size: 0.65rem;
+  text-align: center;
+  color: #999;
+  line-height: 1;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+/* Message Display */
+.slots-message {
+  text-align: center;
+  font-size: 1.2rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.slots-message-win {
+  background: rgba(173, 255, 2, 0.15);
+  border: 2px solid #adff02;
+  color: #adff02;
+  animation: slots-pulse 0.5s ease-in-out;
+  box-shadow: 0 0 20px rgba(173, 255, 2, 0.4);
+}
+
+.slots-message-lose {
+  background: rgba(255, 34, 34, 0.15);
+  border: 2px solid #ff2222;
+  color: #ff6666;
+}
+
+.slots-message-info {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid #666;
+  color: #999;
+}
+
+@keyframes slots-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Controls Section */
+.slots-controls-section {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.slots-bet-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(173, 255, 2, 0.05);
+  padding: 1rem 1.5rem;
+  border: 2px solid #adff02;
+}
+
+.slots-bet-label {
+  font-weight: bold;
+  color: #999;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+}
+
+.slots-bet-input {
+  width: 80px;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #adff02;
+  color: #adff02;
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.slots-bet-input:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(173, 255, 2, 0.5);
+}
+
+.slots-bet-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slots-max-bet-btn {
+  padding: 0.5rem 1rem;
+  background: #adff02;
+  color: black;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.slots-max-bet-btn:hover:not(:disabled) {
+  background: white;
+  box-shadow: 0 0 15px rgba(173, 255, 2, 0.7);
+  transform: scale(1.05);
+}
+
+.slots-max-bet-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slots-spin-button {
+  padding: 1rem 3rem;
+  background: linear-gradient(135deg, #adff02 0%, #adff02 100%);
+  color: black;
+  border: 2px solid #adff02;
+  font-size: 1.2rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 20px rgba(173, 255, 2, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.slots-spin-button:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 0 30px rgba(173, 255, 2, 0.8);
+  background: white;
+}
+
+.slots-spin-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Add Balance Section */
+.slots-add-balance-section {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.slots-add-btn {
+  padding: 0.75rem 1.5rem;
+  background: rgba(173, 255, 2, 0.1);
+  border: 2px solid #adff02;
+  color: #adff02;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.slots-add-btn:hover {
+  background: #adff02;
+  color: black;
+  box-shadow: 0 0 15px rgba(173, 255, 2, 0.5);
+}
+
+/* Info Section */
+.slots-info-section {
+  background: rgba(173, 255, 2, 0.05);
+  border: 2px solid #adff02;
+  padding: 2rem;
+  margin-top: 2rem;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.slots-info-title {
+  text-align: center;
+  color: #adff02;
+  margin: 0 0 1.5rem 0;
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  font-size: 1.1rem;
+}
+
+.slots-payout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.slots-payout-item {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.75rem;
+  border: 2px solid #adff02;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.slots-payout-item:hover {
+  background: rgba(173, 255, 2, 0.1);
+  box-shadow: 0 0 10px rgba(173, 255, 2, 0.3);
+}
+
+.slots-payout-symbol {
+  width: 50px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.slots-payout-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.slots-payout-name {
+  font-size: 0.8rem;
+  color: #999;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.slots-payout-value {
+  font-size: 1rem;
+  color: #adff02;
+  font-weight: 900;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .slots-title {
+    font-size: 2.5rem;
+  }
+
+  .slots-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .slots-reels-container {
+    gap: 1rem;
+  }
+
+  .slots-reel {
+    width: 120px;
+    height: 240px;
+  }
+
+  .slots-symbol-slot {
+    height: 80px;
+  }
+
+  .slots-symbol-image {
+    width: 60px;
+    height: 45px;
+  }
+
+  .slots-controls-section {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .slots-spin-button {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .slots-bet-control {
+    width: 100%;
+    max-width: 300px;
+    justify-content: center;
+  }
+
+  .slots-payout-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .slots-game-container {
+    padding: 1rem 0.5rem;
+  }
+
+  .slots-title {
+    font-size: 2rem;
+  }
+
+  .slots-header {
+    margin-bottom: 1rem;
+  }
+
+  .slots-balance-display {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .slots-reel {
+    width: 100px;
+    height: 200px;
+  }
+
+  .slots-symbol-slot {
+    height: 66px;
+  }
+
+  .slots-symbol-image {
+    width: 50px;
+    height: 40px;
+  }
+
+  .slots-payout-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

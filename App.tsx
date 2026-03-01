@@ -15,6 +15,7 @@ import GorbagioMarket from './pages/GorbagioMarket';
 import Gorid from './pages/Gorid';
 import Bridge from './pages/Bridge';
 import JunkPusherPage from './pages/JunkPusher';
+import SlotsPage from './pages/Slots';
 import Dex from './pages/Dex';
 import VanityGenerator from './pages/VanityGenerator';
 import Submit from './pages/Submit';
@@ -43,6 +44,7 @@ const App: React.FC = () => {
 
                     <Route path="/bridge" element={<Bridge />} />
                     <Route path="/junk-pusher" element={<JunkPusherPage />} />
+                    <Route path="/slots" element={<SlotsPage />} />
                     <Route path="/dex" element={<Dex />} />
                     <Route path="/vanity" element={<VanityGenerator />} />
                     <Route path="/submit" element={<Submit />} />
