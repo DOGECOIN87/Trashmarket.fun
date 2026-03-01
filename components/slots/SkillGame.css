@@ -1,0 +1,566 @@
+/* Skill Game - Trashmarket.fun Style */
+
+.skill-game-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0a0a0a;
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  overflow: hidden;
+}
+
+.skill-game-content {
+  display: flex;
+  flex: 1;
+  padding: 10px;
+  gap: 10px;
+  min-height: 0;
+}
+
+/* Paytable Column */
+.skill-paytable-column {
+  width: 10%;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.skill-paytable-content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.skill-tier-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1a1a1a;
+  border: 2px solid #555;
+  padding: 6px 8px;
+  height: 50px;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.skill-tier-row:hover {
+  background: #222;
+  border-color: #adff02;
+  box-shadow: 0 0 10px rgba(173, 255, 2, 0.5);
+}
+
+.skill-tier-symbol {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skill-tier-symbol img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.skill-tier-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  color: #888;
+  text-shadow: none;
+  flex: 1;
+  text-align: right;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.skill-tier-row:hover .skill-tier-value {
+  color: #adff02;
+  text-shadow: 0 0 10px #adff02;
+}
+
+.skill-win-display {
+  background: #000;
+  border: 3px solid #555;
+  padding: 15px;
+  text-align: center;
+  margin-top: 10px;
+  transition: all 0.2s ease;
+}
+
+.skill-win-display:hover {
+  border-color: #adff02;
+  box-shadow: 0 0 15px rgba(173, 255, 2, 0.4);
+}
+
+.skill-win-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  color: #888;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.skill-win-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 48px;
+  color: #666;
+  text-shadow: none;
+  line-height: 1;
+  font-weight: 900;
+  transition: all 0.2s ease;
+}
+
+.skill-win-display:hover .skill-win-value {
+  color: #adff02;
+  text-shadow: 0 0 15px #adff02;
+}
+
+/* Play Area */
+.skill-play-area {
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  background: #111;
+  border: 3px solid #555;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.skill-play-area:hover {
+  border-color: #adff02;
+  box-shadow: 0 0 15px rgba(173, 255, 2, 0.2);
+}
+
+.skill-grid-container {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 15px;
+  padding: 30px;
+  position: relative;
+}
+
+.skill-grid-cell {
+  background: #1a1a1a;
+  border: 2px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.skill-grid-cell:hover {
+  border-color: #adff02;
+  background: #222;
+  box-shadow: 0 0 15px rgba(173, 255, 2, 0.4);
+}
+
+.skill-grid-cell:active {
+  border-color: #adff02;
+  box-shadow: 0 0 20px rgba(173, 255, 2, 0.6);
+}
+
+.skill-grid-cell.skill-active {
+  border-color: #adff02;
+  box-shadow: 0 0 20px rgba(173, 255, 2, 0.5);
+}
+
+.skill-grid-cell.skill-wild {
+  background: rgba(173, 255, 2, 0.15);
+  border-color: #adff02;
+}
+
+.skill-cell-symbol {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  transition: transform 0.15s ease-out;
+}
+
+.skill-cell-symbol img {
+  max-width: 150px;
+  max-height: 150px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.skill-cell-symbol.skill-wild-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  color: #666;
+  text-shadow: none;
+  font-weight: 900;
+  transition: all 0.2s ease;
+}
+
+.skill-grid-cell:hover .skill-cell-symbol.skill-wild-text,
+.skill-grid-cell.skill-wild .skill-cell-symbol.skill-wild-text {
+  color: #adff02;
+  text-shadow: 0 0 10px #adff02;
+}
+
+.skill-status-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 32px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  pointer-events: none;
+  z-index: 10;
+  font-weight: bold;
+}
+
+.skill-status-message.skill-hidden {
+  display: none;
+}
+
+/* Timer */
+.skill-timer-container {
+  position: absolute;
+  top: 10px;
+  left: 30px;
+  right: 30px;
+  height: 8px;
+  background: #333;
+  border-radius: 4px;
+  overflow: hidden;
+  display: none;
+}
+
+.skill-timer-container.active {
+  display: block;
+}
+
+.skill-timer-bar {
+  height: 100%;
+  background: linear-gradient(to right, #ff0000, #ffff00, #adff02);
+  width: 100%;
+  transition: width 0.1s linear;
+}
+
+/* Memory Circle */
+.skill-memory-circle {
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+  opacity: 0.3;
+  transition: opacity 0.2s;
+}
+
+.skill-memory-circle.active {
+  opacity: 1;
+  box-shadow: 0 0 30px currentColor;
+}
+
+/* Spinning Animation */
+@keyframes skill-spin-vertical {
+  0% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(-50px);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(-100px);
+    opacity: 0.3;
+  }
+  75% {
+    transform: translateY(-50px);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+}
+
+@keyframes skill-spin-blur {
+  0% {
+    filter: blur(0px);
+    transform: scale(1);
+  }
+  50% {
+    filter: blur(3px);
+    transform: scale(0.95);
+  }
+  100% {
+    filter: blur(0px);
+    transform: scale(1);
+  }
+}
+
+.skill-grid-cell.skill-spinning {
+  border-color: #adff02;
+  box-shadow: 0 0 20px rgba(173, 255, 2, 0.6);
+}
+
+.skill-grid-cell.skill-spinning .skill-cell-symbol {
+  animation: skill-spin-vertical 0.15s ease-in-out infinite,
+    skill-spin-blur 0.3s ease-in-out infinite;
+}
+
+@keyframes skill-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.skill-winning-cell {
+  animation: skill-pulse 0.5s ease-in-out infinite;
+  border-color: #adff02 !important;
+  box-shadow: 0 0 30px #adff02 !important;
+}
+
+/* Control Section */
+.skill-control-section {
+  background: #000;
+  border-top: 3px solid #555;
+  transition: all 0.2s ease;
+}
+
+.skill-control-section:hover {
+  border-top-color: #adff02;
+}
+
+.skill-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background: #0a0a0a;
+  border-bottom: 1px solid #444;
+}
+
+.skill-status-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.skill-status-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  color: #888;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.skill-status-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 36px;
+  padding: 5px 20px;
+  background: #000;
+  border: 2px solid #555;
+  min-width: 100px;
+  text-align: center;
+  font-weight: 900;
+  transition: all 0.2s ease;
+}
+
+.skill-status-value:hover {
+  border-color: #adff02;
+  box-shadow: 0 0 10px rgba(173, 255, 2, 0.4);
+}
+
+.skill-play-level-value {
+  color: #888;
+  text-shadow: none;
+}
+
+.skill-status-value:hover.skill-play-level-value,
+.skill-status-value:hover.skill-points-value {
+  color: #adff02;
+  text-shadow: 0 0 10px #adff02;
+}
+
+.skill-points-value {
+  color: #888;
+  text-shadow: none;
+}
+
+.skill-button-bar {
+  display: flex;
+  gap: 10px;
+  padding: 15px 30px;
+  background: #111;
+  flex-wrap: wrap;
+}
+
+.skill-game-btn {
+  flex: 1;
+  min-width: 100px;
+  height: 70px;
+  background: linear-gradient(to bottom, #333, #1a1a1a);
+  border: 2px solid #555;
+  border-radius: 0;
+  color: #aaa;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #000;
+  transition: all 0.05s;
+  letter-spacing: 0.05em;
+}
+
+.skill-game-btn:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #444, #222);
+  border-color: #adff02;
+  color: #adff02;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #000, 0 0 15px rgba(173, 255, 2, 0.4);
+}
+
+.skill-game-btn:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 #000, inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  border-color: #adff02;
+  color: #adff02;
+}
+
+.skill-game-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.skill-game-btn.skill-play {
+  background: linear-gradient(to bottom, #333, #1a1a1a);
+  border-color: #555;
+  color: #aaa;
+  flex: 1.2;
+  font-weight: 900;
+}
+
+.skill-game-btn.skill-play:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #adff02, #8ac900);
+  border-color: #adff02;
+  color: #000;
+  box-shadow: 0 0 20px rgba(173, 255, 2, 0.8), 0 4px 0 #000;
+}
+
+.skill-game-btn.skill-play:active:not(:disabled) {
+  background: linear-gradient(to bottom, #fff, #adff02);
+  border-color: #fff;
+  color: #000;
+}
+
+.skill-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 30px;
+  background: #000;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #555;
+  border-top: 1px solid #444;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .skill-paytable-column {
+    width: 12%;
+    min-width: 100px;
+  }
+
+  .skill-game-btn {
+    font-size: 14px;
+    height: 60px;
+  }
+
+  .skill-status-value {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 768px) {
+  .skill-game-content {
+    flex-direction: column;
+  }
+
+  .skill-paytable-column {
+    width: 100%;
+    min-width: auto;
+    height: auto;
+    max-height: 150px;
+    flex-direction: row;
+  }
+
+  .skill-paytable-content {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 5px;
+  }
+
+  .skill-tier-row {
+    flex-shrink: 0;
+    width: 70px;
+    height: 60px;
+    flex-direction: column;
+    padding: 4px;
+  }
+
+  .skill-tier-value {
+    font-size: 14px;
+  }
+
+  .skill-play-area {
+    width: 100%;
+  }
+
+  .skill-grid-container {
+    gap: 10px;
+    padding: 20px;
+  }
+
+  .skill-grid-cell {
+    border-width: 1px;
+  }
+
+  .skill-button-bar {
+    flex-direction: column;
+  }
+
+  .skill-game-btn {
+    flex: 1;
+    min-width: auto;
+    height: 50px;
+    font-size: 14px;
+  }
+
+  .skill-status-bar {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .skill-status-value {
+    font-size: 24px;
+    min-width: 80px;
+  }
+}
