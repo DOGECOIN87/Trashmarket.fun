@@ -19,6 +19,7 @@ import SlotsPage from './pages/Slots';
 import Swap from './pages/Swap';
 import VanityGenerator from './pages/VanityGenerator';
 import Submit from './pages/Submit';
+import Raffle from './pages/Raffle';
 import Notifications from './components/Notifications';
 
 const App: React.FC = () => {
@@ -48,6 +49,7 @@ const App: React.FC = () => {
                     <Route path="/dex" element={<Swap />} />
                     <Route path="/vanity" element={<VanityGenerator />} />
                     <Route path="/submit" element={<Submit />} />
+                    <Route path="/raffle" element={<Raffle />} />
                   </Routes>
                 </main>
                 <ActivityTicker />
