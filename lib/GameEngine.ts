@@ -37,6 +37,7 @@ export class GameEngine {
   private requestAnimationId: number | null = null;
   private lastTime = 0;
   private accumulatedTime = 0;
+  private simulationTime = 0;
   private frameCount = 0;
   private lastFpsTime = 0;
 
@@ -661,6 +662,7 @@ export class GameEngine {
 
   private startLoop() {
     this.lastTime = performance.now();
+    this.simulationTime = this.lastTime / 1000;
     this.loop();
   }
 
@@ -686,7 +688,8 @@ export class GameEngine {
     const maxSubSteps = 5;
     let steps = 0;
     while (this.accumulatedTime >= PHYSICS.TIMESTEP && steps < maxSubSteps) {
-      this.updatePhysicsLogic(now / 1000);
+      this.simulationTime += PHYSICS.TIMESTEP;
+      this.updatePhysicsLogic(this.simulationTime);
       this.world.step();
       this.accumulatedTime -= PHYSICS.TIMESTEP;
       steps++;
