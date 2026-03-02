@@ -180,10 +180,10 @@ const DexPage: React.FC = () => {
   // Filter tokens for selector
   const filteredTokens = searchQuery
     ? tokens.filter(t =>
-        t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.mint.toLowerCase().startsWith(searchQuery.toLowerCase())
-      )
+      t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.mint.toLowerCase().startsWith(searchQuery.toLowerCase())
+    )
     : tokens;
 
   // Get exchange rate display
@@ -230,7 +230,7 @@ const DexPage: React.FC = () => {
         loop
         muted
         playsInline
-        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
+        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-60 pointer-events-none"
         src="/gorbagio-video-pill.mp4"
       />
       {/* Header */}
@@ -315,9 +315,8 @@ const DexPage: React.FC = () => {
                 {markets.map((market, i) => (
                   <tr
                     key={market.marketId}
-                    className={`border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors ${
-                      activePool?.marketId === market.marketId ? 'bg-magic-green/5 border-magic-green/20' : ''
-                    }`}
+                    className={`border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors ${activePool?.marketId === market.marketId ? 'bg-magic-green/5 border-magic-green/20' : ''
+                      }`}
                     onClick={() => {
                       // Set pay/receive tokens from this pool
                       const baseToken = tokens.find(t => t.mint === market.baseToken.mint);
@@ -337,11 +336,10 @@ const DexPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-2 py-2.5">
-                      <span className={`px-1.5 py-0.5 text-[9px] border ${
-                        market.type.includes('DAMM') ? 'border-purple-500/30 text-purple-400' :
-                        market.type.includes('SAMM') ? 'border-blue-500/30 text-blue-400' :
-                        'border-magic-green/30 text-magic-green'
-                      }`}>
+                      <span className={`px-1.5 py-0.5 text-[9px] border ${market.type.includes('DAMM') ? 'border-purple-500/30 text-purple-400' :
+                          market.type.includes('SAMM') ? 'border-blue-500/30 text-blue-400' :
+                            'border-magic-green/30 text-magic-green'
+                        }`}>
                         {market.type}
                       </span>
                     </td>
