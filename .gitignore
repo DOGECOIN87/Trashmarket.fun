@@ -36,3 +36,9 @@ config/
 # Keypair files (NEVER commit)
 *.keypair.json
 *-keypair.json
+
+# Anchor / Solana build artifacts
+target/
+programs/**/target/
+programs/**/Cargo.lock
+*.so

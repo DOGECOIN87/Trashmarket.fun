@@ -1,4 +1,10 @@
-{
+/**
+ * Program IDL in camelCase format in order to be used in JS/TS.
+ *
+ * Note that this is only a type helper and is not the actual IDL. The original
+ * IDL can be found at `target/idl/goraffle.json`.
+ */
+export type Goraffle = {
   "address": "EyanJkk7BV9nA5ZzuBQLqC3FWf25dLdgbURhLiV3Hc31",
   "metadata": {
     "name": "goraffle",
@@ -8,7 +14,7 @@
   },
   "instructions": [
     {
-      "name": "buy_tickets",
+      "name": "buyTickets",
       "discriminator": [
         48,
         16,
@@ -38,7 +44,7 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
@@ -49,11 +55,11 @@
           "signer": true
         },
         {
-          "name": "buyer_token_account",
+          "name": "buyerTokenAccount",
           "writable": true
         },
         {
-          "name": "escrow_token_account",
+          "name": "escrowTokenAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -75,13 +81,13 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "ticket_account",
+          "name": "ticketAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -99,7 +105,7 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               },
               {
                 "kind": "account",
@@ -109,14 +115,14 @@
           }
         },
         {
-          "name": "ggor_mint"
+          "name": "ggorMint"
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -126,7 +132,7 @@
       ],
       "args": [
         {
-          "name": "raffle_id",
+          "name": "raffleId",
           "type": "u64"
         },
         {
@@ -136,7 +142,7 @@
       ]
     },
     {
-      "name": "cancel_raffle",
+      "name": "cancelRaffle",
       "discriminator": [
         135,
         191,
@@ -166,7 +172,7 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
@@ -176,7 +182,7 @@
           "signer": true
         },
         {
-          "name": "escrow_nft_account",
+          "name": "escrowNftAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -197,17 +203,17 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "creator_nft_account",
+          "name": "creatorNftAccount",
           "writable": true
         },
         {
-          "name": "escrow_authority",
+          "name": "escrowAuthority",
           "pda": {
             "seeds": [
               {
@@ -223,25 +229,25 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
         {
-          "name": "raffle_id",
+          "name": "raffleId",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "create_escrow",
+      "name": "createEscrow",
       "discriminator": [
         253,
         215,
@@ -259,13 +265,13 @@
           "signer": true
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
-          "name": "ggor_mint"
+          "name": "ggorMint"
         },
         {
-          "name": "escrow_authority",
+          "name": "escrowAuthority",
           "pda": {
             "seeds": [
               {
@@ -281,13 +287,13 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "escrow_nft_account",
+          "name": "escrowNftAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -308,13 +314,13 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "escrow_token_account",
+          "name": "escrowTokenAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -336,17 +342,17 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -356,13 +362,13 @@
       ],
       "args": [
         {
-          "name": "raffle_id",
+          "name": "raffleId",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "create_raffle",
+      "name": "createRaffle",
       "discriminator": [
         226,
         206,
@@ -392,13 +398,13 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "raffle_state",
+          "name": "raffleState",
           "writable": true,
           "pda": {
             "seeds": [
@@ -428,14 +434,14 @@
           "signer": true
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
-          "name": "nft_token_account",
+          "name": "nftTokenAccount",
           "writable": true
         },
         {
-          "name": "escrow_nft_account",
+          "name": "escrowNftAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -456,20 +462,20 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "ggor_mint"
+          "name": "ggorMint"
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -479,25 +485,25 @@
       ],
       "args": [
         {
-          "name": "raffle_id",
+          "name": "raffleId",
           "type": "u64"
         },
         {
-          "name": "ticket_price",
+          "name": "ticketPrice",
           "type": "u64"
         },
         {
-          "name": "total_tickets",
+          "name": "totalTickets",
           "type": "u64"
         },
         {
-          "name": "end_time",
+          "name": "endTime",
           "type": "i64"
         }
       ]
     },
     {
-      "name": "draw_winner",
+      "name": "drawWinner",
       "discriminator": [
         250,
         103,
@@ -527,7 +533,7 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
@@ -537,7 +543,7 @@
           "writable": true
         },
         {
-          "name": "escrow_nft_account",
+          "name": "escrowNftAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -558,13 +564,13 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "winner_nft_account",
+          "name": "winnerNftAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -611,7 +617,7 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ],
             "program": {
@@ -654,7 +660,7 @@
           }
         },
         {
-          "name": "escrow_token_account",
+          "name": "escrowTokenAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -676,17 +682,17 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "creator_token_account",
+          "name": "creatorTokenAccount",
           "writable": true
         },
         {
-          "name": "escrow_authority",
+          "name": "escrowAuthority",
           "pda": {
             "seeds": [
               {
@@ -702,27 +708,27 @@
               },
               {
                 "kind": "arg",
-                "path": "raffle_id"
+                "path": "raffleId"
               }
             ]
           }
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
-          "name": "ggor_mint"
+          "name": "ggorMint"
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "associated_token_program",
+          "name": "associatedTokenProgram",
           "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -737,7 +743,7 @@
       ],
       "args": [
         {
-          "name": "raffle_id",
+          "name": "raffleId",
           "type": "u64"
         }
       ]
@@ -756,7 +762,7 @@
       ],
       "accounts": [
         {
-          "name": "raffle_state",
+          "name": "raffleState",
           "writable": true,
           "pda": {
             "seeds": [
@@ -786,7 +792,7 @@
           "signer": true
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -795,7 +801,7 @@
   ],
   "accounts": [
     {
-      "name": "Raffle",
+      "name": "raffle",
       "discriminator": [
         143,
         133,
@@ -808,7 +814,7 @@
       ]
     },
     {
-      "name": "RaffleState",
+      "name": "raffleState",
       "discriminator": [
         160,
         186,
@@ -821,7 +827,7 @@
       ]
     },
     {
-      "name": "TicketAccount",
+      "name": "ticketAccount",
       "discriminator": [
         231,
         93,
@@ -836,7 +842,7 @@
   ],
   "events": [
     {
-      "name": "RaffleCancelled",
+      "name": "raffleCancelled",
       "discriminator": [
         123,
         83,
@@ -849,7 +855,7 @@
       ]
     },
     {
-      "name": "RaffleCreated",
+      "name": "raffleCreated",
       "discriminator": [
         178,
         172,
@@ -862,7 +868,7 @@
       ]
     },
     {
-      "name": "TicketsPurchased",
+      "name": "ticketsPurchased",
       "discriminator": [
         185,
         114,
@@ -875,7 +881,7 @@
       ]
     },
     {
-      "name": "WinnerDrawn",
+      "name": "winnerDrawn",
       "discriminator": [
         213,
         103,
@@ -891,68 +897,68 @@
   "errors": [
     {
       "code": 6000,
-      "name": "InvalidTicketCount",
+      "name": "invalidTicketCount",
       "msg": "Invalid ticket count"
     },
     {
       "code": 6001,
-      "name": "InvalidTicketPrice",
+      "name": "invalidTicketPrice",
       "msg": "Invalid ticket price"
     },
     {
       "code": 6002,
-      "name": "InvalidEndTime",
+      "name": "invalidEndTime",
       "msg": "Invalid end time"
     },
     {
       "code": 6003,
-      "name": "RaffleNotActive",
+      "name": "raffleNotActive",
       "msg": "Raffle is not active"
     },
     {
       "code": 6004,
-      "name": "RaffleEnded",
+      "name": "raffleEnded",
       "msg": "Raffle has ended"
     },
     {
       "code": 6005,
-      "name": "NotEnoughTickets",
+      "name": "notEnoughTickets",
       "msg": "Not enough tickets available"
     },
     {
       "code": 6006,
-      "name": "InvalidStatus",
+      "name": "invalidStatus",
       "msg": "Invalid raffle status"
     },
     {
       "code": 6007,
-      "name": "RaffleNotEnded",
+      "name": "raffleNotEnded",
       "msg": "Raffle has not ended yet"
     },
     {
       "code": 6008,
-      "name": "CannotCancel",
+      "name": "cannotCancel",
       "msg": "Cannot cancel raffle"
     },
     {
       "code": 6009,
-      "name": "InsufficientBalance",
+      "name": "insufficientBalance",
       "msg": "Insufficient balance"
     },
     {
       "code": 6010,
-      "name": "ArithmeticOverflow",
+      "name": "arithmeticOverflow",
       "msg": "Arithmetic overflow"
     }
   ],
   "types": [
     {
-      "name": "Raffle",
+      "name": "raffle",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "raffle_id",
+            "name": "raffleId",
             "type": "u64"
           },
           {
@@ -960,30 +966,30 @@
             "type": "pubkey"
           },
           {
-            "name": "nft_mint",
+            "name": "nftMint",
             "type": "pubkey"
           },
           {
-            "name": "ticket_price",
+            "name": "ticketPrice",
             "type": "u64"
           },
           {
-            "name": "total_tickets",
+            "name": "totalTickets",
             "type": "u64"
           },
           {
-            "name": "tickets_sold",
+            "name": "ticketsSold",
             "type": "u64"
           },
           {
-            "name": "end_time",
+            "name": "endTime",
             "type": "i64"
           },
           {
             "name": "status",
             "type": {
               "defined": {
-                "name": "RaffleStatus"
+                "name": "raffleStatus"
               }
             }
           },
@@ -1000,19 +1006,19 @@
             }
           },
           {
-            "name": "platform_fee_bps",
+            "name": "platformFeeBps",
             "type": "u16"
           }
         ]
       }
     },
     {
-      "name": "RaffleCancelled",
+      "name": "raffleCancelled",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "raffle_id",
+            "name": "raffleId",
             "type": "u64"
           },
           {
@@ -1023,12 +1029,12 @@
       }
     },
     {
-      "name": "RaffleCreated",
+      "name": "raffleCreated",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "raffle_id",
+            "name": "raffleId",
             "type": "u64"
           },
           {
@@ -1036,30 +1042,30 @@
             "type": "pubkey"
           },
           {
-            "name": "nft_mint",
+            "name": "nftMint",
             "type": "pubkey"
           },
           {
-            "name": "ticket_price",
+            "name": "ticketPrice",
             "type": "u64"
           },
           {
-            "name": "total_tickets",
+            "name": "totalTickets",
             "type": "u64"
           },
           {
-            "name": "end_time",
+            "name": "endTime",
             "type": "i64"
           },
           {
-            "name": "platform_fee_bps",
+            "name": "platformFeeBps",
             "type": "u16"
           }
         ]
       }
     },
     {
-      "name": "RaffleState",
+      "name": "raffleState",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1068,39 +1074,39 @@
             "type": "pubkey"
           },
           {
-            "name": "raffle_count",
+            "name": "raffleCount",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "RaffleStatus",
+      "name": "raffleStatus",
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "Active"
+            "name": "active"
           },
           {
-            "name": "Drawing"
+            "name": "drawing"
           },
           {
-            "name": "Completed"
+            "name": "completed"
           },
           {
-            "name": "Cancelled"
+            "name": "cancelled"
           }
         ]
       }
     },
     {
-      "name": "TicketAccount",
+      "name": "ticketAccount",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "raffle_id",
+            "name": "raffleId",
             "type": "u64"
           },
           {
@@ -1108,11 +1114,11 @@
             "type": "pubkey"
           },
           {
-            "name": "ticket_count",
+            "name": "ticketCount",
             "type": "u64"
           },
           {
-            "name": "ticket_numbers",
+            "name": "ticketNumbers",
             "type": {
               "vec": "u64"
             }
@@ -1121,12 +1127,12 @@
       }
     },
     {
-      "name": "TicketsPurchased",
+      "name": "ticketsPurchased",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "raffle_id",
+            "name": "raffleId",
             "type": "u64"
           },
           {
@@ -1138,23 +1144,23 @@
             "type": "u64"
           },
           {
-            "name": "total_cost",
+            "name": "totalCost",
             "type": "u64"
           },
           {
-            "name": "tickets_sold",
+            "name": "ticketsSold",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "WinnerDrawn",
+      "name": "winnerDrawn",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "raffle_id",
+            "name": "raffleId",
             "type": "u64"
           },
           {
@@ -1162,7 +1168,7 @@
             "type": "pubkey"
           },
           {
-            "name": "winning_ticket",
+            "name": "winningTicket",
             "type": "u64"
           },
           {
@@ -1170,15 +1176,15 @@
             "type": "u64"
           },
           {
-            "name": "prize_nft",
+            "name": "prizeNft",
             "type": "pubkey"
           },
           {
-            "name": "creator_earnings",
+            "name": "creatorEarnings",
             "type": "u64"
           }
         ]
       }
     }
   ]
-}
+};

@@ -1,16 +1,17 @@
 import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from '@solana/web3.js';
-import { Program, AnchorProvider, BN, Idl } from '@coral-xyz/anchor';
+import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import raffleIdl from '../idl/goraffle.json';
+import type { Goraffle } from '../idl/goraffle';
 
 // GGOR uses 9 decimals (same as SOL)
 export const GGOR_DECIMALS = 9;
 
 // Program ID (will be updated after deployment)
-export const RAFFLE_PROGRAM_ID = new PublicKey('AkD5NMs4wDPMLQrwCW681qdFTZaBz7k5SRDaBCGKsJ5g');
+export const RAFFLE_PROGRAM_ID = new PublicKey('EyanJkk7BV9nA5ZzuBQLqC3FWf25dLdgbURhLiV3Hc31');
 
-// GGOR mint address (verify with TrashScan)
-export const GGOR_MINT = new PublicKey('GGor1111111111111111111111111111111111111111');
+// Wrapped GOR (GGOR) mint address - native SPL token, 9 decimals
+export const GGOR_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 
 // Decimal conversion utilities (9 decimals like SOL)
 export const toGGOR = (amount: number): BN => {
@@ -67,14 +68,14 @@ export interface TicketAccount {
 }
 
 export class RaffleService {
-  private program: Program;
+  private program: Program<Goraffle>;
   private connection: Connection;
   private provider: AnchorProvider;
 
   constructor(connection: Connection, wallet: any) {
     this.connection = connection;
     this.provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' });
-    this.program = new Program(raffleIdl as Idl, RAFFLE_PROGRAM_ID, this.provider);
+    this.program = new Program(raffleIdl as unknown as Goraffle, this.provider);
   }
 
   // Get PDA for raffle state
@@ -145,7 +146,7 @@ export class RaffleService {
     return tx;
   }
 
-  // Create a new raffle
+  // Create a new raffle (two-step: create escrow accounts, then create raffle)
   async createRaffle(
     nftMint: PublicKey,
     ticketPriceGGOR: number,
@@ -169,6 +170,23 @@ export class RaffleService {
     const [escrowNftAccount] = await this.getEscrowNftPDA(raffleId);
     const [escrowTokenAccount] = await this.getEscrowGgorPDA(raffleId);
 
+    // Step 1: Create escrow token accounts
+    await this.program.methods
+      .createEscrow(new BN(raffleId))
+      .accounts({
+        creator: this.provider.wallet.publicKey,
+        nftMint,
+        ggorMint: GGOR_MINT,
+        escrowAuthority,
+        escrowNftAccount,
+        escrowTokenAccount,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .rpc();
+
+    // Step 2: Create raffle and transfer NFT
     const tx = await this.program.methods
       .createRaffle(
         new BN(raffleId),
@@ -183,8 +201,6 @@ export class RaffleService {
         nftMint,
         nftTokenAccount,
         escrowNftAccount,
-        escrowAuthority,
-        escrowTokenAccount,
         ggorMint: GGOR_MINT,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
@@ -231,7 +247,6 @@ export class RaffleService {
   // Draw winner for a raffle
   async drawWinner(raffleId: number, winnerPubkey: PublicKey, nftMint: PublicKey): Promise<string> {
     const [rafflePDA] = await this.getRafflePDA(raffleId);
-    const [raffleStatePDA] = await this.getRaffleStatePDA();
     const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
     const [escrowNftAccount] = await this.getEscrowNftPDA(raffleId);
     const [escrowTokenAccount] = await this.getEscrowGgorPDA(raffleId);
@@ -240,30 +255,21 @@ export class RaffleService {
     const raffleData = await this.program.account.raffle.fetch(rafflePDA);
     const creator = raffleData.creator as PublicKey;
 
-    // Get raffle state to find platform fee wallet
-    const raffleStateData = await this.program.account.raffleState.fetch(raffleStatePDA);
-    const platformFeeWallet = raffleStateData.platformFeeWallet as PublicKey;
-
     // Get winner's NFT token account
     const winnerNftAccount = await getAssociatedTokenAddress(nftMint, winnerPubkey);
 
     // Get creator's GGOR token account
     const creatorTokenAccount = await getAssociatedTokenAddress(GGOR_MINT, creator);
 
-    // Get platform fee GGOR token account
-    const platformFeeAccount = await getAssociatedTokenAddress(GGOR_MINT, platformFeeWallet);
-
     const tx = await this.program.methods
       .drawWinner(new BN(raffleId))
       .accounts({
         raffle: rafflePDA,
-        raffleState: raffleStatePDA,
         winner: winnerPubkey,
         escrowNftAccount,
         winnerNftAccount,
         escrowTokenAccount,
         creatorTokenAccount,
-        platformFeeAccount,
         escrowAuthority,
         nftMint,
         ggorMint: GGOR_MINT,
