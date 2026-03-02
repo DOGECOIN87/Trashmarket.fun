@@ -385,7 +385,7 @@ export class GameEngine {
       roughness: 0.3,
       metalness: 0.8,
       emissive: COLORS.COIN,
-      emissiveIntensity: 0.2
+      emissiveIntensity: 0.1
     });
 
     const faceMaterial = new THREE.MeshStandardMaterial({
@@ -393,8 +393,9 @@ export class GameEngine {
       map: logoTexture,
       roughness: 0.3,
       metalness: 0.8,
-      emissive: COLORS.COIN,
-      emissiveIntensity: 0.1
+      emissive: COLORS.COIN_EMISSIVE,
+      emissiveMap: logoTexture,
+      emissiveIntensity: 0.5
     });
 
     const backFaceMaterial = new THREE.MeshStandardMaterial({
@@ -402,8 +403,9 @@ export class GameEngine {
       map: blackLogoTexture,
       roughness: 0.3,
       metalness: 0.8,
-      emissive: COLORS.COIN,
-      emissiveIntensity: 0.1
+      emissive: COLORS.COIN_EMISSIVE,
+      emissiveMap: blackLogoTexture,
+      emissiveIntensity: 0.5
     });
 
     const materials = [sideMaterial, faceMaterial, backFaceMaterial];

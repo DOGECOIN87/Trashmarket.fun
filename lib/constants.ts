@@ -27,7 +27,8 @@ export const TRASHCOIN = {
 };
 
 export const COLORS = {
-  COIN: 0x00ff00, // Neon Green — Gorbagana primary
+  COIN: 0x111111, // Black — New base color
+  COIN_EMISSIVE: 0x00ff00, // Neon Green accent
   FLOOR: 0x1a2a1a, // Dark green-tinted floor
   PUSHER: 0x4a5a4a, // Grey-green pusher
   CABINET: 0x1a3a2a, // Deep green cabinet walls
