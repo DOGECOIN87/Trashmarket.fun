@@ -274,16 +274,16 @@ export class GameEngine {
     const pfWidth = DIMENSIONS.PLAYFIELD_WIDTH;
     const wallHeight = DIMENSIONS.WALL_HEIGHT;
     const rearWallZ = -DIMENSIONS.PLAYFIELD_LENGTH / 2;
-    
+
     // Panel dimensions: wider and taller than the opening for FOV safety
     const panelWidth = pfWidth + 4;      // Extra 2 units on each side
     const panelHeight = wallHeight + 3;  // Extra 1.5 units top and bottom
     const panelDepth = 5;                // Deep enough to hide any overextension
-    
+
     // Position: centered behind the rear wall opening
     const panelZ = rearWallZ - panelDepth / 2;  // -5 - 2.5 = -7.5
     const panelY = wallHeight / 2;               // Centered vertically on wall
-    
+
     // Create unlit black material (no shadows, no lighting)
     const occlusionMat = new THREE.MeshBasicMaterial({
       color: 0x000000,  // Pure black matching background
@@ -293,22 +293,22 @@ export class GameEngine {
       depthWrite: true,
       depthTest: true
     });
-    
+
     // Create geometry
     const occlusionGeo = new THREE.BoxGeometry(panelWidth, panelHeight, panelDepth);
     const occlusionMesh = new THREE.Mesh(occlusionGeo, occlusionMat);
-    
+
     // Position in world space
     occlusionMesh.position.set(0, panelY, panelZ);
-    
+
     // Disable all lighting and shadow interactions
     occlusionMesh.castShadow = false;
     occlusionMesh.receiveShadow = false;
     occlusionMesh.matrixAutoUpdate = true;
-    
+
     // Add to scene
     this.scene.add(occlusionMesh);
-    
+
     // NO physics collider - purely visual occlusion only
   }
 
@@ -377,6 +377,7 @@ export class GameEngine {
     // Load the logo texture
     const loader = new THREE.TextureLoader();
     const logoTexture = loader.load('/assets/enhanced_logo_v6.svg');
+    const blackLogoTexture = loader.load('/assets/coin_black_logo.svg');
 
     // Create materials for the cylinder: [side, top, bottom]
     const sideMaterial = new THREE.MeshStandardMaterial({
@@ -396,7 +397,16 @@ export class GameEngine {
       emissiveIntensity: 0.1
     });
 
-    const materials = [sideMaterial, faceMaterial, faceMaterial];
+    const backFaceMaterial = new THREE.MeshStandardMaterial({
+      color: COLORS.COIN,
+      map: blackLogoTexture,
+      roughness: 0.3,
+      metalness: 0.8,
+      emissive: COLORS.COIN,
+      emissiveIntensity: 0.1
+    });
+
+    const materials = [sideMaterial, faceMaterial, backFaceMaterial];
 
     this.coinProto = new THREE.Mesh(geometry, materials);
     this.coinProto.castShadow = true;
@@ -423,6 +433,7 @@ export class GameEngine {
     // Load the logo texture
     const loader = new THREE.TextureLoader();
     const logoTexture = loader.load('/assets/enhanced_logo_v6.svg');
+    const blackLogoTexture = loader.load('/assets/coin_black_logo.svg');
 
     // Create a material with a golden rim for trashcoins
     const canvas = document.createElement('canvas');
@@ -442,7 +453,7 @@ export class GameEngine {
     ctx.stroke();
 
     const rimTexture = new THREE.CanvasTexture(canvas);
-    
+
     const sideMaterial = new THREE.MeshStandardMaterial({
       map: rimTexture,
       roughness: 0.2,
@@ -460,7 +471,16 @@ export class GameEngine {
       emissiveIntensity: 0.2
     });
 
-    const materials = [sideMaterial, faceMaterial, faceMaterial];
+    const backFaceMaterial = new THREE.MeshStandardMaterial({
+      color: 0xdaa520, // Golden face for trashcoins
+      map: blackLogoTexture,
+      roughness: 0.2,
+      metalness: 0.9,
+      emissive: 0xdaa520,
+      emissiveIntensity: 0.2
+    });
+
+    const materials = [sideMaterial, faceMaterial, backFaceMaterial];
 
     this.trashcoinInstancedMesh = new THREE.InstancedMesh(
       geometry,
