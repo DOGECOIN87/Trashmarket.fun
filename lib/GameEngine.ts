@@ -483,7 +483,7 @@ export class GameEngine {
   }
 
   public bump() {
-    // Apply fee (50 DEBRI)
+    // Apply fee (50 DEBRIS)
     this.balance -= 50;
 
     this.updateGameState();

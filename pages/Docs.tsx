@@ -254,7 +254,7 @@ const Docs: React.FC = () => {
                   />
                   <img
                     src="/assets/Debri-Intro2.jpg"
-                    alt="Debri Intro"
+                    alt="Debris Intro"
                     className="w-full max-w-md relative z-10 transition-transform duration-1000 group-hover:scale-105 drop-shadow-[0_0_20px_rgba(173,255,2,0.4)] rounded-lg"
                   />
                 </div>

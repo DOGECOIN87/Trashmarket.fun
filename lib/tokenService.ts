@@ -9,36 +9,36 @@ import {
 import { TOKEN_CONFIG } from './tokenConfig';
 
 /**
- * SPL Token Service for DEBRI token on Gorbagana
+ * SPL Token Service for DEBRIS token on Gorbagana
  */
 
 export interface TokenBalance {
-  debri: number;
+  debris: number;
 }
 
 /**
- * Get DEBRI token balance for a wallet
+ * Get DEBRIS token balance for a wallet
  */
-export async function getDebriBalance(
+export async function getDebrisBalance(
   connection: Connection,
   walletAddress: PublicKey
 ): Promise<number> {
   try {
-    const debriMint = new PublicKey(TOKEN_CONFIG.DEBRI.address);
+    const debrisMint = new PublicKey(TOKEN_CONFIG.DEBRIS.address);
     const tokenAccount = await getAssociatedTokenAddress(
-      debriMint,
+      debrisMint,
       walletAddress
     );
 
     const accountInfo = await getAccount(connection, tokenAccount);
-    const balance = Number(accountInfo.amount) / Math.pow(10, TOKEN_CONFIG.DEBRI.decimals);
+    const balance = Number(accountInfo.amount) / Math.pow(10, TOKEN_CONFIG.DEBRIS.decimals);
     return balance;
   } catch (error) {
     if (error instanceof TokenAccountNotFoundError) {
       // Token account doesn't exist yet, balance is 0
       return 0;
     }
-    console.error('Error fetching DEBRI balance:', error);
+    console.error('Error fetching DEBRIS balance:', error);
     throw error;
   }
 }
@@ -50,8 +50,8 @@ export async function getTokenBalances(
   connection: Connection,
   walletAddress: PublicKey
 ): Promise<TokenBalance> {
-  const debri = await getDebriBalance(connection, walletAddress);
-  return { debri };
+  const debris = await getDebrisBalance(connection, walletAddress);
+  return { debris };
 }
 
 /**
@@ -89,20 +89,20 @@ export async function ensureTokenAccount(
 }
 
 /**
- * Check if wallet has sufficient DEBRI balance for an action
+ * Check if wallet has sufficient DEBRIS balance for an action
  */
-export async function hasSufficientDebri(
+export async function hasSufficientDebris(
   connection: Connection,
   walletAddress: PublicKey,
   requiredAmount: number
 ): Promise<boolean> {
-  const balance = await getDebriBalance(connection, walletAddress);
+  const balance = await getDebrisBalance(connection, walletAddress);
   return balance >= requiredAmount;
 }
 
 export default {
-  getDebriBalance,
+  getDebrisBalance,
   getTokenBalances,
   ensureTokenAccount,
-  hasSufficientDebri,
+  hasSufficientDebris,
 };

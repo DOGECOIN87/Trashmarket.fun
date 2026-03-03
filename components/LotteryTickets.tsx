@@ -13,7 +13,7 @@ import {
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import BN from "bn.js";
 import { Loader2, Ticket, AlertCircle, CheckCircle2, RefreshCw, Info, X, Lock } from 'lucide-react';
-import { getDebriBalance } from '../lib/tokenService';
+import { getDebrisBalance } from '../lib/tokenService';
 
 const RPC = "https://rpc.trashscan.io";
 const PROGRAM_ID = new PublicKey("HStdQm36PAk5KzizXqFmkN6LZ2sW7HgHTxsDDUeJqarw");
@@ -40,7 +40,7 @@ const LotteryTickets: React.FC = () => {
         
         setIsRefreshing(true);
         try {
-            const jBalance = await getDebriBalance(connection, publicKey);
+            const jBalance = await getDebrisBalance(connection, publicKey);
             setJunkBalance(jBalance);
 
             // Try to find the user state account

@@ -278,8 +278,8 @@ const JunkPusherGame: React.FC = () => {
                         <div className="flex items-center gap-1.5 bg-black/70 border border-green-500/30 px-3 py-1 rounded-full text-[9px]">
                             <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                             <span className="text-green-300 font-mono">ON-CHAIN</span>
-                            {onChain.debriBalance > 0 && (
-                                <span className="text-green-200 ml-1">{onChain.debriBalance.toFixed(0)} DEBRI</span>
+                            {onChain.debrisBalance > 0 && (
+                                <span className="text-green-200 ml-1">{onChain.debrisBalance.toFixed(0)} DEBRIS</span>
                             )}
                         </div>
                     ) : (
