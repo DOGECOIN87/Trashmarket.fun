@@ -653,6 +653,37 @@ const VanityGenerator: React.FC = () => {
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
+                
+                {/* Character Substitutions for Prefix */}
+                {charVariants.length > 0 && prefixLen > 0 && suffixLen === 0 && !isBothPrefixAndSuffix && (
+                  <div>
+                    <label className="block text-[10px] text-gray-500 uppercase mb-2">CHARACTER_SUBSTITUTIONS</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {charVariants.slice(0, prefixLen).map((cv, idx) => (
+                        <div key={idx} className="flex flex-col gap-1 items-center">
+                          <div className="text-sm font-bold text-white mb-1 h-6 flex items-center">
+                            {cv.char.toUpperCase()}
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            {cv.variants.map(v => (
+                              <button
+                                key={v}
+                                onClick={() => toggleVariant(idx, v)}
+                                className={`w-7 h-7 flex items-center justify-center text-xs font-bold border transition-all ${
+                                  cv.selected.includes(v)
+                                    ? `${accentBg} text-black border-transparent`
+                                    : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
+                                }`}
+                              >
+                                {v}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Right: Suffix Control */}
@@ -673,6 +704,37 @@ const VanityGenerator: React.FC = () => {
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
+                
+                {/* Character Substitutions for Suffix */}
+                {charVariants.length > 0 && suffixLen > 0 && prefixLen === 0 && !isBothPrefixAndSuffix && (
+                  <div>
+                    <label className="block text-[10px] text-gray-500 uppercase mb-2">CHARACTER_SUBSTITUTIONS</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {charVariants.slice(inputName.length - suffixLen).map((cv, idx) => (
+                        <div key={idx} className="flex flex-col gap-1 items-center">
+                          <div className="text-sm font-bold text-white mb-1 h-6 flex items-center">
+                            {cv.char.toUpperCase()}
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            {cv.variants.map(v => (
+                              <button
+                                key={v}
+                                onClick={() => toggleVariant(inputName.length - suffixLen + idx, v)}
+                                className={`w-7 h-7 flex items-center justify-center text-xs font-bold border transition-all ${
+                                  cv.selected.includes(v)
+                                    ? `${accentBg} text-black border-transparent`
+                                    : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
+                                }`}
+                              >
+                                {v}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
