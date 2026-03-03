@@ -13,21 +13,30 @@ export default defineConfig(({ mode }) => {
       allowedHosts: true,
     },
     plugins: [
-      react(),
       nodePolyfills({
-        include: ['buffer', 'process', 'crypto', 'stream', 'util'],
+        include: ['buffer', 'process', 'crypto', 'stream', 'util', 'events'],
         globals: {
           Buffer: true,
           global: true,
           process: true,
         },
+        protocolImports: true,
       }),
+      react(),
     ],
-    define: {},
+    define: {
+      'process.env': JSON.stringify(env),
+      global: 'globalThis',
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
+        buffer: 'buffer',
       }
-    }
+    },
+    build: {
+      target: 'esnext',
+      minify: 'terser',
+    },
   };
 });
