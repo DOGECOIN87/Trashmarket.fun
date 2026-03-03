@@ -478,58 +478,34 @@ const VanityGenerator: React.FC = () => {
               </div>
 
               {/* Prefix/Suffix and Character Substitutions Layout */}
-              <div className="flex gap-8">
-                {/* Left: Prefix/Suffix Controls */}
-                <div className="flex-1">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-[10px] text-gray-500 uppercase mb-2">PREFIX_LENGTH</label>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => setPrefixLen(Math.max(0, prefixLen - 1))}
-                          className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="text-xl font-bold w-8 text-center">{prefixLen}</span>
-                        <button
-                          onClick={() => setPrefixLen(Math.min(inputName.length, prefixLen + 1))}
-                          className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-500 uppercase mb-2">SUFFIX_LENGTH</label>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => setSuffixLen(Math.max(0, suffixLen - 1))}
-                          className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="text-xl font-bold w-8 text-center">{suffixLen}</span>
-                        <button
-                          onClick={() => setSuffixLen(Math.min(inputName.length - prefixLen, suffixLen + 1))}
-                          className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
+              <div className="grid grid-cols-2 gap-6">
+                {/* Left: Prefix Control */}
+                <div>
+                  <label className="block text-[10px] text-gray-500 uppercase mb-2">PREFIX_LENGTH</label>
+                  <div className="flex items-center gap-3 mb-4">
+                    <button
+                      onClick={() => setPrefixLen(Math.max(0, prefixLen - 1))}
+                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="text-xl font-bold w-8 text-center">{prefixLen}</span>
+                    <button
+                      onClick={() => setPrefixLen(Math.min(inputName.length, prefixLen + 1))}
+                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
                   </div>
-                </div>
-
-                {/* Right: Character Substitutions (Only if valid selection) */}
-                {charVariants.length > 0 && !isBothPrefixAndSuffix && (
-                  <div>
-                    <label className="block text-[10px] text-gray-500 uppercase mb-3">CHARACTER_SUBSTITUTIONS</label>
-                    <div className="flex gap-4 items-end">
-                      {prefixLen > 0 && suffixLen === 0 && (
-                        charVariants.slice(0, prefixLen).map((cv, idx) => (
+                  
+                  {/* Character Substitutions for Prefix */}
+                  {charVariants.length > 0 && prefixLen > 0 && suffixLen === 0 && !isBothPrefixAndSuffix && (
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase mb-2">CHARACTER_SUBSTITUTIONS</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {charVariants.slice(0, prefixLen).map((cv, idx) => (
                           <div key={idx} className="flex flex-col gap-1 items-center">
-                            <div className="text-lg font-bold text-white mb-2 h-8 flex items-center">
+                            <div className="text-sm font-bold text-white mb-1 h-6 flex items-center">
                               {cv.char.toUpperCase()}
                             </div>
                             <div className="flex flex-col gap-1">
@@ -537,7 +513,7 @@ const VanityGenerator: React.FC = () => {
                                 <button
                                   key={v}
                                   onClick={() => toggleVariant(idx, v)}
-                                  className={`w-8 h-8 flex items-center justify-center text-xs font-bold border transition-all ${
+                                  className={`w-7 h-7 flex items-center justify-center text-xs font-bold border transition-all ${
                                     cv.selected.includes(v)
                                       ? `${accentBg} text-black border-transparent`
                                       : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
@@ -548,12 +524,39 @@ const VanityGenerator: React.FC = () => {
                               ))}
                             </div>
                           </div>
-                        ))
-                      )}
-                      {suffixLen > 0 && prefixLen === 0 && (
-                        charVariants.slice(inputName.length - suffixLen).map((cv, idx) => (
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: Suffix Control */}
+                <div>
+                  <label className="block text-[10px] text-gray-500 uppercase mb-2">SUFFIX_LENGTH</label>
+                  <div className="flex items-center gap-3 mb-4">
+                    <button
+                      onClick={() => setSuffixLen(Math.max(0, suffixLen - 1))}
+                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="text-xl font-bold w-8 text-center">{suffixLen}</span>
+                    <button
+                      onClick={() => setSuffixLen(Math.min(inputName.length - prefixLen, suffixLen + 1))}
+                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                  
+                  {/* Character Substitutions for Suffix */}
+                  {charVariants.length > 0 && suffixLen > 0 && prefixLen === 0 && !isBothPrefixAndSuffix && (
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase mb-2">CHARACTER_SUBSTITUTIONS</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {charVariants.slice(inputName.length - suffixLen).map((cv, idx) => (
                           <div key={idx} className="flex flex-col gap-1 items-center">
-                            <div className="text-lg font-bold text-white mb-2 h-8 flex items-center">
+                            <div className="text-sm font-bold text-white mb-1 h-6 flex items-center">
                               {cv.char.toUpperCase()}
                             </div>
                             <div className="flex flex-col gap-1">
@@ -561,7 +564,7 @@ const VanityGenerator: React.FC = () => {
                                 <button
                                   key={v}
                                   onClick={() => toggleVariant(inputName.length - suffixLen + idx, v)}
-                                  className={`w-8 h-8 flex items-center justify-center text-xs font-bold border transition-all ${
+                                  className={`w-7 h-7 flex items-center justify-center text-xs font-bold border transition-all ${
                                     cv.selected.includes(v)
                                       ? `${accentBg} text-black border-transparent`
                                       : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
@@ -572,11 +575,11 @@ const VanityGenerator: React.FC = () => {
                               ))}
                             </div>
                           </div>
-                        ))
-                      )}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Invalid State Message */}
