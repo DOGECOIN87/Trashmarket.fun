@@ -53,7 +53,7 @@ export interface Raffle {
   totalTickets: number;
   ticketsSold: number;
   endTime: number; // Unix timestamp
-  status: 'active' | 'drawing' | 'completed' | 'cancelled';
+  status: 'active' | 'drawing' | 'completed' | 'cancelled' | 'expired_returned';
   winner?: string;
   randomness?: number;
   publicKey: string;
@@ -309,6 +309,41 @@ export class RaffleService {
       .rpc();
 
     return tx;
+  }
+
+  // Return unsold NFT to creator (automatic for expired raffles with no sales)
+  async returnUnsoldNFT(raffleId: number, nftMint: PublicKey, creatorAddress: PublicKey): Promise<string> {
+    const [rafflePDA] = await this.getRafflePDA(raffleId);
+    const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
+    const [escrowNftAccount] = await this.getEscrowNftPDA(raffleId);
+
+    // Get creator's NFT token account
+    const creatorNftAccount = await getAssociatedTokenAddress(
+      nftMint,
+      creatorAddress
+    );
+
+    // Use the same cancelRaffle method since the logic is identical:
+    // Transfer NFT from escrow back to creator and close escrow accounts
+    const tx = await this.program.methods
+      .cancelRaffle(new BN(raffleId))
+      .accounts({
+        raffle: rafflePDA,
+        authority: this.provider.wallet.publicKey,
+        escrowNftAccount,
+        creatorNftAccount,
+        escrowAuthority,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+
+    return tx;
+  }
+
+  // Check if a raffle has expired with no sales and should be auto-returned
+  isExpiredNoSales(raffle: Raffle): boolean {
+    const now = Date.now();
+    return raffle.endTime <= now && raffle.ticketsSold === 0;
   }
 
   // Fetch all raffles

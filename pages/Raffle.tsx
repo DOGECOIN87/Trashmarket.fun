@@ -75,6 +75,10 @@ const Raffle: React.FC = () => {
     return `${hours}h ${minutes}m`;
   };
 
+  // Separate active raffles from others
+  const activeRaffles = raffles.filter(r => r.status === 'active' && r.endTime > Date.now());
+  const otherRaffles = raffles.filter(r => r.status !== 'active' || r.endTime <= Date.now());
+
   if (!wallet.connected) {
     return (
       <div className="container mx-auto px-4 py-16 max-w-7xl">
@@ -131,7 +135,7 @@ const Raffle: React.FC = () => {
         <div className="bg-black/50 border border-magic-green/20 p-4">
           <div className="text-gray-400 text-sm mb-1">ACTIVE</div>
           <div className="text-2xl font-bold text-magic-green">
-            {raffles.filter(r => r.status === 'active').length}
+            {activeRaffles.length}
           </div>
         </div>
         <div className="bg-black/50 border border-magic-green/20 p-4">
@@ -148,7 +152,18 @@ const Raffle: React.FC = () => {
         </div>
       </div>
 
-      {/* Raffle List */}
+      {/* Active Raffles Carousel Section */}
+      {activeRaffles.length > 0 && (
+        <div className="mb-12">
+          <div className="flex items-center gap-3 mb-4">
+            <TicketIcon size={24} className="text-magic-green" />
+            <h2 className="text-2xl font-bold text-magic-green uppercase tracking-wide">ACTIVE RAFFLES</h2>
+          </div>
+          <RaffleCarousel raffles={activeRaffles} onUpdate={loadRaffles} />
+        </div>
+      )}
+
+      {/* All Raffles Grid */}
       {loading ? (
         <div className="text-center py-16">
           <div className="text-magic-green text-xl">Loading raffles...</div>
@@ -167,11 +182,18 @@ const Raffle: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {raffles.map((raffle) => (
-            <RaffleCard key={raffle.publicKey} raffle={raffle} onUpdate={loadRaffles} />
-          ))}
-        </div>
+        <>
+          {otherRaffles.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold text-magic-green uppercase tracking-wide mb-4">ALL RAFFLES</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {otherRaffles.map((raffle) => (
+                  <RaffleCard key={raffle.publicKey} raffle={raffle} onUpdate={loadRaffles} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Create Modal */}
@@ -188,8 +210,50 @@ const Raffle: React.FC = () => {
   );
 };
 
-// Raffle Card Component
-const RaffleCard: React.FC<{ raffle: RaffleType; onUpdate: () => void }> = ({ raffle, onUpdate }) => {
+// Infinite Carousel Component
+const RaffleCarousel: React.FC<{ raffles: RaffleType[]; onUpdate: () => void }> = ({ raffles, onUpdate }) => {
+  const [isPaused, setIsPaused] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div
+      className="relative overflow-hidden bg-black/30 border border-magic-green/20 rounded-sm"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <style>{`
+        @keyframes carousel-scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(calc(-100% / ${raffles.length})); }
+        }
+        .carousel-track {
+          animation: carousel-scroll 30s linear infinite;
+          animation-play-state: ${isPaused ? 'paused' : 'running'};
+        }
+        .carousel-track:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+      <div
+        ref={carouselRef}
+        className="carousel-track flex gap-4 p-4"
+        style={{
+          width: `${raffles.length * 100}%`,
+        }}
+      >
+        {/* Duplicate items for infinite loop */}
+        {[...raffles, ...raffles].map((raffle, idx) => (
+          <div key={`${raffle.publicKey}-${idx}`} className="flex-shrink-0" style={{ width: `calc(100% / ${raffles.length})` }}>
+            <RaffleCard raffle={raffle} onUpdate={onUpdate} isCompact={true} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Compact Raffle Card Component
+const RaffleCard: React.FC<{ raffle: RaffleType; onUpdate: () => void; isCompact?: boolean }> = ({ raffle, onUpdate, isCompact = false }) => {
   const { connection } = useConnection();
   const wallet = useWallet();
   const [showDetail, setShowDetail] = useState(false);
@@ -258,6 +322,16 @@ const RaffleCard: React.FC<{ raffle: RaffleType; onUpdate: () => void }> = ({ ra
     }
   };
 
+  const getStatusBgColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-magic-green/20';
+      case 'drawing': return 'bg-yellow-400/20';
+      case 'completed': return 'bg-blue-400/20';
+      case 'cancelled': return 'bg-red-400/20';
+      default: return 'bg-gray-400/20';
+    }
+  };
+
   const getTimeRemaining = (endTime: number) => {
     const now = Date.now();
     const diff = endTime - now;
@@ -277,6 +351,88 @@ const RaffleCard: React.FC<{ raffle: RaffleType; onUpdate: () => void }> = ({ ra
 
   const progress = (raffle.ticketsSold / raffle.totalTickets) * 100;
 
+  // Determine if raffle is expired with no sales (should be returned)
+  const isExpiredNoSales = raffle.endTime <= Date.now() && raffle.ticketsSold === 0;
+  const displayStatus = isExpiredNoSales ? 'EXPIRED - RETURNED' : raffle.status.toUpperCase();
+
+  if (isCompact) {
+    // Compact carousel card
+    return (
+      <>
+        <div
+          onClick={() => setShowDetail(true)}
+          className="bg-black/50 border border-magic-green/20 hover:border-magic-green/40 transition-all cursor-pointer group h-full flex flex-col"
+        >
+          {/* NFT Image - Smaller for carousel */}
+          <div className="aspect-square bg-black/30 relative overflow-hidden flex-shrink-0">
+            {nftMetadata?.content?.links?.image ? (
+              <img
+                src={nftMetadata.content.links.image}
+                alt={nftMetadata.content?.metadata?.name || 'NFT'}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-600">
+                <TicketIcon size={32} />
+              </div>
+            )}
+            <div className={`absolute top-1 right-1 px-1.5 py-0.5 bg-black/80 text-[10px] font-bold ${getStatusColor(raffle.status)}`}>
+              {raffle.status.toUpperCase()}
+            </div>
+          </div>
+
+          {/* Info - Compact */}
+          <div className="p-2 flex-1 flex flex-col">
+            <h3 className="text-xs font-bold text-magic-green mb-1 truncate">
+              {nftMetadata?.content?.metadata?.name || `Raffle #${raffle.raffleId}`}
+            </h3>
+
+            <div className="space-y-1 text-[10px] mb-2 flex-1">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Price:</span>
+                <span className="text-magic-green font-bold">{raffle.ticketPrice.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Tickets:</span>
+                <span className="text-white">{raffle.ticketsSold}/{raffle.totalTickets}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Time:</span>
+                <span className="text-white">{getTimeRemaining(raffle.endTime)}</span>
+              </div>
+            </div>
+
+            {/* Progress Bar - Smaller */}
+            <div className="w-full bg-black/50 h-1 mb-2">
+              <div
+                className="bg-magic-green h-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+
+            {/* Action button - Smaller */}
+            <div className="w-full px-2 py-1 border border-magic-green/30 text-magic-green font-bold text-center text-[10px] group-hover:bg-magic-green group-hover:text-black transition-colors">
+              VIEW
+            </div>
+          </div>
+        </div>
+
+        {/* Detail View */}
+        {showDetail && (
+          <RaffleDetailView
+            raffle={raffle}
+            nftMetadata={nftMetadata}
+            onClose={() => setShowDetail(false)}
+            onUpdate={() => {
+              onUpdate();
+            }}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Standard grid card
   return (
     <>
       <div
@@ -764,6 +920,7 @@ const RaffleDetailView: React.FC<{
   const ticketsRemaining = raffle.totalTickets - raffle.ticketsSold;
   const isActive = raffle.status === 'active' && raffle.endTime > Date.now();
   const isSoldOut = raffle.ticketsSold >= raffle.totalTickets;
+  const isExpiredNoSales = raffle.endTime <= Date.now() && raffle.ticketsSold === 0;
   const nftName = nftMetadata?.content?.metadata?.name || `Raffle #${raffle.raffleId}`;
   const nftImage = nftMetadata?.content?.links?.image;
 
@@ -803,12 +960,13 @@ const RaffleDetailView: React.FC<{
               )}
               {/* Status badge */}
               <div className={`absolute top-4 right-4 px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
+                isExpiredNoSales ? 'bg-red-500 text-white' :
                 raffle.status === 'active' ? 'bg-magic-green text-black' :
                 raffle.status === 'completed' ? 'bg-blue-500 text-white' :
                 raffle.status === 'cancelled' ? 'bg-red-500 text-white' :
                 'bg-yellow-500 text-black'
               }`}>
-                {raffle.status}
+                {isExpiredNoSales ? 'EXPIRED - RETURNED' : raffle.status}
               </div>
             </div>
           </div>
@@ -917,6 +1075,11 @@ const RaffleDetailView: React.FC<{
             ) : isSoldOut ? (
               <div className="w-full py-5 bg-gray-800 text-gray-400 font-bold uppercase tracking-widest text-lg text-center">
                 SOLD OUT
+              </div>
+            ) : isExpiredNoSales ? (
+              <div className="w-full py-5 bg-red-500/10 border border-red-500/30 text-center">
+                <div className="text-[10px] text-red-400 uppercase tracking-widest mb-1">STATUS</div>
+                <div className="text-red-400 font-mono font-bold">EXPIRED - RETURNED TO CREATOR</div>
               </div>
             ) : raffle.status === 'completed' && raffle.winner ? (
               <div className="w-full py-5 bg-blue-500/10 border border-blue-500/30 text-center">
@@ -1049,7 +1212,7 @@ const TermsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
     `A platform fee of ${formatFeeBps(raffle.platformFeeBps)} is applied to the total ticket sales and deducted upon raffle completion.`,
     'The winner is selected randomly on-chain when the raffle ends or all tickets are sold.',
     'The NFT prize is held in escrow by the smart contract until the winner is drawn.',
-    'If no tickets are sold, the raffle creator may cancel and reclaim their NFT.',
+    'If no tickets are sold and the raffle expires, the NFT is automatically returned to the creator.',
     'The winning ticket holder will receive the NFT directly to their wallet.',
     'The raffle creator receives the ticket sale proceeds minus the platform fee.',
     'All transactions are recorded on the Gorbagana blockchain and are publicly verifiable.',
