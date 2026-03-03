@@ -208,10 +208,14 @@ const VanityGenerator: React.FC = () => {
     }
     setTotalSpent(batchCostGOR);
 
+    // Calculate batchesPerPayment as 1/4th of the deposit amount
+    // This means the user will be charged every 1/4th of their deposit worth of batches
+    const batchesPerPayment = Math.max(1, Math.floor(depositAmount / 4 / batchCostGOR));
+
     workerManagerRef.current = new WorkerManager({
       workerPath: '../workers/vanityMiner.worker.ts',
       maxWorkers: 8,
-      batchesPerPayment: 10,
+      batchesPerPayment: batchesPerPayment,
       onBatchComplete: async () => {
         // Charge for next batch cycle
         const success = await chargeForBatch(batchCostLamports);
@@ -237,7 +241,7 @@ const VanityGenerator: React.FC = () => {
     setIsMining(true);
     setIsPaused(false);
     setMiningActive(true);
-  }, [patterns, isMining, connected, walletAddress, miningAccount, batchCostGOR, batchCostLamports, chargeForBatch, currency, initializeMining, recordMatchPayment, setMiningActive, setPaymentError]);
+  }, [patterns, isMining, connected, walletAddress, miningAccount, batchCostGOR, batchCostLamports, chargeForBatch, currency, initializeMining, recordMatchPayment, setMiningActive, setPaymentError, depositAmount]);
 
   // Pause/Resume mining
   const togglePause = useCallback(() => {
