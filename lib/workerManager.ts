@@ -354,6 +354,38 @@ export function generatePatternVariations(pattern: string): string[] {
   return results;
 }
 
+
+/**
+ * Generate pattern variations using only the selected variants for each character
+ * This ensures we only match addresses with the exact characters the user selected
+ */
+export function generatePatternVariationsFromSelected(
+  pattern: string,
+  selectedVariants: Record<string, string[]>
+): string[] {
+  const chars = pattern.split('');
+  const variations: string[][] = chars.map((char) => {
+    // Use the selected variants if available, otherwise use the character itself
+    return selectedVariants[char] || [char];
+  });
+
+  // Generate all combinations
+  const results: string[] = [];
+  
+  function combine(index: number, current: string): void {
+    if (index === variations.length) {
+      results.push(current);
+      return;
+    }
+    for (const variant of variations[index]) {
+      combine(index + 1, current + variant);
+    }
+  }
+
+  combine(0, '');
+  return results;
+}
+
 /**
  * Estimate difficulty based on pattern length
  * Returns estimated time in seconds

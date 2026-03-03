@@ -12,6 +12,7 @@ import {
   MatchData,
   ProgressData,
   generatePatternVariations,
+  generatePatternVariationsFromSelected,
   estimateDifficulty,
   formatDuration,
   formatNumber,
@@ -92,12 +93,19 @@ const VanityGenerator: React.FC = () => {
       cv.selected.length > 0 ? cv.selected[0] : cv.char
     ).join('');
 
+    // Build a map of selected variants for each character
+    const selectedVariantsMap: Record<string, string[]> = {};
+    charVariants.forEach((cv) => {
+      selectedVariantsMap[cv.char] = cv.selected.length > 0 ? cv.selected : [cv.char];
+    });
+
     const prefixPattern = selectedPattern.slice(0, prefixLen);
     const suffixPattern = suffixLen > 0 ? selectedPattern.slice(-suffixLen) : '';
 
-    const prefixes = prefixLen > 0 ? generatePatternVariations(prefixPattern) : [];
-    const suffixes = suffixLen > 0 ? generatePatternVariations(suffixPattern) : [];
-    const contains = includeContains ? generatePatternVariations(selectedPattern) : [];
+    // Use only the selected variants, not all Base58 substitutions
+    const prefixes = prefixLen > 0 ? generatePatternVariationsFromSelected(prefixPattern, selectedVariantsMap) : [];
+    const suffixes = suffixLen > 0 ? generatePatternVariationsFromSelected(suffixPattern, selectedVariantsMap) : [];
+    const contains = includeContains ? generatePatternVariationsFromSelected(selectedPattern, selectedVariantsMap) : [];
 
     return { prefixes, suffixes, contains };
   }, [inputName, charVariants, prefixLen, suffixLen, includeContains]);
