@@ -11,6 +11,7 @@ interface OverlayProps {
     onPauseToggle: () => void;
     onBump: () => void;
     onDropCoin: () => void;
+    onDeposit: (amount: number) => Promise<string | null>;
     wallet: any;
 }
 
@@ -20,6 +21,7 @@ export const Overlay: React.FC<OverlayProps> = ({
     onPauseToggle,
     onBump,
     onDropCoin,
+    onDeposit,
     wallet
 }) => {
     const walletMenuRef = useRef<HTMLDivElement>(null);
@@ -47,14 +49,15 @@ export const Overlay: React.FC<OverlayProps> = ({
         }
     }, [showWalletMenu]);
 
-    const handleBumpClick = async () => {
+    const DEPOSIT_AMOUNT = 100; // DEBRI tokens to deposit per refill
+
+    const handleDepositClick = async () => {
         // Prevent multiple clicks during transaction processing
         if (txStatus !== 'idle') {
             console.log('Transaction already in progress, ignoring click');
             return;
         }
         if (!wallet.isConnected) {
-            alert('Please connect your Solana wallet first');
             setShowWalletMenu(true);
             return;
         }
@@ -64,16 +67,16 @@ export const Overlay: React.FC<OverlayProps> = ({
 
         try {
             setTxStatus('signing');
-            setTimeout(() => {
-                setTxStatus('broadcasting');
-                setTimeout(() => {
-                    setTxStatus('confirmed');
-                    onBump();
-                    setTimeout(() => { setTxStatus('idle'); }, 1000);
-                }, 2000);
-            }, 1000);
+            const sig = await onDeposit(DEPOSIT_AMOUNT);
+            if (sig) {
+                setTxStatus('confirmed');
+                setTimeout(() => { setTxStatus('idle'); }, 1500);
+            } else {
+                setTxStatus('error');
+                setTimeout(() => setTxStatus('idle'), 2000);
+            }
         } catch (error) {
-            console.error('Transaction failed:', error);
+            console.error('Deposit failed:', error);
             setTxStatus('error');
             setTimeout(() => setTxStatus('idle'), 2000);
         }
@@ -166,11 +169,11 @@ export const Overlay: React.FC<OverlayProps> = ({
                     {/* Stats Group - Compact on mobile */}
                     <div className="flex flex-row sm:flex-col gap-1.5 sm:gap-2">
 
-                        {/* Junk (Balance) */}
+                        {/* Debri (Balance) */}
                         <div className="relative group w-[120px] sm:w-[200px]">
                             <div className="absolute inset-0 bg-black/60 skew-x-[-12deg] border-r-2 border-green-500/40 group-hover:border-green-400 transition-colors"></div>
                             <div className="relative flex flex-col items-end pr-3 sm:pr-5 py-1 sm:py-2">
-                                <div className="text-[7px] sm:text-[9px] text-green-400 uppercase tracking-[0.2em] sm:tracking-[0.25em] font-bold mb-0.5 opacity-80 font-[Inter]">Junk</div>
+                                <div className="text-[7px] sm:text-[9px] text-green-400 uppercase tracking-[0.2em] sm:tracking-[0.25em] font-bold mb-0.5 opacity-80 font-[Inter]">Debri</div>
                                 <div className={`text-lg sm:text-3xl font-bold font-heading tracking-wider sm:tracking-widest drop-shadow-[0_0_10px_rgba(0,255,0,0.3)] ${gameState.balance <= 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                                     {gameState.balance}
                                 </div>
@@ -210,7 +213,7 @@ export const Overlay: React.FC<OverlayProps> = ({
                 ) : (
                     <div className="flex flex-col items-center justify-start h-full pt-[12vh] sm:pt-[15vh] opacity-20">
                         <div className="w-[1px] h-8 sm:h-12 bg-green-500/50 mb-1 sm:mb-2"></div>
-                        <div className="text-[7px] sm:text-[8px] uppercase tracking-[0.3em] text-green-500/50 font-medium font-[Inter]">Insert Junk</div>
+                        <div className="text-[7px] sm:text-[8px] uppercase tracking-[0.3em] text-green-500/50 font-medium font-[Inter]">Insert Debri</div>
                     </div>
                 )}
             </div>
@@ -221,8 +224,7 @@ export const Overlay: React.FC<OverlayProps> = ({
                 <div className="w-full bg-black/90 border-t border-green-500/40 backdrop-blur-md pointer-events-auto shadow-[0_-2px_12px_rgba(0,0,0,0.5)]">
                     <div className="flex items-center justify-center gap-4 sm:gap-8 px-3 py-2 sm:py-2.5 overflow-x-auto text-[10px] sm:text-xs font-[Inter]">
                         <div className="flex items-center gap-1.5 shrink-0">
-                            <img src="/junk.png" alt="JUNK" className="w-5 h-5 rounded-full ring-1 ring-green-500/40" />
-                            <span className="text-green-300 font-bold font-heading tracking-wider">JUNK</span>
+                            <span className="text-green-300 font-bold font-heading tracking-wider">DEBRI</span>
                         </div>
                         <div className="h-4 w-px bg-green-500/30 shrink-0" />
                         <div className="flex items-center gap-1 shrink-0">
@@ -240,15 +242,6 @@ export const Overlay: React.FC<OverlayProps> = ({
                         <div className="flex items-center gap-1 shrink-0">
                             <span className="text-gray-400">Bump</span>
                             <span className="text-fuchsia-400 font-mono font-bold">-50</span>
-                        </div>
-                        <div className="h-4 w-px bg-green-500/30 shrink-0" />
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            <img src="/trashcoin.png" alt="TRASHCOIN" className="w-5 h-5 rounded-full ring-1 ring-yellow-500/40" />
-                            <span className="text-yellow-300 font-bold font-heading tracking-wider">TRASH</span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-gray-400">6%</span>
-                            <span className="text-yellow-200 font-mono font-bold">5x</span>
                         </div>
                     </div>
                 </div>
@@ -312,14 +305,14 @@ export const Overlay: React.FC<OverlayProps> = ({
                     {/* Footer Info */}
                     <div className="text-right pointer-events-none opacity-50 hidden sm:block shrink-0">
                         <div className="text-[9px] text-green-400/60 uppercase tracking-widest leading-loose font-[Inter]">
-                            JUNK Token <br />
+                            DEBRI Token <br />
                             v3.0.0 <span className="text-purple-600 mx-2">//</span> GORBAGANA
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* --- POPUP: OUT OF JUNK (BUMP) --- */}
+            {/* --- POPUP: OUT OF DEBRI (BUMP) --- */}
             {showPopup && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[4px] pointer-events-auto animate-in fade-in duration-300 p-4">
                     <div className="relative bg-black/90 border border-green-500/60 p-1 w-full max-w-[420px] shadow-[0_0_100px_rgba(0,255,0,0.15)] transform scale-100 animate-in zoom-in-95 duration-200">
@@ -351,21 +344,21 @@ export const Overlay: React.FC<OverlayProps> = ({
                             </div>
 
                             <h2 className="text-2xl sm:text-4xl font-bold text-white font-heading mb-1.5 sm:mb-2 tracking-tighter drop-shadow-[0_0_10px_rgba(0,255,0,0.5)]">
-                                OUT OF JUNK
+                                OUT OF DEBRI
                             </h2>
 
                             <p className="text-green-200/60 text-xs sm:text-sm mb-5 sm:mb-8 font-[Inter] leading-relaxed max-w-[90%] sm:max-w-[80%]">
                                 Resource depletion detected. Production halted. <br />
                                 <span className="text-green-400 font-bold">
                                     {wallet.isConnected
-                                        ? 'Initiate Treasury Transfer to trigger emergency bump.'
-                                        : 'Connect wallet to initiate emergency bump.'}
+                                        ? 'Deposit DEBRI tokens to continue playing.'
+                                        : 'Connect wallet to deposit DEBRI and continue.'}
                                 </span>
                             </p>
 
-                            {/* Bump/Pay Button */}
+                            {/* Deposit DEBRI Button */}
                             <button
-                                onClick={handleBumpClick}
+                                onClick={handleDepositClick}
                                 disabled={txStatus !== 'idle'}
                                 className={`group relative w-full h-12 sm:h-16 transition-all clip-path-polygon mb-3 sm:mb-4 overflow-hidden shadow-[0_0_20px_rgba(0,255,0,0.15)] hover:shadow-[0_0_30px_rgba(0,255,0,0.4)] active:scale-[0.98] ${txStatus === 'idle' ? 'bg-gradient-to-r from-green-900 to-emerald-800 hover:from-green-600 hover:to-emerald-500' : 'bg-black border border-green-500/50 cursor-wait'}`}
                             >
@@ -375,12 +368,12 @@ export const Overlay: React.FC<OverlayProps> = ({
                                     {txStatus === 'idle' && (
                                         <>
                                             <span className="font-heading font-bold text-white tracking-[0.15em] sm:tracking-[0.2em] text-base sm:text-xl group-hover:text-white drop-shadow-md">
-                                                {wallet.isConnected ? 'PAY & BUMP' : 'CONNECT WALLET'}
+                                                {wallet.isConnected ? 'DEPOSIT DEBRI' : 'CONNECT WALLET'}
                                             </span>
                                             {wallet.isConnected && (
                                                 <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
                                                     <span className="text-[9px] sm:text-[10px] text-green-200 font-mono bg-black/40 px-1.5 py-0.5 rounded border border-green-500/30">
-                                                        FEE: 0.001 GOR
+                                                        {DEPOSIT_AMOUNT} DEBRI
                                                     </span>
                                                 </div>
                                             )}

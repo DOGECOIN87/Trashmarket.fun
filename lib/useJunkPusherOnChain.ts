@@ -5,7 +5,7 @@
  * into the wallet adapter so that game actions produce real transactions.
  *
  * Capabilities:
- *  - Check on-chain JUNK token balance before allowing play
+ *  - Check on-chain DEBRI token balance before allowing play
  *  - Send initializeGame, recordCoinCollection, recordScore, depositBalance, withdrawBalance txs
  *  - Fetch high scores from the blockchain
  */
@@ -14,15 +14,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { JunkPusherClient, PROGRAM_ID } from './JunkPusherClient';
-import { getJunkBalance, getTrashcoinBalance, TokenBalance } from './tokenService';
+import { getDebriBalance, TokenBalance } from './tokenService';
 import { getHighScores, getPlayerRank, HighScoreEntry } from './highScoreService';
 import { TOKEN_CONFIG } from './tokenConfig';
 
 export interface OnChainState {
-  /** On-chain JUNK token balance (human-readable) */
-  junkBalance: number;
-  /** On-chain TRASHCOIN balance (human-readable) */
-  trashcoinBalance: number;
+  /** On-chain DEBRI token balance (human-readable) */
+  debriBalance: number;
   /** Whether the on-chain program is available (program ID is not placeholder) */
   programAvailable: boolean;
   /** Loading state for balance fetches */
@@ -40,8 +38,7 @@ export function useJunkPusherOnChain() {
   const { connection } = useConnection();
 
   const [state, setState] = useState<OnChainState>({
-    junkBalance: 0,
-    trashcoinBalance: 0,
+    debriBalance: 0,
     programAvailable: PROGRAM_ID.toBase58() !== '11111111111111111111111111111111',
     isLoadingBalance: false,
     lastTxSignature: null,
@@ -60,14 +57,10 @@ export function useJunkPusherOnChain() {
     if (!publicKey || !connection) return;
     setState((s) => ({ ...s, isLoadingBalance: true, error: null }));
     try {
-      const [junk, trash] = await Promise.all([
-        getJunkBalance(connection, publicKey),
-        getTrashcoinBalance(connection, publicKey),
-      ]);
+      const debri = await getDebriBalance(connection, publicKey);
       setState((s) => ({
         ...s,
-        junkBalance: junk,
-        trashcoinBalance: trash,
+        debriBalance: debri,
         isLoadingBalance: false,
       }));
     } catch (err: any) {
@@ -191,7 +184,7 @@ export function useJunkPusherOnChain() {
     [publicKey, sendTx],
   );
 
-  /** Deposit JUNK tokens into game balance */
+  /** Deposit DEBRI tokens into game balance */
   const depositBalance = useCallback(
     async (amount: number) => {
       if (!publicKey) return null;
@@ -202,7 +195,7 @@ export function useJunkPusherOnChain() {
     [publicKey, sendTx],
   );
 
-  /** Withdraw JUNK tokens from game balance */
+  /** Withdraw DEBRI tokens from game balance */
   const withdrawBalance = useCallback(
     async (amount: number) => {
       if (!publicKey) return null;
@@ -230,8 +223,8 @@ export function useJunkPusherOnChain() {
 
   // ─── Checks ───────────────────────────────────────────────────────────
 
-  /** Whether the player has enough JUNK to play */
-  const canPlay = connected && state.junkBalance > 0;
+  /** Whether the player has enough DEBRI to play */
+  const canPlay = connected && state.debriBalance > 0;
 
   /** Whether the on-chain program is deployed and ready */
   const isProgramReady = state.programAvailable;

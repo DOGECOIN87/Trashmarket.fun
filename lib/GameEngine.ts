@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { PHYSICS, DIMENSIONS, COLORS, TRASHCOIN } from './constants';
+import { PHYSICS, DIMENSIONS, COLORS } from './constants';
 import { GameConfig, GameEventCallback } from '../types/types';
 import { soundManager } from './soundManager';
 
@@ -25,10 +25,6 @@ export class GameEngine {
   private coinProto!: THREE.Mesh;
   private coinInstancedMesh!: THREE.InstancedMesh;
   private coinBodies: { body: RAPIER.RigidBody; id: number }[] = [];
-
-  // Rare Trashcoin system
-  private trashcoinInstancedMesh!: THREE.InstancedMesh;
-  private trashcoinBodies: { body: RAPIER.RigidBody; id: number }[] = [];
 
   // State
   private isInitialized = false;
@@ -143,7 +139,6 @@ export class GameEngine {
     this.buildOcclusionPanel();
     this.buildPusher();
     this.initCoinSystem();
-    this.initTrashcoinSystem();
 
     // 5. Initial Pool
     if (!GameEngine.DEBUG_EMPTY_POOL) {
@@ -425,76 +420,6 @@ export class GameEngine {
     this.scene.add(this.coinInstancedMesh);
   }
 
-  private initTrashcoinSystem() {
-    const geometry = new THREE.CylinderGeometry(
-      PHYSICS.COIN_RADIUS,
-      PHYSICS.COIN_RADIUS,
-      PHYSICS.COIN_HEIGHT,
-      32
-    );
-
-    // Load the logo texture
-    const loader = new THREE.TextureLoader();
-    const logoTexture = loader.load('/assets/enhanced_logo_v6.svg');
-    const blackLogoTexture = loader.load('/assets/coin_black_logo.svg');
-
-    // Create a material with a golden rim for trashcoins
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext('2d')!;
-
-    // Base green
-    ctx.fillStyle = '#00ff00';
-    ctx.fillRect(0, 0, 64, 64);
-
-    // Golden rim
-    ctx.strokeStyle = '#daa520';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(32, 32, 30, 0, Math.PI * 2);
-    ctx.stroke();
-
-    const rimTexture = new THREE.CanvasTexture(canvas);
-
-    const sideMaterial = new THREE.MeshStandardMaterial({
-      map: rimTexture,
-      roughness: 0.2,
-      metalness: 0.9,
-      emissive: 0xdaa520,
-      emissiveIntensity: 0.3
-    });
-
-    const faceMaterial = new THREE.MeshStandardMaterial({
-      color: 0xdaa520, // Golden face for trashcoins
-      map: logoTexture,
-      roughness: 0.2,
-      metalness: 0.9,
-      emissive: 0xdaa520,
-      emissiveIntensity: 0.2
-    });
-
-    const backFaceMaterial = new THREE.MeshStandardMaterial({
-      color: 0xdaa520, // Golden face for trashcoins
-      map: blackLogoTexture,
-      roughness: 0.2,
-      metalness: 0.9,
-      emissive: 0xdaa520,
-      emissiveIntensity: 0.2
-    });
-
-    const materials = [sideMaterial, faceMaterial, backFaceMaterial];
-
-    this.trashcoinInstancedMesh = new THREE.InstancedMesh(
-      geometry,
-      materials,
-      TRASHCOIN.MAX_COUNT
-    );
-    this.trashcoinInstancedMesh.castShadow = true;
-    this.trashcoinInstancedMesh.receiveShadow = true;
-    this.scene.add(this.trashcoinInstancedMesh);
-  }
-
   private spawnInitialCoins() {
     const numInitial = 20;
     for (let i = 0; i < numInitial; i++) {
@@ -525,27 +450,6 @@ export class GameEngine {
     this.coinBodies.push({ body, id });
   }
 
-  private spawnTrashcoin(x: number, y: number, z: number) {
-    if (this.trashcoinBodies.length >= TRASHCOIN.MAX_COUNT) return;
-
-    const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
-      .setTranslation(x, y, z)
-      .setLinearDamping(PHYSICS.COIN_LINEAR_DAMPING)
-      .setAngularDamping(PHYSICS.COIN_ANGULAR_DAMPING);
-
-    const body = this.world.createRigidBody(bodyDesc);
-    this.world.createCollider(
-      RAPIER.ColliderDesc.cylinder(PHYSICS.COIN_HEIGHT / 2, PHYSICS.COIN_RADIUS)
-        .setRestitution(PHYSICS.COIN_RESTITUTION)
-        .setFriction(PHYSICS.COIN_FRICTION)
-        .setDensity(PHYSICS.COIN_DENSITY),
-      body
-    );
-
-    const id = this.trashcoinBodies.length;
-    this.trashcoinBodies.push({ body, id });
-  }
-
   public dropUserCoin(normalizedX: number) {
     if (this.balance <= 0 && !GameEngine.DEBUG_AUTOPLAY) return;
 
@@ -563,11 +467,7 @@ export class GameEngine {
     }
 
     const z = -DIMENSIONS.PLAYFIELD_LENGTH / 2 + 1;
-    if (Math.random() < TRASHCOIN.SPAWN_CHANCE && this.trashcoinBodies.length < TRASHCOIN.MAX_COUNT) {
-      this.spawnTrashcoin(normalizedX, 4, z);
-    } else {
-      this.spawnCoin(normalizedX, 4, z);
-    }
+    this.spawnCoin(normalizedX, 4, z);
   }
 
   public dropCoinAtRaycast(ndcX: number, ndcY: number) {
@@ -583,7 +483,7 @@ export class GameEngine {
   }
 
   public bump() {
-    // Apply fee (50 JUNK)
+    // Apply fee (50 DEBRI)
     this.balance -= 50;
 
     this.updateGameState();
@@ -615,7 +515,6 @@ export class GameEngine {
       });
     };
     applyBumpTo(this.coinBodies);
-    applyBumpTo(this.trashcoinBodies);
   }
 
   private updateGameState() {
@@ -640,9 +539,6 @@ export class GameEngine {
     this.netProfit = 0;
     this.coinBodies.forEach(c => this.world.removeRigidBody(c.body));
     this.coinBodies = [];
-    this.trashcoinBodies.forEach(c => this.world.removeRigidBody(c.body));
-    this.trashcoinBodies = [];
-
     const dummy = new THREE.Object3D();
     dummy.scale.set(0, 0, 0);
     dummy.updateMatrix();
@@ -650,11 +546,6 @@ export class GameEngine {
       this.coinInstancedMesh.setMatrixAt(i, dummy.matrix);
     }
     this.coinInstancedMesh.instanceMatrix.needsUpdate = true;
-
-    for (let i = 0; i < TRASHCOIN.MAX_COUNT; i++) {
-      this.trashcoinInstancedMesh.setMatrixAt(i, dummy.matrix);
-    }
-    this.trashcoinInstancedMesh.instanceMatrix.needsUpdate = true;
 
     this.spawnInitialCoins();
     this.updateGameState();
@@ -716,22 +607,9 @@ export class GameEngine {
       }
     }
     for (const { index, isWin } of coinRemovals) {
-      if (isWin) this.handleWin(false);
+      if (isWin) this.handleWin();
       this.world.removeRigidBody(this.coinBodies[index].body);
       this.coinBodies.splice(index, 1);
-    }
-
-    const trashRemovals: { index: number; isWin: boolean }[] = [];
-    for (let i = this.trashcoinBodies.length - 1; i >= 0; i--) {
-      const { y, z } = this.trashcoinBodies[i].body.translation();
-      if (y < -2) {
-        trashRemovals.push({ index: i, isWin: z > DIMENSIONS.PLAYFIELD_LENGTH / 2 });
-      }
-    }
-    for (const { index, isWin } of trashRemovals) {
-      if (isWin) this.handleWin(true);
-      this.world.removeRigidBody(this.trashcoinBodies[index].body);
-      this.trashcoinBodies.splice(index, 1);
     }
 
     if (GameEngine.DEBUG_AUTOPLAY && Math.random() < 0.05) {
@@ -739,18 +617,13 @@ export class GameEngine {
     }
   }
 
-  private handleWin(isTrashcoin = false) {
-    const value = isTrashcoin ? TRASHCOIN.SCORE_VALUE : 1;
-    this.score += value;
-    this.balance += value;
-    this.netProfit += value;
+  private handleWin() {
+    this.score += 1;
+    this.balance += 1;
+    this.netProfit += 1;
 
     // Play collection sound
-    if (isTrashcoin) {
-      soundManager.play('trashcoin_collect');
-    } else {
-      soundManager.play('coin_collect');
-    }
+    soundManager.play('coin_collect');
 
     const now = performance.now();
     if (now - this.lastCollectionTime > 5000) {
@@ -794,23 +667,6 @@ export class GameEngine {
       this.coinInstancedMesh.setMatrixAt(i, d.matrix);
     }
     this.coinInstancedMesh.instanceMatrix.needsUpdate = true;
-
-    // Sync trashcoin graphics
-    for (let i = 0; i < TRASHCOIN.MAX_COUNT; i++) {
-      if (i < this.trashcoinBodies.length) {
-        const body = this.trashcoinBodies[i].body;
-        const { x: bx, y: by, z: bz } = body.translation();
-        const { x: rx, y: ry, z: rz, w: rw } = body.rotation();
-        d.position.set(bx, by, bz);
-        d.quaternion.set(rx, ry, rz, rw);
-        d.scale.set(1, 1, 1);
-      } else {
-        d.scale.set(0, 0, 0);
-      }
-      d.updateMatrix();
-      this.trashcoinInstancedMesh.setMatrixAt(i, d.matrix);
-    }
-    this.trashcoinInstancedMesh.instanceMatrix.needsUpdate = true;
   }
 
   public resize(width: number, height: number) {

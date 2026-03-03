@@ -9,7 +9,6 @@ export type SoundType =
   | 'coin_drop'
   | 'coin_land'
   | 'coin_collect'
-  | 'trashcoin_collect'
   | 'bump'
   | 'button_click'
   | 'win_streak'
@@ -63,9 +62,6 @@ class SoundManager {
         break;
       case 'coin_collect':
         this.playCoinCollect();
-        break;
-      case 'trashcoin_collect':
-        this.playTrashcoinCollect();
         break;
       case 'bump':
         this.playBump();
@@ -193,34 +189,6 @@ class SoundManager {
     osc2.start(now);
     osc1.stop(now + 0.3);
     osc2.stop(now + 0.3);
-  }
-
-  /**
-   * Trashcoin collect sound - special rare item sound
-   */
-  private playTrashcoinCollect(): void {
-    if (!this.audioContext) return;
-
-    const now = this.audioContext.currentTime;
-    const frequencies = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-
-    frequencies.forEach((freq, i) => {
-      const osc = this.audioContext!.createOscillator();
-      const gain = this.audioContext!.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + i * 0.08);
-
-      gain.gain.setValueAtTime(0, now + i * 0.08);
-      gain.gain.linearRampToValueAtTime(this.masterVolume * 0.3, now + i * 0.08 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.4);
-
-      osc.connect(gain);
-      gain.connect(this.audioContext!.destination);
-
-      osc.start(now + i * 0.08);
-      osc.stop(now + i * 0.08 + 0.4);
-    });
   }
 
   /**

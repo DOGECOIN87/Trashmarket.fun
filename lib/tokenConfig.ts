@@ -1,33 +1,24 @@
 /**
  * Token Configuration for Gorbagana Junk Pusher
- * 
- * JUNK Token: Primary betting currency (SPL Token on Gorbagana)
- * TRASHCOIN: Rare reward token (SPL Token on Gorbagana)
- * 
+ *
+ * DEBRI Token: The sole token used in this dapp
+ *
  * CRITICAL: All tokens use 9 decimals (Solana standard)
  */
 
 export const TOKEN_CONFIG = {
-  // JUNK Token - Primary betting currency
-  JUNK: {
-    address: 'BgvprjyRDq1erzQocRTmLPBzMuEmcARg64LE9eGX9XRF',
-    symbol: 'JUNK',
+  // DEBRI Token - The dapp's token used for all gameplay
+  DEBRI: {
+    address: '', // To be set when the Debri token is created
+    symbol: 'DEBRI',
     decimals: 9,
-    name: 'JUNK Token',
+    name: 'Debri',
   },
-  
-  // TRASHCOIN - Rare reward token (cannot be used for betting)
-  TRASHCOIN: {
-    address: 'GNFqCqaU9R2jas4iaKEFZM5hiX5AHxBL7rPHTCpX5T6z',
-    symbol: 'TRASH',
-    decimals: 9,
-    name: 'TrashCoin',
-  },
-  
+
   // Game Configuration
   GAME: {
-    INITIAL_BALANCE: 100, // Starting JUNK balance (Default tokens provided)
-    BUMP_COST: 50, // Cost in JUNK to bump the machine
-    DROP_COST: 1, // Cost in JUNK to drop a coin
+    INITIAL_BALANCE: 100, // Starting DEBRI balance (Default tokens provided)
+    BUMP_COST: 50, // Cost in DEBRI to bump the machine
+    DROP_COST: 1, // Cost in DEBRI to drop a coin
   },
 } as const;

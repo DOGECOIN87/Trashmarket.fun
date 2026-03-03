@@ -1,6 +1,6 @@
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
-import { 
-  getAssociatedTokenAddress, 
+import {
+  getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
   getAccount,
   TokenAccountNotFoundError,
@@ -9,80 +9,49 @@ import {
 import { TOKEN_CONFIG } from './tokenConfig';
 
 /**
- * SPL Token Service for JUNK and TRASHCOIN tokens on Gorbagana
+ * SPL Token Service for DEBRI token on Gorbagana
  */
 
 export interface TokenBalance {
-  junk: number;
-  trashcoin: number;
+  debri: number;
 }
 
 /**
- * Get JUNK token balance for a wallet
+ * Get DEBRI token balance for a wallet
  */
-export async function getJunkBalance(
+export async function getDebriBalance(
   connection: Connection,
   walletAddress: PublicKey
 ): Promise<number> {
   try {
-    const junkMint = new PublicKey(TOKEN_CONFIG.JUNK.address);
+    const debriMint = new PublicKey(TOKEN_CONFIG.DEBRI.address);
     const tokenAccount = await getAssociatedTokenAddress(
-      junkMint,
+      debriMint,
       walletAddress
     );
 
     const accountInfo = await getAccount(connection, tokenAccount);
-    const balance = Number(accountInfo.amount) / Math.pow(10, TOKEN_CONFIG.JUNK.decimals);
+    const balance = Number(accountInfo.amount) / Math.pow(10, TOKEN_CONFIG.DEBRI.decimals);
     return balance;
   } catch (error) {
     if (error instanceof TokenAccountNotFoundError) {
       // Token account doesn't exist yet, balance is 0
       return 0;
     }
-    console.error('Error fetching JUNK balance:', error);
+    console.error('Error fetching DEBRI balance:', error);
     throw error;
   }
 }
 
 /**
- * Get TRASHCOIN token balance for a wallet
- */
-export async function getTrashcoinBalance(
-  connection: Connection,
-  walletAddress: PublicKey
-): Promise<number> {
-  try {
-    const trashcoinMint = new PublicKey(TOKEN_CONFIG.TRASHCOIN.address);
-    const tokenAccount = await getAssociatedTokenAddress(
-      trashcoinMint,
-      walletAddress
-    );
-
-    const accountInfo = await getAccount(connection, tokenAccount);
-    const balance = Number(accountInfo.amount) / Math.pow(10, TOKEN_CONFIG.TRASHCOIN.decimals);
-    return balance;
-  } catch (error) {
-    if (error instanceof TokenAccountNotFoundError) {
-      return 0;
-    }
-    console.error('Error fetching TRASHCOIN balance:', error);
-    throw error;
-  }
-}
-
-/**
- * Get both token balances at once
+ * Get token balance
  */
 export async function getTokenBalances(
   connection: Connection,
   walletAddress: PublicKey
 ): Promise<TokenBalance> {
-  const [junk, trashcoin] = await Promise.all([
-    getJunkBalance(connection, walletAddress),
-    getTrashcoinBalance(connection, walletAddress),
-  ]);
-
-  return { junk, trashcoin };
+  const debri = await getDebriBalance(connection, walletAddress);
+  return { debri };
 }
 
 /**
@@ -120,21 +89,20 @@ export async function ensureTokenAccount(
 }
 
 /**
- * Check if wallet has sufficient JUNK balance for an action
+ * Check if wallet has sufficient DEBRI balance for an action
  */
-export async function hasSufficientJunk(
+export async function hasSufficientDebri(
   connection: Connection,
   walletAddress: PublicKey,
   requiredAmount: number
 ): Promise<boolean> {
-  const balance = await getJunkBalance(connection, walletAddress);
+  const balance = await getDebriBalance(connection, walletAddress);
   return balance >= requiredAmount;
 }
 
 export default {
-  getJunkBalance,
-  getTrashcoinBalance,
+  getDebriBalance,
   getTokenBalances,
   ensureTokenAccount,
-  hasSufficientJunk,
+  hasSufficientDebri,
 };

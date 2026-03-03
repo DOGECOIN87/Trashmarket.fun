@@ -11,7 +11,6 @@ export const IMAGE_PATHS = [
   '/sticker3.webp',
   '/stickerpill.webp',
   '/junk.png',
-  '/trashcoin.png',
 ];
 
 export const SHAPE_TYPES: ShapeType[] = IMAGE_PATHS;
