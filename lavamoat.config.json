@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "resources": {
+    "root": {
+      "globals": {
+        "Buffer": true,
+        "console": true,
+        "fetch": true,
+        "crypto": true,
+        "TextEncoder": true,
+        "Uint8Array": true,
+        "atob": true,
+        "btoa": true,
+        "Math": true,
+        "Date": true,
+        "JSON": true,
+        "Object": true,
+        "String": true,
+        "Number": true,
+        "Array": true,
+        "Promise": true,
+        "Error": true,
+        "TypeError": true,
+        "RangeError": true,
+        "setTimeout": true,
+        "clearInterval": true,
+        "setInterval": true,
+        "window": true,
+        "document": true,
+        "location": true,
+        "localStorage": true,
+        "sessionStorage": true
+      },
+      "packages": {
+        "react": true,
+        "react-dom": true,
+        "@solana/web3.js": true,
+        "@solana/spl-token": true,
+        "@solana/wallet-adapter-react": true,
+        "@solana/wallet-adapter-react-ui": true,
+        "@coral-xyz/anchor": true,
+        "lucide-react": true,
+        "zustand": true,
+        "firebase": true,
+        "firebase-admin": true,
+        "bs58": true,
+        "bn.js": true,
+        "buffer": true
+      }
+    },
+    "@solana/web3.js": {
+      "globals": {
+        "Buffer": true,
+        "crypto": true,
+        "fetch": true,
+        "TextEncoder": true,
+        "Uint8Array": true,
+        "atob": true,
+        "btoa": true,
+        "Math": true,
+        "Date": true,
+        "JSON": true,
+        "Object": true,
+        "String": true,
+        "Number": true,
+        "Array": true,
+        "Promise": true,
+        "Error": true,
+        "TypeError": true,
+        "RangeError": true,
+        "console": true
+      },
+      "packages": {
+        "bs58": true,
+        "bn.js": true,
+        "buffer": true,
+        "tweetnacl": true,
+        "http": true,
+        "https": true
+      }
+    },
+    "@solana/spl-token": {
+      "globals": {
+        "Buffer": true,
+        "Uint8Array": true,
+        "Math": true,
+        "JSON": true,
+        "Object": true,
+        "String": true,
+        "Number": true,
+        "Array": true,
+        "Promise": true,
+        "Error": true,
+        "TypeError": true,
+        "console": true
+      },
+      "packages": {
+        "@solana/web3.js": true,
+        "bn.js": true,
+        "buffer": true
+      }
+    },
+    "@coral-xyz/anchor": {
+      "globals": {
+        "Buffer": true,
+        "crypto": true,
+        "fetch": true,
+        "TextEncoder": true,
+        "Uint8Array": true,
+        "Math": true,
+        "JSON": true,
+        "Object": true,
+        "String": true,
+        "Number": true,
+        "Array": true,
+        "Promise": true,
+        "Error": true,
+        "TypeError": true,
+        "console": true
+      },
+      "packages": {
+        "@solana/web3.js": true,
+        "@solana/spl-token": true,
+        "bn.js": true,
+        "buffer": true,
+        "bs58": true,
+        "tweetnacl": true
+      }
+    },
+    "@solana/wallet-adapter-react": {
+      "globals": {
+        "window": true,
+        "document": true,
+        "localStorage": true,
+        "console": true,
+        "JSON": true,
+        "Object": true,
+        "String": true,
+        "Array": true,
+        "Promise": true,
+        "Error": true,
+        "TypeError": true
+      },
+      "packages": {
+        "react": true,
+        "@solana/web3.js": true,
+        "@solana/wallet-adapter-base": true
+      }
+    },
+    "firebase": {
+      "globals": {
+        "window": true,
+        "document": true,
+        "localStorage": true,
+        "sessionStorage": true,
+        "fetch": true,
+        "XMLHttpRequest": true,
+        "console": true,
+        "JSON": true,
+        "Object": true,
+        "String": true,
+        "Number": true,
+        "Array": true,
+        "Promise": true,
+        "Error": true,
+        "TypeError": true,
+        "Date": true,
+        "Math": true,
+        "crypto": true,
+        "TextEncoder": true,
+        "Uint8Array": true,
+        "atob": true,
+        "btoa": true,
+        "setTimeout": true,
+        "setInterval": true,
+        "clearTimeout": true,
+        "clearInterval": true
+      },
+      "packages": {
+        "@firebase/app": true,
+        "@firebase/auth": true,
+        "@firebase/firestore": true,
+        "@firebase/storage": true,
+        "@firebase/database": true,
+        "@firebase/functions": true
+      }
+    }
+  },
+  "writeAutoPolicy": false,
+  "debugMode": false,
+  "inspectGlobals": [
+    "window",
+    "document",
+    "fetch",
+    "crypto"
+  ]
+}

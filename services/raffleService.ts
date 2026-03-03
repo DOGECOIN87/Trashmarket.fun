@@ -140,7 +140,7 @@ export class RaffleService {
         raffleState: raffleStatePDA,
         authority: this.provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      })
+      } as any)
       .rpc();
 
     return tx;
@@ -183,7 +183,7 @@ export class RaffleService {
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
-      })
+      } as any)
       .rpc();
 
     // Step 2: Create raffle and transfer NFT
@@ -205,7 +205,7 @@ export class RaffleService {
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
-      })
+      } as any)
       .rpc();
 
     return { signature: tx, raffleId };
@@ -238,7 +238,7 @@ export class RaffleService {
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
-      })
+      } as any)
       .rpc();
 
     return tx;
@@ -278,7 +278,7 @@ export class RaffleService {
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
         authority: this.provider.wallet.publicKey,
-      })
+      } as any)
       .rpc();
 
     return tx;
@@ -305,7 +305,7 @@ export class RaffleService {
         creatorNftAccount,
         escrowAuthority,
         tokenProgram: TOKEN_PROGRAM_ID,
-      })
+      } as any)
       .rpc();
 
     return tx;
@@ -334,7 +334,7 @@ export class RaffleService {
         creatorNftAccount,
         escrowAuthority,
         tokenProgram: TOKEN_PROGRAM_ID,
-      })
+      } as any)
       .rpc();
 
     return tx;

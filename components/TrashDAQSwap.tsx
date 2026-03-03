@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ArrowDownUp, RefreshCw, HelpCircle, Settings, X } from 'lucide-react';
-import { getDexTokens, getMarketsForToken, calculateSwapEstimate, formatPrice, type DexToken } from '../services/dexService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronDown, ArrowDownUp, RefreshCw, HelpCircle, Settings, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { getDexTokens, getMarketsForToken, calculateSwapEstimate, formatPrice, getTokenBalance, executeSwap, type DexToken } from '../services/dexService';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { useConnection } from '@solana/wallet-adapter-react';
 
 interface SwapState {
     sellToken: DexToken | null;
@@ -15,6 +15,7 @@ interface SwapState {
     route: string[];
     sellBalance: number;
     buyBalance: number;
+    priceImpact: number;
 }
 
 interface SwapSettings {
@@ -25,8 +26,15 @@ interface SwapSettings {
     autoRefresh: boolean;
 }
 
+interface TransactionStatus {
+    status: 'idle' | 'pending' | 'success' | 'error';
+    message: string;
+    signature?: string;
+}
+
 export default function TrashDAQSwap() {
-    const { publicKey, connected } = useWallet();
+    const { publicKey, connected, signTransaction } = useWallet();
+    const { connection } = useConnection();
     const [tokens, setTokens] = useState<DexToken[]>([]);
     const [state, setState] = useState<SwapState>({
         sellToken: null,
@@ -38,7 +46,8 @@ export default function TrashDAQSwap() {
         gorUsd: 0,
         route: [],
         sellBalance: 0,
-        buyBalance: 0
+        buyBalance: 0,
+        priceImpact: 0
     });
     const [settings, setSettings] = useState<SwapSettings>({
         slippage: 1,
@@ -50,6 +59,7 @@ export default function TrashDAQSwap() {
     const [showSellSelect, setShowSellSelect] = useState(false);
     const [showBuySelect, setShowBuySelect] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [txStatus, setTxStatus] = useState<TransactionStatus>({ status: 'idle', message: '' });
 
     // Load tokens on mount
     useEffect(() => {
@@ -60,12 +70,12 @@ export default function TrashDAQSwap() {
 
     // Load wallet balances when wallet connects or tokens change
     useEffect(() => {
-        if (connected && publicKey && state.sellToken) {
+        if (connected && publicKey && (state.sellToken || state.buyToken)) {
             loadTokenBalances();
         }
     }, [connected, publicKey, state.sellToken, state.buyToken]);
 
-    const loadTokens = async () => {
+    const loadTokens = useCallback(async () => {
         try {
             const tokenList = await getDexTokens();
             setTokens(tokenList);
@@ -81,9 +91,6 @@ export default function TrashDAQSwap() {
                     buyToken: gor,
                     loading: false
                 }));
-                if (state.sellAmount) {
-                    calculateSwap(trashcoin, gor, state.sellAmount);
-                }
             } else {
                 setState(prev => ({ ...prev, loading: false }));
             }
@@ -91,27 +98,33 @@ export default function TrashDAQSwap() {
             console.error('Failed to load tokens:', error);
             setState(prev => ({ ...prev, loading: false }));
         }
-    };
+    }, []);
 
-    const loadTokenBalances = async () => {
-        if (!publicKey || !connected) return;
+    const loadTokenBalances = useCallback(async () => {
+        if (!publicKey || !connected || !connection) return;
 
         try {
-            // This is a placeholder - you would implement actual balance fetching here
-            // using your RPC connection and token accounts
+            const sellBalance = state.sellToken 
+                ? await getTokenBalance(connection, publicKey.toString(), state.sellToken.mint)
+                : 0;
+            
+            const buyBalance = state.buyToken
+                ? await getTokenBalance(connection, publicKey.toString(), state.buyToken.mint)
+                : 0;
+
             setState(prev => ({
                 ...prev,
-                sellBalance: 0, // Replace with actual balance
-                buyBalance: 0   // Replace with actual balance
+                sellBalance,
+                buyBalance
             }));
         } catch (error) {
             console.error('Failed to load balances:', error);
         }
-    };
+    }, [publicKey, connected, connection, state.sellToken, state.buyToken]);
 
-    const calculateSwap = async (sellToken: DexToken, buyToken: DexToken, amount: string) => {
+    const calculateSwap = useCallback(async (sellToken: DexToken, buyToken: DexToken, amount: string) => {
         if (!amount || parseFloat(amount) <= 0) {
-            setState(prev => ({ ...prev, buyAmount: '0' }));
+            setState(prev => ({ ...prev, buyAmount: '0', priceImpact: 0 }));
             return;
         }
 
@@ -129,7 +142,7 @@ export default function TrashDAQSwap() {
                 const inputReserve = isBuyBase ? market.quoteToken.amount : market.baseToken.amount;
                 const outputReserve = isBuyBase ? market.baseToken.amount : market.quoteToken.amount;
 
-                const { outputAmount } = calculateSwapEstimate(
+                const { outputAmount, priceImpact } = calculateSwapEstimate(
                     parseFloat(amount),
                     inputReserve,
                     outputReserve,
@@ -141,6 +154,7 @@ export default function TrashDAQSwap() {
                     buyAmount: outputAmount.toFixed(6),
                     markets,
                     gorUsd,
+                    priceImpact,
                     route: ['Meteora', sellToken.symbol, buyToken.symbol]
                 }));
             } else {
@@ -152,15 +166,19 @@ export default function TrashDAQSwap() {
                     ...prev,
                     buyAmount: outputAmount.toFixed(6),
                     gorUsd,
+                    priceImpact: 0,
                     route: ['Meteora', sellToken.symbol, 'GOR', buyToken.symbol]
                 }));
             }
         } catch (error) {
             console.error('Swap calculation failed:', error);
         }
-    };
+    }, []);
 
     const handleSellAmountChange = (value: string) => {
+        // Validate input - prevent negative or non-numeric values
+        if (!/^\d*\.?\d*$/.test(value)) return;
+        
         setState(prev => ({ ...prev, sellAmount: value }));
         if (state.sellToken && state.buyToken) {
             calculateSwap(state.sellToken, state.buyToken, value);
@@ -169,7 +187,7 @@ export default function TrashDAQSwap() {
 
     const handleMaxClick = () => {
         if (state.sellBalance > 0) {
-            const maxAmount = state.sellBalance.toString();
+            const maxAmount = Math.max(0, state.sellBalance - 0.001).toString(); // Reserve for fees
             handleSellAmountChange(maxAmount);
         }
     };
@@ -217,8 +235,69 @@ export default function TrashDAQSwap() {
         return fees[settings.priorityFee] || fees.medium;
     };
 
+    const handleSwap = async () => {
+        if (!state.sellToken || !state.buyToken || !state.sellAmount || !publicKey || !connection) {
+            setTxStatus({ status: 'error', message: 'Missing required swap parameters' });
+            return;
+        }
+
+        const sellAmount = parseFloat(state.sellAmount);
+        if (sellAmount <= 0 || sellAmount > state.sellBalance) {
+            setTxStatus({ status: 'error', message: 'Insufficient balance for swap' });
+            return;
+        }
+
+        setTxStatus({ status: 'pending', message: 'Processing swap...' });
+
+        try {
+            const slippageBps = Math.round(getSlippageValue() * 100);
+            const expectedOutput = parseFloat(state.buyAmount);
+
+            const result = await executeSwap(
+                connection,
+                { publicKey, signTransaction },
+                state.sellToken.mint,
+                state.buyToken.mint,
+                sellAmount,
+                slippageBps,
+                expectedOutput
+            );
+
+            if (result.success) {
+                setTxStatus({
+                    status: 'success',
+                    message: `Swap successful! Signature: ${result.signature.slice(0, 20)}...`,
+                    signature: result.signature
+                });
+                
+                // Reset form and reload balances
+                setState(prev => ({
+                    ...prev,
+                    sellAmount: '',
+                    buyAmount: '0'
+                }));
+                
+                setTimeout(() => {
+                    loadTokenBalances();
+                    setTxStatus({ status: 'idle', message: '' });
+                }, 3000);
+            } else {
+                setTxStatus({
+                    status: 'error',
+                    message: result.error || 'Swap failed'
+                });
+            }
+        } catch (error: any) {
+            console.error('Swap error:', error);
+            setTxStatus({
+                status: 'error',
+                message: error.message || 'Swap execution failed'
+            });
+        }
+    };
+
     const slippagePercent = getSlippageValue();
-    const priceImpact = 0.00; // Calculate actual price impact
+    const priceImpact = state.priceImpact;
     const platformFee = 0.20;
     const networkFee = 0.000005 + getPriorityFeeValue();
 
@@ -247,6 +326,28 @@ export default function TrashDAQSwap() {
                     </button>
                 </div>
             </div>
+
+            {/* Transaction Status Alert */}
+            {txStatus.status !== 'idle' && (
+                <div className={`px-4 py-3 border-b ${
+                    txStatus.status === 'success' ? 'bg-green-900/20 border-green-500/30' :
+                    txStatus.status === 'error' ? 'bg-red-900/20 border-red-500/30' :
+                    'bg-blue-900/20 border-blue-500/30'
+                }`}>
+                    <div className="flex items-center gap-2">
+                        {txStatus.status === 'success' && <CheckCircle size={16} className="text-green-500" />}
+                        {txStatus.status === 'error' && <AlertCircle size={16} className="text-red-500" />}
+                        {txStatus.status === 'pending' && <RefreshCw size={16} className="text-blue-500 animate-spin" />}
+                        <span className={`text-sm ${
+                            txStatus.status === 'success' ? 'text-green-400' :
+                            txStatus.status === 'error' ? 'text-red-400' :
+                            'text-blue-400'
+                        }`}>
+                            {txStatus.message}
+                        </span>
+                    </div>
+                </div>
+            )}
 
             {/* Swap Interface */}
             <div className="p-4 space-y-1">
@@ -286,6 +387,7 @@ export default function TrashDAQSwap() {
                                     onChange={(e) => handleSellAmountChange(e.target.value)}
                                     className="bg-transparent text-white text-3xl font-bold text-right outline-none w-32"
                                     placeholder="0"
+                                    disabled={!state.sellToken}
                                 />
                                 {connected && state.sellBalance > 0 && (
                                     <button
@@ -419,13 +521,13 @@ export default function TrashDAQSwap() {
                         </div>
                     )}
 
-                    {/* Combined Price Impact */}
+                    {/* Price Impact */}
                     <div className="flex items-center justify-between text-xs">
                         <span className="text-gray-500 flex items-center gap-1">
-                            Combined Price Impact
+                            Price Impact
                             <HelpCircle size={10} className="text-gray-600" />
                         </span>
-                        <span className={`font-mono ${priceImpact > 5 ? 'text-red-500' : 'text-green-500'}`}>
+                        <span className={`font-mono ${priceImpact > 5 ? 'text-red-500' : priceImpact > 1 ? 'text-yellow-500' : 'text-green-500'}`}>
                             {priceImpact.toFixed(2)}%
                         </span>
                     </div>
@@ -464,10 +566,11 @@ export default function TrashDAQSwap() {
 
                 {/* Swap Button */}
                 <button
-                    disabled={!state.sellToken || !state.buyToken || !state.sellAmount || parseFloat(state.sellAmount) <= 0 || !connected}
+                    onClick={handleSwap}
+                    disabled={!state.sellToken || !state.buyToken || !state.sellAmount || parseFloat(state.sellAmount) <= 0 || !connected || txStatus.status === 'pending'}
                     className="w-full bg-magic-green hover:bg-magic-green/90 disabled:bg-gray-800 disabled:text-gray-600 text-black font-bold py-3 px-4 rounded-lg transition-all uppercase tracking-wider text-sm shadow-lg shadow-magic-green/20 hover:shadow-magic-green/40 disabled:shadow-none"
                 >
-                    {!connected ? 'Connect Wallet' : !state.sellToken || !state.buyToken ? 'Select Tokens' : 'Swap'}
+                    {!connected ? 'Connect Wallet' : !state.sellToken || !state.buyToken ? 'Select Tokens' : txStatus.status === 'pending' ? 'Processing...' : 'Swap'}
                 </button>
             </div>
 

@@ -213,3 +213,184 @@ export const formatPrice = (price: number | string | undefined | null): string =
   if (num >= 0.000001) return num.toFixed(6);
   return num.toExponential(2);
 };
+
+
+/**
+ * Fetch token balances for a wallet address using RPC connection
+ * Handles both SPL tokens and native SOL/GOR
+ */
+export const getTokenBalances = async (
+  connection: any,
+  walletAddress: string,
+  tokenMints: string[]
+): Promise<{ [mint: string]: number }> => {
+  try {
+    const balances: { [mint: string]: number } = {};
+
+    // Fetch all token accounts for the wallet
+    const response = await connection.getParsedTokenAccountsByOwner(
+      walletAddress,
+      { programId: 'TokenkegQfeZyiNwAJsyFbPVwwQQfsSyS7scPC35Xi' } // SPL Token Program
+    );
+
+    // Parse token balances
+    response.value.forEach((account: any) => {
+      const mint = account.account.data.parsed.info.mint;
+      const amount = account.account.data.parsed.info.tokenAmount.uiAmount || 0;
+      balances[mint] = amount;
+    });
+
+    // Fetch native GOR balance
+    const nativeBalance = await connection.getBalance(walletAddress);
+    balances[GOR_MINT] = nativeBalance / 1e9; // Convert lamports to GOR
+
+    return balances;
+  } catch (error) {
+    console.error('Failed to fetch token balances:', error);
+    return {};
+  }
+};
+
+/**
+ * Get balance for a specific token
+ */
+export const getTokenBalance = async (
+  connection: any,
+  walletAddress: string,
+  tokenMint: string
+): Promise<number> => {
+  try {
+    const balances = await getTokenBalances(connection, walletAddress, [tokenMint]);
+    return balances[tokenMint] || 0;
+  } catch (error) {
+    console.error(`Failed to fetch balance for ${tokenMint}:`, error);
+    return 0;
+  }
+};
+
+/**
+ * Execute a swap transaction using Meteora API
+ * Fetches a swap route and executes the transaction with security checks
+ */
+export const executeSwap = async (
+  connection: any,
+  wallet: any,
+  inputMint: string,
+  outputMint: string,
+  inputAmount: number,
+  slippageBps: number = 100, // 1% default slippage
+  expectedOutputAmount: number = 0
+): Promise<{ signature: string; success: boolean; error?: string }> => {
+  try {
+    if (!wallet.publicKey) {
+      return { signature: '', success: false, error: 'Wallet not connected' };
+    }
+
+    // Validate inputs - prevent common vulnerabilities
+    if (inputAmount <= 0) {
+      return { signature: '', success: false, error: 'Invalid input amount' };
+    }
+
+    if (slippageBps < 0 || slippageBps > 10000) {
+      return { signature: '', success: false, error: 'Invalid slippage tolerance' };
+    }
+
+    if (inputMint === outputMint) {
+      return { signature: '', success: false, error: 'Cannot swap identical tokens' };
+    }
+
+    // Validate mint addresses (basic format check)
+    if (!isValidMintAddress(inputMint) || !isValidMintAddress(outputMint)) {
+      return { signature: '', success: false, error: 'Invalid token mint address' };
+    }
+
+    // Fetch swap quote from Meteora API
+    const quoteUrl = `https://api.meteora.ag/swap/quote?inputMint=${encodeURIComponent(inputMint)}&outputMint=${encodeURIComponent(outputMint)}&amount=${inputAmount}&slippageBps=${slippageBps}`;
+    const quoteResponse = await fetch(quoteUrl);
+
+    if (!quoteResponse.ok) {
+      return { signature: '', success: false, error: 'Failed to fetch swap quote' };
+    }
+
+    const quote = await quoteResponse.json();
+
+    if (!quote.outAmount) {
+      return { signature: '', success: false, error: 'No liquidity available for this swap' };
+    }
+
+    // Validate output amount against slippage
+    const minOutAmount = expectedOutputAmount * (1 - slippageBps / 10000);
+    if (quote.outAmount < minOutAmount) {
+      return { signature: '', success: false, error: 'Output amount exceeds slippage tolerance' };
+    }
+
+    // Fetch swap instructions from Meteora API
+    const swapUrl = 'https://api.meteora.ag/swap';
+    const swapResponse = await fetch(swapUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userPublicKey: wallet.publicKey.toString(),
+        inputMint,
+        outputMint,
+        amount: inputAmount,
+        slippageBps,
+        wrapUnwrapSol: true,
+      }),
+    });
+
+    if (!swapResponse.ok) {
+      return { signature: '', success: false, error: 'Failed to prepare swap transaction' };
+    }
+
+    const swapData = await swapResponse.json();
+
+    if (!swapData.tx) {
+      return { signature: '', success: false, error: 'No transaction data returned' };
+    }
+
+    // Deserialize and sign the transaction
+    const { Transaction } = await import('@solana/web3.js');
+    const txBuffer = Buffer.from(swapData.tx, 'base64');
+    const transaction = Transaction.from(txBuffer);
+
+    // Verify transaction before signing
+    if (!transaction.instructions || transaction.instructions.length === 0) {
+      return { signature: '', success: false, error: 'Invalid transaction structure' };
+    }
+
+    // Sign transaction with wallet
+    const signedTx = await wallet.signTransaction(transaction);
+
+    // Send transaction with retry logic
+    const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
+
+    // Wait for confirmation
+    await connection.confirmTransaction(signature, 'confirmed');
+
+    return { signature, success: true };
+  } catch (error: any) {
+    console.error('Swap execution failed:', error);
+    return {
+      signature: '',
+      success: false,
+      error: error.message || 'Swap execution failed',
+    };
+  }
+};
+
+/**
+ * Validate Solana/Gorbagana mint address format
+ * Prevents injection attacks and invalid addresses
+ */
+const isValidMintAddress = (address: string): boolean => {
+  // Solana addresses are 44 characters in base58
+  if (address.length !== 44) return false;
+  
+  // Check if it's valid base58
+  const base58Regex = /^[1-9A-HJ-NP-Z]{44}$/;
+  return base58Regex.test(address);
+};
