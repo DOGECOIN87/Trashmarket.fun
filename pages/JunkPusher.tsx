@@ -8,8 +8,7 @@ const JunkPusherGame = lazy(() => import('../components/junk-pusher/JunkPusherGa
  * Junk Pusher Game Page
  * 
  * A Web3 arcade game where players can:
- * - Drop coins using JUNK tokens
- * - Win TRASHCOIN rewards
+ * - Drop coins using DEBRI tokens
  * - Compete on leaderboards
  * - Connect with Backpack wallet
  * 

@@ -19,12 +19,6 @@ export const DIMENSIONS = {
   WALL_HEIGHT: 2,
 };
 
-export const TRASHCOIN = {
-  MAX_COUNT: 10,
-  SPAWN_CHANCE: 0.06, // 6% chance a spawned coin is a trashcoin
-  SCORE_VALUE: 5, // Worth 5x a normal coin
-  RIM_COLOR: 0xdaa520, // Goldenrod rim
-};
 
 export const COLORS = {
   COIN: 0x111111, // Black — New base color

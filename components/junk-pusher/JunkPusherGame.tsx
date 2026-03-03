@@ -119,6 +119,7 @@ const JunkPusherGame: React.FC = () => {
     }, [handleUpdate]);
 
     const handleDropCoin = () => {
+        soundManager.initialize();
         if (engineRef.current && !gameState.isPaused) {
             const x = (Math.random() - 0.5) * 6;
             engineRef.current.dropUserCoin(x);
@@ -170,6 +171,27 @@ const JunkPusherGame: React.FC = () => {
         }
     }, [wallet.isConnected]);
 
+    const handleDeposit = useCallback(async (amount: number): Promise<string | null> => {
+        const oc = onChainRef.current;
+        if (oc.isProgramReady && wallet.isConnected) {
+            try {
+                const sig = await oc.depositBalance(amount);
+                if (sig) {
+                    // Credit the in-game balance after successful on-chain deposit
+                    setGameState(prev => ({
+                        ...prev,
+                        balance: prev.balance + amount,
+                    }));
+                }
+                return sig;
+            } catch (err) {
+                console.error('[JunkPusher] Deposit failed:', err);
+                return null;
+            }
+        }
+        return null;
+    }, [wallet.isConnected]);
+
     const handlePauseToggle = () => {
         if (engineRef.current) {
             engineRef.current.togglePause();
@@ -177,6 +199,7 @@ const JunkPusherGame: React.FC = () => {
     };
 
     const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        soundManager.initialize();
         if (!engineRef.current || gameState.isPaused) return;
         const canvas = gameCanvasRef.current;
         if (!canvas) return;
@@ -255,8 +278,8 @@ const JunkPusherGame: React.FC = () => {
                         <div className="flex items-center gap-1.5 bg-black/70 border border-green-500/30 px-3 py-1 rounded-full text-[9px]">
                             <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                             <span className="text-green-300 font-mono">ON-CHAIN</span>
-                            {onChain.junkBalance > 0 && (
-                                <span className="text-green-200 ml-1">{onChain.junkBalance.toFixed(0)} JUNK</span>
+                            {onChain.debriBalance > 0 && (
+                                <span className="text-green-200 ml-1">{onChain.debriBalance.toFixed(0)} DEBRI</span>
                             )}
                         </div>
                     ) : (
@@ -296,6 +319,7 @@ const JunkPusherGame: React.FC = () => {
                 onDropCoin={handleDropCoin}
                 onBump={handleBump}
                 onReset={handleReset}
+                onDeposit={handleDeposit}
                 onPauseToggle={handlePauseToggle}
                 wallet={wallet}
             />
