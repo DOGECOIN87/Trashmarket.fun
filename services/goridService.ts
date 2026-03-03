@@ -5,6 +5,7 @@ import {
   fetchListings,
   fetchRecentSales,
   getDomainAssetsByOwner,
+  fetchOnChainListings,
   type MarketplaceListing,
   type MarketplaceSale,
 } from './marketplace-service';
@@ -152,6 +153,38 @@ export async function getListedDomains(): Promise<GoridListing[]> {
   }
 
   try {
+    // Try on-chain first
+    const onChainListings = await fetchOnChainListings();
+    
+    if (onChainListings.length > 0) {
+      const listings: GoridListing[] = await Promise.all(onChainListings.map(async (l) => {
+        // Resolve domain name from mint address (domainKey)
+        let name = l.domainName;
+        if (!name) {
+          try {
+            const resolvedName = await reverseLookup(getConnection(), new PublicKey(l.domainMint));
+            name = resolvedName ? `${resolvedName}${GORID_CONFIG.tld}` : l.domainMint;
+          } catch {
+            name = l.domainMint;
+          }
+        }
+        
+        return {
+          name,
+          domainKey: l.domainMint,
+          owner: formatAddress(l.seller),
+          price: l.price,
+          listedAt: l.listedAt,
+          domainMint: l.domainMint,
+          listingId: l.id,
+        };
+      }));
+
+      listingsCache = { data: listings, timestamp: Date.now() };
+      return listings;
+    }
+
+    // Fallback to API if on-chain is empty (might be during migration)
     const apiListings = await fetchListings();
 
     if (apiListings.length > 0) {
@@ -169,10 +202,9 @@ export async function getListedDomains(): Promise<GoridListing[]> {
       return listings;
     }
   } catch (error) {
-    console.error('Error fetching listings from API:', error);
+    console.error('Error fetching listings:', error);
   }
 
-  // Return empty if API unavailable (under construction)
   return [];
 }
 

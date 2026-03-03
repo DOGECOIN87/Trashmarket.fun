@@ -3,12 +3,12 @@ import {
   PublicKey,
   Transaction,
   SystemProgram,
+  TransactionInstruction,
 } from '@solana/web3.js';
+import { Program, AnchorProvider, BN, Idl } from '@coral-xyz/anchor';
+import goridIdl from '../idl/gor_name_marketplace.json';
 import {
   getAssociatedTokenAddress,
-  createTransferInstruction,
-  createAssociatedTokenAccountInstruction,
-  getAccount,
 } from '@solana/spl-token';
 import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
 import { TRADING_CONFIG, calculateFees } from '../lib/trading-config';
@@ -21,7 +21,7 @@ const TRADING_API_URL = `${RPC_ENDPOINTS.GORBAGANA_API}/trading`;
 
 // Name Service Program
 const NAME_SERVICE_PROGRAM = new PublicKey('namesLPneVptA9Z5rqUDD9tMTWEJwofgaYwp8cawRkX');
-const GORID_ESCROW_PROGRAM_ID = new PublicKey('SNSm5hSYiaeYvyweSGoioyyD2hP7mJK1SsVQoC6uo3P'); 
+const GORID_ESCROW_PROGRAM_ID = new PublicKey('GorNMkt1111111111111111111111111111111111111'); 
 const WRAPPED_GOR_MINT = new PublicKey(TRADING_CONFIG.WRAPPED_GOR_MINT);
 const FEE_RECIPIENT = new PublicKey(TRADING_CONFIG.FEE_RECIPIENT);
 
@@ -207,92 +207,148 @@ export async function fetchRecentSales(): Promise<MarketplaceSale[]> {
 // ─── Transaction Building ────────────────────────────────────────────
 
 /** Helper: ensure an Associated Token Account exists, return its address */
-async function ensureATA(
-  conn: Connection,
-  mint: PublicKey,
-  owner: PublicKey,
-  payer: PublicKey,
-  transaction: Transaction,
-): Promise<PublicKey> {
-  const ata = await getAssociatedTokenAddress(mint, owner);
-  try {
-    await getAccount(conn, ata);
-  } catch {
-    // ATA doesn't exist yet — add creation instruction
-    transaction.add(
-      createAssociatedTokenAccountInstruction(payer, ata, owner, mint)
-    );
-  }
-  return ata;
+
+
+
+
+// ─── On-Chain Interaction (Direct Program Calls) ──────────────────────
+
+/**
+ * Get the Anchor program instance for Gorid Marketplace
+ */
+export function getGoridProgram(provider?: AnchorProvider): Program {
+  const conn = getConnection();
+  const activeProvider = provider || new AnchorProvider(
+    conn,
+    {
+      publicKey: PublicKey.default,
+      signTransaction: async (tx) => tx,
+      signAllTransactions: async (txs) => txs,
+    },
+    { commitment: 'confirmed' }
+  );
+  return new Program(goridIdl as Idl, GORID_ESCROW_PROGRAM_ID, activeProvider);
 }
 
 /**
- * Build a purchase transaction for a listed domain.
+ * Derive the listing PDA for a specific name account
  */
-export async function buildPurchaseTransaction(
+export function getListingPDA(nameAccount: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("listing"), nameAccount.toBuffer()],
+    GORID_ESCROW_PROGRAM_ID
+  );
+}
+
+/**
+ * Derive the config PDA
+ */
+export function getConfigPDA(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    GORID_ESCROW_PROGRAM_ID
+  );
+}
+
+/**
+ * Derive the fee vault PDA
+ */
+export function getFeeVaultPDA(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("fee_vault")],
+    GORID_ESCROW_PROGRAM_ID
+  );
+}
+
+/**
+ * Fetch all active listings directly from the on-chain program
+ */
+export async function fetchOnChainListings(): Promise<MarketplaceListing[]> {
+  try {
+    const program = getGoridProgram();
+    const accounts = await program.account.listing.all();
+    
+    return accounts.map(acc => {
+      const data = acc.account as any;
+      return {
+        id: acc.publicKey.toBase58(),
+        domainName: "", // Will be resolved by the caller if needed
+        domainMint: data.name.toBase58(),
+        seller: data.seller.toBase58(),
+        price: tradingAmountToHuman(BigInt(data.price.toString())),
+        priceRaw: BigInt(data.price.toString()),
+        listedAt: data.createdAt.toNumber() * 1000,
+        escrowAccount: acc.publicKey.toBase58(),
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching on-chain listings:', error);
+    return [];
+  }
+}
+
+/**
+ * Create a listing transaction directly on-chain
+ */
+export async function createGoridListingOnChain(
+  sellerPubkey: PublicKey,
+  nameAccount: PublicKey,
+  priceHuman: number,
+): Promise<Transaction> {
+  const program = getGoridProgram();
+  const [listingPDA] = getListingPDA(nameAccount);
+  const priceRaw = humanToTradingAmount(priceHuman);
+
+  const instruction = await program.methods
+    .createListing(new BN(priceRaw.toString()))
+    .accounts({
+      seller: sellerPubkey,
+      name: nameAccount,
+      listing: listingPDA,
+      systemProgram: SystemProgram.programId,
+    })
+    .instruction();
+
+  const transaction = new Transaction().add(instruction);
+  const conn = getConnection();
+  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
+  transaction.recentBlockhash = blockhash;
+  transaction.lastValidBlockHeight = lastValidBlockHeight;
+  transaction.feePayer = sellerPubkey;
+
+  return transaction;
+}
+
+/**
+ * Build a purchase transaction directly on-chain
+ */
+export async function buildOnChainPurchaseTransaction(
   buyerPubkey: PublicKey,
   listing: MarketplaceListing,
-  useNative: boolean = false,
 ): Promise<Transaction> {
+  const program = getGoridProgram();
+  const nameAccount = new PublicKey(listing.domainMint);
+  const [listingPDA] = getListingPDA(nameAccount);
+  const [configPDA] = getConfigPDA();
+  const [feeVaultPDA] = getFeeVaultPDA();
+  const sellerPubkey = new PublicKey(listing.seller);
+
+  const instruction = await program.methods
+    .buyListing()
+    .accounts({
+      config: configPDA,
+      feeVault: feeVaultPDA,
+      listing: listingPDA,
+      seller: sellerPubkey,
+      buyer: buyerPubkey,
+      name: nameAccount,
+      nameServiceProgram: NAME_SERVICE_PROGRAM,
+      systemProgram: SystemProgram.programId,
+    })
+    .instruction();
+
+  const transaction = new Transaction().add(instruction);
   const conn = getConnection();
-  const mint = useNative ? new PublicKey(TRADING_CONFIG.NATIVE_GOR_MINT) : WRAPPED_GOR_MINT;
-  
-  const priceRaw = humanToTradingAmount(listing.price);
-  const fees = calculateFees(priceRaw);
-
-  const transaction = new Transaction();
-
-  if (useNative) {
-    // 1. Transfer platform fee (Native GOR)
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: buyerPubkey,
-        toPubkey: FEE_RECIPIENT,
-        lamports: Number(fees.platformFee),
-      })
-    );
-
-    // 2. Transfer payment to seller (Native GOR)
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: buyerPubkey,
-        toPubkey: new PublicKey(listing.seller),
-        lamports: Number(fees.sellerReceives),
-      })
-    );
-  } else {
-    // Buyer's Wrapped GOR ATA
-    const buyerATA = await getAssociatedTokenAddress(mint, buyerPubkey);
-
-    // Seller's Wrapped GOR ATA (ensure it exists)
-    const sellerPubkey = new PublicKey(listing.seller);
-    const sellerATA = await ensureATA(conn, mint, sellerPubkey, buyerPubkey, transaction);
-
-    // Fee recipient ATA (ensure it exists)
-    const feeATA = await ensureATA(conn, mint, FEE_RECIPIENT, buyerPubkey, transaction);
-
-    // 1. Transfer platform fee
-    transaction.add(
-      createTransferInstruction(
-        buyerATA,
-        feeATA,
-        buyerPubkey,
-        fees.platformFee,
-      )
-    );
-
-    // 2. Transfer payment to seller
-    transaction.add(
-      createTransferInstruction(
-        buyerATA,
-        sellerATA,
-        buyerPubkey,
-        fees.sellerReceives,
-      )
-    );
-  }
-
-  // Set recent blockhash and fee payer
   const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
   transaction.recentBlockhash = blockhash;
   transaction.lastValidBlockHeight = lastValidBlockHeight;
@@ -302,142 +358,30 @@ export async function buildPurchaseTransaction(
 }
 
 /**
- * Build a listing transaction.
+ * Build a cancel listing transaction directly on-chain
  */
-export async function createListingViaAPI(
+export async function buildOnChainCancelTransaction(
   sellerPubkey: PublicKey,
-  domainMint: PublicKey,
-  domainName: string,
-  priceHuman: number,
-): Promise<{ transaction: Transaction; listingId: string }> {
-  try {
-    const conn = getConnection();
-    const transaction = new Transaction();
+  nameAccount: PublicKey,
+): Promise<Transaction> {
+  const program = getGoridProgram();
+  const [listingPDA] = getListingPDA(nameAccount);
 
-    // 1. Create a PDA for the escrow account
-    const [escrowAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from("gorid_escrow"), domainMint.toBuffer()],
-      GORID_ESCROW_PROGRAM_ID
-    );
-
-    // 2. Transfer the domain NFT to the escrow account
-    const sellerATA = await getAssociatedTokenAddress(domainMint, sellerPubkey);
-    const escrowATA = await getAssociatedTokenAddress(domainMint, escrowAccount, true);
-
-    // Ensure escrow ATA exists
-    try {
-      await getAccount(conn, escrowATA);
-    } catch {
-      transaction.add(
-        createAssociatedTokenAccountInstruction(sellerPubkey, escrowATA, escrowAccount, domainMint)
-      );
-    }
-
-    transaction.add(
-      createTransferInstruction(
-        sellerATA,
-        escrowATA,
-        sellerPubkey,
-        1, // Transfer 1 NFT
-      )
-    );
-
-    // 3. Create the listing on the backend
-    const response = await fetch(`${TRADING_API_URL}/listings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        seller: sellerPubkey.toBase58(),
-        domainMint: domainMint.toBase58(),
-        domainName,
-        price: priceHuman,
-        priceRaw: humanToTradingAmount(priceHuman).toString(),
-        escrowAccount: escrowAccount.toBase58(),
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.error || `Failed to create listing (${response.status})`);
-    }
-
-    const { listingId } = await response.json();
-
-    // Set recent blockhash and fee payer
-    const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
-    transaction.recentBlockhash = blockhash;
-    transaction.lastValidBlockHeight = lastValidBlockHeight;
-    transaction.feePayer = sellerPubkey;
-
-    return { transaction, listingId };
-  } catch (error) {
-    console.error('Trading API: Error creating listing:', error);
-    throw error;
-  }
-}
-
-/**
- * Confirm a purchase with the trading API after the on-chain transaction is confirmed.
- */
-export async function confirmPurchase(
-  listingId: string,
-  buyerAddress: string,
-  txSignature: string,
-): Promise<boolean> {
-  try {
-    const response = await fetch(`${TRADING_API_URL}/purchases`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        listingId,
-        buyer: buyerAddress,
-        txSignature,
-      }),
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error('Trading API: Error confirming purchase:', error);
-    return false;
-  }
-}
-
-/**
- * Cancel a listing via the trading API.
- */
-export async function cancelListing(
-  listingId: string,
-  sellerPubkey: PublicKey,
-): Promise<{ transaction: Transaction }> {
-  const conn = getConnection();
-  const transaction = new Transaction();
-
-  // 1. Notify trading API of cancellation
-  const response = await fetch(`${TRADING_API_URL}/listings/${listingId}`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ seller: sellerPubkey.toBase58() }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.error || `Failed to cancel listing (${response.status})`);
-  }
-
-  // Dummy transaction for wallet signature
-  transaction.add(
-    SystemProgram.transfer({
-      fromPubkey: sellerPubkey,
-      toPubkey: sellerPubkey,
-      lamports: 0,
+  const instruction = await program.methods
+    .cancelListing()
+    .accounts({
+      listing: listingPDA,
+      seller: sellerPubkey,
+      name: nameAccount,
     })
-  );
+    .instruction();
 
-  // Set recent blockhash and fee payer
+  const transaction = new Transaction().add(instruction);
+  const conn = getConnection();
   const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
   transaction.recentBlockhash = blockhash;
   transaction.lastValidBlockHeight = lastValidBlockHeight;
   transaction.feePayer = sellerPubkey;
 
-  return { transaction };
+  return transaction;
 }

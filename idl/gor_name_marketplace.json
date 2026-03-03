@@ -1,0 +1,177 @@
+{
+  "version": "0.1.0",
+  "name": "gor_name_marketplace",
+  "instructions": [
+    {
+      "name": "initializeConfig",
+      "accounts": [
+        { "name": "config", "isMut": true, "isSigner": false },
+        { "name": "feeVault", "isMut": true, "isSigner": false },
+        { "name": "admin", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [{ "name": "feeBps", "type": "u64" }]
+    },
+    {
+      "name": "updateConfig",
+      "accounts": [
+        { "name": "config", "isMut": true, "isSigner": false },
+        { "name": "admin", "isMut": false, "isSigner": true }
+      ],
+      "args": [{ "name": "feeBps", "type": "u64" }]
+    },
+    {
+      "name": "transferAdmin",
+      "accounts": [
+        { "name": "config", "isMut": true, "isSigner": false },
+        { "name": "admin", "isMut": false, "isSigner": true },
+        { "name": "newAdmin", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "createListing",
+      "accounts": [
+        { "name": "seller", "isMut": true, "isSigner": true },
+        { "name": "name", "isMut": false, "isSigner": false },
+        { "name": "listing", "isMut": true, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [{ "name": "price", "type": "u64" }]
+    },
+    {
+      "name": "updateListing",
+      "accounts": [
+        { "name": "listing", "isMut": true, "isSigner": false },
+        { "name": "seller", "isMut": false, "isSigner": true },
+        { "name": "name", "isMut": false, "isSigner": false }
+      ],
+      "args": [{ "name": "newPrice", "type": "u64" }]
+    },
+    {
+      "name": "cancelListing",
+      "accounts": [
+        { "name": "listing", "isMut": true, "isSigner": false },
+        { "name": "seller", "isMut": true, "isSigner": true },
+        { "name": "name", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "buyListing",
+      "accounts": [
+        { "name": "config", "isMut": true, "isSigner": false },
+        { "name": "feeVault", "isMut": true, "isSigner": false },
+        { "name": "listing", "isMut": true, "isSigner": false },
+        { "name": "seller", "isMut": true, "isSigner": false },
+        { "name": "buyer", "isMut": true, "isSigner": true },
+        { "name": "name", "isMut": true, "isSigner": false },
+        { "name": "nameServiceProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdrawFees",
+      "accounts": [
+        { "name": "config", "isMut": true, "isSigner": false },
+        { "name": "feeVault", "isMut": true, "isSigner": false },
+        { "name": "admin", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "admin", "type": "publicKey" },
+          { "name": "feeBps", "type": "u64" },
+          { "name": "bump", "type": "u8" },
+          { "name": "totalFeesCollected", "type": "u64" },
+          { "name": "totalVolume", "type": "u64" }
+        ]
+      }
+    },
+    {
+      "name": "Listing",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "name", "type": "publicKey" },
+          { "name": "seller", "type": "publicKey" },
+          { "name": "price", "type": "u64" },
+          { "name": "bump", "type": "u8" },
+          { "name": "createdAt", "type": "i64" }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "ConfigInitialized",
+      "fields": [
+        { "name": "admin", "type": "publicKey", "index": false },
+        { "name": "feeBps", "type": "u64", "index": false }
+      ]
+    },
+    {
+      "name": "ConfigUpdated",
+      "fields": [
+        { "name": "admin", "type": "publicKey", "index": false },
+        { "name": "oldFeeBps", "type": "u64", "index": false },
+        { "name": "newFeeBps", "type": "u64", "index": false }
+      ]
+    },
+    {
+      "name": "ListingCreated",
+      "fields": [
+        { "name": "name", "type": "publicKey", "index": false },
+        { "name": "seller", "type": "publicKey", "index": false },
+        { "name": "price", "type": "u64", "index": false },
+        { "name": "timestamp", "type": "i64", "index": false }
+      ]
+    },
+    {
+      "name": "ListingCancelled",
+      "fields": [
+        { "name": "name", "type": "publicKey", "index": false },
+        { "name": "seller", "type": "publicKey", "index": false },
+        { "name": "timestamp", "type": "i64", "index": false }
+      ]
+    },
+    {
+      "name": "ListingSold",
+      "fields": [
+        { "name": "name", "type": "publicKey", "index": false },
+        { "name": "seller", "type": "publicKey", "index": false },
+        { "name": "buyer", "type": "publicKey", "index": false },
+        { "name": "price", "type": "u64", "index": false },
+        { "name": "fee", "type": "u64", "index": false },
+        { "name": "timestamp", "type": "i64", "index": false }
+      ]
+    },
+    {
+      "name": "FeesWithdrawn",
+      "fields": [
+        { "name": "admin", "type": "publicKey", "index": false },
+        { "name": "amount", "type": "u64", "index": false },
+        { "name": "timestamp", "type": "i64", "index": false }
+      ]
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InvalidDomain", "msg": "Domain is not under .gor TLD" },
+    { "code": 6001, "name": "NotOwner", "msg": "Seller does not own this domain" },
+    { "code": 6002, "name": "InvalidDomainClass", "msg": "Domain class must be default (unclassed)" },
+    { "code": 6003, "name": "InsufficientFunds", "msg": "Buyer has insufficient funds" },
+    { "code": 6004, "name": "FeeTooHigh", "msg": "Fee exceeds maximum allowed (10%)" },
+    { "code": 6005, "name": "InvalidPrice", "msg": "Price must be greater than zero" },
+    { "code": 6006, "name": "ArithmeticOverflow", "msg": "Arithmetic overflow occurred" },
+    { "code": 6007, "name": "BuyerIsSeller", "msg": "Buyer cannot be the seller" },
+    { "code": 6008, "name": "InvalidNameAccountData", "msg": "Invalid name service account data" }
+  ]
+}

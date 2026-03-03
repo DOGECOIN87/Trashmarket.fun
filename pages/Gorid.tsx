@@ -17,10 +17,9 @@ import {
   GORID_CONFIG,
 } from '../services/goridService';
 import {
-  buildPurchaseTransaction,
-  confirmPurchase,
-  createListingViaAPI,
-  cancelListing,
+  buildOnChainPurchaseTransaction,
+  createGoridListingOnChain,
+  buildOnChainCancelTransaction,
 } from '../services/marketplace-service';
 import { calculateFeesFromHuman, TRADING_CONFIG } from '../lib/trading-config';
 
@@ -118,7 +117,7 @@ const Gorid: React.FC = () => {
   };
 
   // Handle buy domain
-  const handleBuy = useCallback(async (listing: GoridListing, useNative: boolean = false) => {
+  const handleBuy = useCallback(async (listing: GoridListing) => {
     if (!connected || !publicKey || !signTransaction) {
       setBuyError('Please connect your wallet first');
       return;
@@ -129,16 +128,16 @@ const Gorid: React.FC = () => {
     setBuySuccess(null);
 
     try {
-      // Build the purchase transaction
-      const transaction = await buildPurchaseTransaction(publicKey, {
+      // Build the purchase transaction directly on-chain
+      const transaction = await buildOnChainPurchaseTransaction(publicKey, {
         id: listing.listingId || listing.domainKey,
         domainName: listing.name,
         domainMint: listing.domainMint || listing.domainKey,
         seller: listing.owner,
         price: listing.price,
-        priceRaw: BigInt(0), // Will be calculated from price
+        priceRaw: BigInt(0),
         listedAt: listing.listedAt,
-      }, useNative);
+      });
 
       // Request wallet signature
       const signedTx = await signTransaction(transaction);
@@ -146,13 +145,6 @@ const Gorid: React.FC = () => {
       // Send and confirm transaction
       const txSignature = await connection.sendRawTransaction(signedTx.serialize());
       await connection.confirmTransaction(txSignature, 'confirmed');
-
-      // Notify trading API of completed purchase
-      await confirmPurchase(
-        listing.listingId || listing.domainKey,
-        publicKey.toBase58(),
-        txSignature,
-      );
 
       setBuySuccess(txSignature);
       setSelectedDomain(null);
@@ -190,10 +182,9 @@ const Gorid: React.FC = () => {
     setListError(null);
 
     try {
-      const { transaction, listingId } = await createListingViaAPI(
+      const transaction = await createGoridListingOnChain(
         publicKey,
         new PublicKey(listingDomain.mint || listingDomain.domainKey),
-        listingDomain.name,
         price,
       );
 
@@ -201,12 +192,6 @@ const Gorid: React.FC = () => {
       const signedTx = await signTransaction(transaction);
       const txSignature = await connection.sendRawTransaction(signedTx.serialize());
       await connection.confirmTransaction(txSignature, 'confirmed');
-
-      // Update UI after successful on-chain listing
-      // No need to explicitly add to local storage anymore, as it's on-chain
-      // The fetchListings will pick it up
-
-
 
       // Close modal and refresh
       setListingDomain(null);
@@ -230,7 +215,7 @@ const Gorid: React.FC = () => {
     } finally {
       setIsListing(false);
     }
-  }, [connected, address, listingDomain, listingPrice]);
+  }, [connected, address, listingDomain, listingPrice]);stingPrice]);
 
   // Fee preview for listing
   const feePreview = useMemo(() => {
@@ -253,9 +238,9 @@ const Gorid: React.FC = () => {
         throw new Error('Domain is not listed for sale');
       }
 
-      const { transaction } = await cancelListing(
-        listedDomain.listingId || listedDomain.domainKey,
-        publicKey
+      const transaction = await buildOnChainCancelTransaction(
+        publicKey,
+        new PublicKey(domain.domainKey)
       );
       // Sign and send the transaction
       const signedTx = await signTransaction(transaction);
@@ -276,10 +261,6 @@ const Gorid: React.FC = () => {
         getDomainsOwnedBy(address).then(setMyDomains).catch(console.error);
       }
       setCancelSuccess(domain.name + ' listing cancelled');
-
-
-
-
     } catch (error: any) {
       console.error('Cancel listing error:', error);
       setCancelError(error.message || 'Failed to cancel listing');
