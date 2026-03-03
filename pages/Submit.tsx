@@ -188,6 +188,15 @@ const Submit: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black pt-12 pb-20">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
+        src="/gorbagio-video-run.mp4"
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
