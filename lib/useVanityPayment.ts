@@ -5,10 +5,12 @@
  * Program deployed to Gorbagana at: 5YSYX6GX3wD2xTp6poLuP92FT8uiWeRFLwASsULXXYM4
  */
 
-import { useState, useCallback, useRef } from 'react';
-import { PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
+import { useState, useCallback, useRef, useMemo } from 'react';
+import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { gorbaganaRPC } from '../utils/gorbaganaRPC';
+import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
+import IDL from '../idl/vanity_miner.json';
 
 // Vanity Miner program deployed on Gorbagana
 export const VANITY_PROGRAM_ID = new PublicKey('5YSYX6GX3wD2xTp6poLuP92FT8uiWeRFLwASsULXXYM4');
@@ -79,7 +81,7 @@ export function calculateBatchCostLamports(prefixLen: number, suffixLen: number)
 }
 
 export function useVanityPayment() {
-  const { connected, publicKey, signTransaction } = useWallet();
+  const { connected, publicKey, signTransaction, wallet } = useWallet();
   const { connection } = useConnection();
   const walletAddress = publicKey?.toBase58() ?? null;
 
@@ -89,38 +91,58 @@ export function useVanityPayment() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Track session spending locally (no smart contract yet)
+  // Track session spending locally
   const sessionSpentRef = useRef(0);
   const sessionMatchesRef = useRef(0);
+
+  const provider = useMemo(() => {
+    if (!connection || !publicKey || !signTransaction || !wallet) return null;
+    return new AnchorProvider(connection, wallet.adapter as any, { preflightCommitment: 'confirmed' });
+  }, [connection, publicKey, signTransaction, wallet]);
+
+  const program = useMemo(() => {
+    if (!provider) return null;
+    return new Program(IDL as any, provider);
+  }, [provider]);
 
   /**
    * Refresh the mining account balance from on-chain.
    */
   const refreshBalance = useCallback(async () => {
-    if (!walletAddress) return;
+    if (!publicKey || !program) return;
 
     try {
-      const balanceGOR = await gorbaganaRPC.getBalance(walletAddress);
-      const balanceLamports = Math.round(balanceGOR * LAMPORTS_PER_GOR);
+      const [miningAccountPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mining"), publicKey.toBuffer()],
+        program.programId
+      );
 
-      setMiningAccount(prev => ({
+      const accountData = await program.account.miningAccount.fetch(miningAccountPDA);
+      
+      const balanceLamports = (accountData.balance as BN).toNumber();
+      const balanceGOR = balanceLamports / LAMPORTS_PER_GOR;
+      const totalSpentLamports = (accountData.totalSpent as BN).toNumber();
+      const totalSpentGOR = totalSpentLamports / LAMPORTS_PER_GOR;
+
+      setMiningAccount({
         balance: balanceGOR,
         balanceLamports,
-        totalSpent: prev?.totalSpent ?? sessionSpentRef.current,
-        matchesFound: prev?.matchesFound ?? sessionMatchesRef.current,
-        isActive: prev?.isActive ?? false,
-      }));
+        totalSpent: totalSpentGOR,
+        matchesFound: accountData.matchesFound as number,
+        isActive: accountData.isActive as boolean,
+      });
     } catch (err) {
       console.error('Failed to refresh balance:', err);
+      // If account doesn't exist, we keep miningAccount as null or handle accordingly
     }
-  }, [walletAddress]);
+  }, [publicKey, program]);
 
   /**
    * Initialize mining session - fetch balance and set up account state.
    */
   const initializeMining = useCallback(async () => {
-    if (!connected || !walletAddress) {
-      setError('Wallet not connected');
+    if (!connected || !publicKey || !program || !provider) {
+      setError('Wallet not connected or program not ready');
       return false;
     }
 
@@ -130,17 +152,29 @@ export function useVanityPayment() {
     sessionMatchesRef.current = 0;
 
     try {
-      const balanceGOR = await gorbaganaRPC.getBalance(walletAddress);
-      const balanceLamports = Math.round(balanceGOR * LAMPORTS_PER_GOR);
+      const [miningAccountPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mining"), publicKey.toBuffer()],
+        program.programId
+      );
 
-      setMiningAccount({
-        balance: balanceGOR,
-        balanceLamports,
-        totalSpent: 0,
-        matchesFound: 0,
-        isActive: false,
-      });
+      try {
+        await program.methods.initializeUser()
+          .accounts({
+            user: publicKey,
+            miningAccount: miningAccountPDA,
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc();
+        console.log("Mining account initialized on-chain.");
+      } catch (initErr: any) {
+        // Ignore if account already exists
+        if (!initErr.message.includes("already in use") && !JSON.stringify(initErr).includes("0x0")) {
+          console.error("Failed to initialize mining account on-chain:", initErr);
+          throw initErr;
+        }
+      }
 
+      await refreshBalance();
       return true;
     } catch (err: any) {
       setError(err.message || 'Failed to initialize mining');
@@ -148,74 +182,176 @@ export function useVanityPayment() {
     } finally {
       setIsInitializing(false);
     }
-  }, [connected, walletAddress]);
+  }, [connected, publicKey, program, provider, refreshBalance]);
 
   /**
-   * Charge for a mining batch by sending GOR to the treasury.
+   * Charge for a mining batch by calling the smart contract.
    * Returns true if payment succeeded, false to stop mining.
    */
   const chargeForBatch = useCallback(async (costLamports: number): Promise<boolean> => {
-    if (!connected || !publicKey || !signTransaction) return false;
+    if (!connected || !publicKey || !program || !provider) {
+      setError('Program or mining account not ready');
+      return false;
+    }
 
     try {
-      // Build SOL system transfer (Gorbagana uses same instruction set)
-      const transferIx = SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: TREASURY_WALLET,
-        lamports: costLamports,
-      });
+      const [miningAccountPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mining"), publicKey.toBuffer()],
+        program.programId
+      );
+      const [vaultPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault")],
+        program.programId
+      );
 
-      const transaction = new Transaction().add(transferIx);
+      const signature = await program.methods.chargeForBatch(new BN(costLamports))
+        .accounts({
+          user: publicKey,
+          miningAccount: miningAccountPDA,
+          vault: vaultPDA,
+          treasury: TREASURY_WALLET,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
 
-      // Get recent blockhash
-      const { blockhash } = await gorbaganaRPC.getRecentBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = publicKey;
+      // Wait for confirmation with increased timeout
+      await gorbaganaRPC.confirmTransaction(signature, 60000);
 
-      // Sign via wallet adapter
-      const signed = await signTransaction(transaction);
-
-      // Serialize and send
-      const serialized = signed.serialize();
-      const base64Tx = Buffer.from(serialized).toString('base64');
-      const signature = await gorbaganaRPC.sendTransaction(base64Tx);
-
-      // Wait for confirmation
-      await gorbaganaRPC.confirmTransaction(signature, 15000);
-
-      // Update local tracking
+      // Update local state
       const costGOR = costLamports / LAMPORTS_PER_GOR;
       sessionSpentRef.current += costGOR;
-      sessionMatchesRef.current = miningAccount?.matchesFound ?? 0;
-
+      
       setMiningAccount(prev => {
         if (!prev) return prev;
         return {
           ...prev,
           balance: prev.balance - costGOR,
           balanceLamports: prev.balanceLamports - costLamports,
-          totalSpent: sessionSpentRef.current,
+          totalSpent: prev.totalSpent + costGOR,
         };
       });
 
       return true;
     } catch (err: any) {
-      console.error('Batch payment failed:', err);
+      console.error('Batch payment failed via smart contract:', err);
       setError(`Payment failed: ${err.message || 'Unknown error'}`);
       return false;
     }
-  }, [connected, publicKey, signTransaction, miningAccount]);
+  }, [connected, publicKey, program, provider]);
+
+  /**
+   * Deposit GOR into the mining account.
+   */
+  const deposit = useCallback(async (amountGOR: number): Promise<boolean> => {
+    if (!connected || !publicKey || !program || !provider) {
+      setError('Wallet not connected or program not ready');
+      return false;
+    }
+
+    setIsDepositing(true);
+    setError(null);
+
+    try {
+      const amountLamports = new BN(amountGOR * LAMPORTS_PER_GOR);
+      const [miningAccountPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mining"), publicKey.toBuffer()],
+        program.programId
+      );
+      const [vaultPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault")],
+        program.programId
+      );
+
+      await program.methods.deposit(amountLamports)
+        .accounts({
+          user: publicKey,
+          miningAccount: miningAccountPDA,
+          vault: vaultPDA,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      await refreshBalance();
+      return true;
+    } catch (err: any) {
+      console.error('Deposit failed:', err);
+      setError(`Deposit failed: ${err.message || 'Unknown error'}`);
+      return false;
+    } finally {
+      setIsDepositing(false);
+    }
+  }, [connected, publicKey, program, provider, refreshBalance]);
+
+  /**
+   * Withdraw remaining balance back to the user.
+   */
+  const withdraw = useCallback(async (): Promise<boolean> => {
+    if (!connected || !publicKey || !program || !provider || !miningAccount || miningAccount.balance <= 0) {
+      setError('Wallet not connected, program not ready, or no balance to withdraw');
+      return false;
+    }
+
+    setIsWithdrawing(true);
+    setError(null);
+
+    try {
+      const [miningAccountPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mining"), publicKey.toBuffer()],
+        program.programId
+      );
+      const [vaultPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault")],
+        program.programId
+      );
+
+      await program.methods.withdraw()
+        .accounts({
+          user: publicKey,
+          miningAccount: miningAccountPDA,
+          vault: vaultPDA,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      await refreshBalance();
+      return true;
+    } catch (err: any) {
+      console.error('Withdrawal failed:', err);
+      setError(`Withdrawal failed: ${err.message || 'Unknown error'}`);
+      return false;
+    } finally {
+      setIsWithdrawing(false);
+    }
+  }, [connected, publicKey, program, provider, miningAccount, refreshBalance]);
 
   /**
    * Record a match found during mining.
    */
-  const recordMatch = useCallback(() => {
+  const recordMatch = useCallback(async (address: string) => {
     sessionMatchesRef.current += 1;
     setMiningAccount(prev => {
       if (!prev) return prev;
       return { ...prev, matchesFound: sessionMatchesRef.current };
     });
-  }, []);
+
+    if (program && publicKey) {
+      try {
+        const [miningAccountPDA] = PublicKey.findProgramAddressSync(
+          [Buffer.from("mining"), publicKey.toBuffer()],
+          program.programId
+        );
+        await program.methods.recordMatch(address)
+          .accounts({
+            user: publicKey,
+            miningAccount: miningAccountPDA,
+          })
+          .rpc();
+        console.log(`Match recorded on-chain: ${address}`);
+      } catch (err) {
+        console.error('Failed to record match on-chain:', err);
+      }
+    }
+  }, [program, publicKey]);
 
   /**
    * Set mining active state.
@@ -252,6 +388,8 @@ export function useVanityPayment() {
     recordMatch,
     setMiningActive,
     resetSession,
+    deposit,
+    withdraw,
     calculateBatchCostGOR,
     calculateBatchCostLamports,
     calculateDifficultyMultiplier,

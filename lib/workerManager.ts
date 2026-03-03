@@ -164,14 +164,16 @@ export class WorkerManager {
 
       try {
         const shouldContinue = await this.config.onBatchComplete();
-        if (shouldContinue && this.isRunning) {
-          this.resume();
+        if (shouldContinue) {
+          if (this.isRunning) { // Only resume if manager is still marked as running
+            this.resume();
+          }
         } else {
-          this.terminate();
+          // Payment failed, keep workers paused and notify main thread
+          console.warn('Payment failed, workers remain paused.');
         }
       } catch (err) {
-        console.error('Payment check failed:', err);
-        this.terminate();
+        console.error('Payment check failed, workers remain paused:', err);
       } finally {
         this.paymentPending = false;
       }

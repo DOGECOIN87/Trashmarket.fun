@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Terminal, Cpu, Download, Lock, Unlock, Play, Pause, Square,
   Zap, Trophy, AlertTriangle, Copy, Check, Settings, Sparkles,
-  Wallet, ArrowDownToLine, ArrowUpFromLine, DollarSign
+  Wallet, ArrowDownToLine, ArrowUpFromLine, DollarSign, Plus, Minus
 } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -48,14 +48,18 @@ const VanityGenerator: React.FC = () => {
   const {
     miningAccount,
     isInitializing,
+    isDepositing,
+    isWithdrawing,
     error: paymentError,
     initializeMining,
     chargeForBatch,
     refreshBalance,
-    recordMatch,
+    recordMatch: recordMatchPayment,
     setMiningActive,
     resetSession,
     setError: setPaymentError,
+    deposit,
+    withdraw,
   } = useVanityPayment();
 
   // Input state
@@ -64,6 +68,7 @@ const VanityGenerator: React.FC = () => {
   const [prefixLen, setPrefixLen] = useState(4);
   const [suffixLen, setSuffixLen] = useState(0);
   const [includeContains, setIncludeContains] = useState(false);
+  const [depositAmount, setDepositAmount] = useState(0.1);
 
   // Mining state
   const [isMining, setIsMining] = useState(false);
@@ -146,7 +151,7 @@ const VanityGenerator: React.FC = () => {
     if (connected && walletAddress && !miningAccount) {
       initializeMining();
     }
-  }, [connected, walletAddress]);
+  }, [connected, walletAddress, miningAccount, initializeMining]);
 
   // Toggle a variant selection
   const toggleVariant = (charIndex: number, variant: string) => {
@@ -220,7 +225,7 @@ const VanityGenerator: React.FC = () => {
       },
       onMatch: (data) => {
         setMatches(prev => [...prev, { ...data, encrypted: true, unlocked: false }]);
-        recordMatch();
+        recordMatchPayment(data.address);
       },
       onError: (error) => {
         console.error('Mining error:', error);
@@ -232,7 +237,7 @@ const VanityGenerator: React.FC = () => {
     setIsMining(true);
     setIsPaused(false);
     setMiningActive(true);
-  }, [patterns, isMining, connected, walletAddress, miningAccount, batchCostGOR, batchCostLamports, chargeForBatch, currency]);
+  }, [patterns, isMining, connected, walletAddress, miningAccount, batchCostGOR, batchCostLamports, chargeForBatch, currency, initializeMining, recordMatchPayment, setMiningActive, setPaymentError]);
 
   // Pause/Resume mining
   const togglePause = useCallback(() => {
@@ -254,7 +259,7 @@ const VanityGenerator: React.FC = () => {
     setIsPaused(false);
     setMiningActive(false);
     refreshBalance();
-  }, []);
+  }, [refreshBalance, setMiningActive]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -324,180 +329,218 @@ const VanityGenerator: React.FC = () => {
 
       {/* Header */}
       <div className="border-b border-white/10 bg-gradient-to-r from-black via-gray-900 to-black">
-        <div className="max-w-[1600px] mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <Terminal className={`w-5 h-5 ${accentColor}`} />
-            <h1 className="text-xl font-bold tracking-tighter uppercase">VANITY_MINER</h1>
-            <span className="text-[10px] text-gray-500 border border-gray-800 px-2 py-0.5">PAID</span>
+            <div className={`p-2 ${accentBg} text-black rounded`}>
+              <Terminal className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black uppercase tracking-tighter">VANITY_MINER_v1.0</h1>
+              <p className="text-[10px] text-gray-500 uppercase">Gorbagana L2 Network • Proof of Work</p>
+            </div>
           </div>
 
-          {/* Live GOR Balance */}
           <div className="flex items-center gap-4">
-            {connected && miningAccount && (
-              <div className={`flex items-center gap-3 border ${accentBorder} px-4 py-2`}>
-                <Wallet className={`w-4 h-4 ${accentColor}`} />
-                <div>
-                  <div className="text-[10px] text-gray-500 uppercase">MINING_BALANCE</div>
-                  <div className={`text-lg font-bold ${accentColor}`}>
-                    {formatGOR(miningAccount.balance)} {currency}
-                  </div>
+            {miningAccount && (
+              <div className="text-right">
+                <div className="text-[10px] text-gray-500 uppercase">MINING_BALANCE</div>
+                <div className={`text-lg font-bold ${accentColor}`}>
+                  {formatGOR(miningAccount.balance)} {currency}
                 </div>
               </div>
             )}
-            <div className="flex items-center gap-2 text-[10px] text-gray-500">
-              <Cpu className="w-3 h-3" />
-              {workerCount > 0 ? `${workerCount} CORES` : 'IDLE'}
+            <div className={`h-10 w-[1px] bg-white/10 mx-2`} />
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-gray-500 uppercase">NETWORK_STATUS</span>
+              <span className="text-xs text-magic-green font-bold uppercase flex items-center gap-1">
+                <span className="w-2 h-2 bg-magic-green rounded-full animate-pulse" />
+                CONNECTED
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-4 py-8">
-        {/* Payment Error Banner */}
-        {paymentError && (
-          <div className="mb-6 border border-magic-red bg-magic-red/10 p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-magic-red flex-shrink-0" />
-              <span className="text-sm text-magic-red">{paymentError}</span>
+      <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left: Configuration */}
+        <div className="space-y-6">
+          {/* Account Management */}
+          <div className="border border-white/10 bg-black p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Wallet className={`w-4 h-4 ${accentColor}`} />
+                <span className="text-sm font-bold uppercase tracking-wider">ACCOUNT_MANAGEMENT</span>
+              </div>
+              {miningAccount && (
+                <button 
+                  onClick={() => refreshBalance()}
+                  className="text-[10px] text-gray-500 hover:text-white transition-colors uppercase"
+                >
+                  Refresh
+                </button>
+              )}
             </div>
-            <button
-              onClick={() => setPaymentError(null)}
-              className="text-magic-red hover:text-white text-xs uppercase"
-            >
-              DISMISS
-            </button>
-          </div>
-        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-          {/* Left: Pattern Builder + Cost Display */}
-          <div className="space-y-6">
-
-            {/* Wallet Not Connected Notice */}
-            {!connected && (
-              <div className="border border-yellow-500/30 bg-yellow-500/5 p-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <Wallet className="w-5 h-5 text-yellow-500" />
-                  <span className="text-sm font-bold text-yellow-500 uppercase">WALLET_REQUIRED</span>
+            {!connected ? (
+              <div className="text-center py-4 border border-dashed border-white/20">
+                <p className="text-xs text-gray-500 uppercase mb-2">Connect wallet to manage mining account</p>
+              </div>
+            ) : !miningAccount ? (
+              <button
+                onClick={initializeMining}
+                disabled={isInitializing}
+                className={`w-full py-3 border ${accentBorder} ${accentColor} hover:${accentBg} hover:text-black transition-all font-bold text-xs uppercase flex items-center justify-center gap-2`}
+              >
+                {isInitializing ? <Cpu className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                INITIALIZE_MINING_ACCOUNT
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-gray-900/50 border border-gray-800">
+                    <div className="text-[10px] text-gray-500 uppercase mb-1">BALANCE</div>
+                    <div className={`text-xl font-bold ${accentColor}`}>{formatGOR(miningAccount.balance)} {currency}</div>
+                  </div>
+                  <div className="p-3 bg-gray-900/50 border border-gray-800">
+                    <div className="text-[10px] text-gray-500 uppercase mb-1">TOTAL_SPENT</div>
+                    <div className="text-xl font-bold text-white">{formatGOR(miningAccount.totalSpent)} {currency}</div>
+                  </div>
                 </div>
-                <p className="text-sm text-yellow-500/80">
-                  Connect your wallet to start mining vanity addresses. Mining charges {currency} per batch of attempts. Unused balance stays in your wallet.
-                </p>
+
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center bg-gray-900 border border-gray-800 px-3 py-2">
+                      <input 
+                        type="number" 
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(parseFloat(e.target.value))}
+                        className="bg-transparent border-none outline-none text-sm w-full"
+                        step="0.1"
+                        min="0.01"
+                      />
+                      <span className="text-[10px] text-gray-500 ml-2">{currency}</span>
+                    </div>
+                    <button
+                      onClick={() => deposit(depositAmount)}
+                      disabled={isDepositing || depositAmount <= 0}
+                      className={`px-4 py-2 ${accentBg} text-black font-bold text-xs uppercase flex items-center gap-2 disabled:opacity-50`}
+                    >
+                      {isDepositing ? <Cpu className="w-3 h-3 animate-spin" /> : <ArrowDownToLine className="w-3 h-3" />}
+                      DEPOSIT
+                    </button>
+                  </div>
+                  
+                  <button
+                    onClick={withdraw}
+                    disabled={isWithdrawing || miningAccount.balance <= 0}
+                    className="w-full py-2 border border-gray-700 text-gray-400 hover:text-white hover:border-white transition-all font-bold text-xs uppercase flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isWithdrawing ? <Cpu className="w-3 h-3 animate-spin" /> : <ArrowUpFromLine className="w-3 h-3" />}
+                    WITHDRAW_ALL_FUNDS
+                  </button>
+                </div>
               </div>
             )}
-
-            {/* Name Input */}
-            <div className={`border ${accentBorder}/30 bg-black p-6`}>
-              <div className="flex items-center gap-2 mb-4">
-                <Sparkles className={`w-4 h-4 ${accentColor}`} />
-                <span className="text-sm font-bold uppercase tracking-wider">YOUR_NAME</span>
+            
+            {paymentError && (
+              <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 text-red-400 text-[10px] uppercase flex items-start gap-2">
+                <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <span>{paymentError}</span>
               </div>
+            )}
+          </div>
 
-              <input
-                type="text"
-                name="vanityName"
-                value={inputName}
-                onChange={(e) => setInputName(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
-                placeholder="Enter desired name (letters + numbers only)"
-                className="w-full bg-gray-900 border border-gray-700 px-4 py-3 text-xl font-bold text-white placeholder-gray-600 focus:border-magic-green focus:outline-none"
-                maxLength={12}
-              />
-
-              <div className="mt-2 text-[10px] text-gray-500 flex justify-between">
-                <span>Base58 ONLY (no 0, O, I, l)</span>
-                <span>{inputName.length}/12 chars</span>
-              </div>
+          {/* Pattern Input */}
+          <div className="border border-white/10 bg-black p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Settings className={`w-4 h-4 ${accentColor}`} />
+              <span className="text-sm font-bold uppercase tracking-wider">MINING_CONFIGURATION</span>
             </div>
 
-            {/* Character Variant Grid */}
-            {charVariants.length > 0 && (
-              <div className="border border-white/10 bg-black p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-bold uppercase tracking-wider">CHAR_VARIANTS</span>
-                  <span className="text-[10px] text-gray-500">Click to toggle</span>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-[10px] text-gray-500 uppercase mb-2">TARGET_PATTERN</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={inputName}
+                    onChange={(e) => setInputName(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
+                    placeholder="ENTER_NAME_OR_PHRASE"
+                    className="w-full bg-gray-900 border border-gray-800 px-4 py-3 text-lg font-bold tracking-widest focus:border-magic-purple outline-none transition-colors uppercase"
+                    maxLength={12}
+                  />
+                  <Sparkles className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 ${accentColor} opacity-50`} />
                 </div>
+                <p className="text-[10px] text-gray-600 mt-2">Base58 characters only (no 0, O, I, l)</p>
+              </div>
 
-                <div className="overflow-x-auto">
-                  <div className="flex gap-1 min-w-max">
+              {charVariants.length > 0 && (
+                <div>
+                  <label className="block text-[10px] text-gray-500 uppercase mb-3">CHARACTER_SUBSTITUTIONS</label>
+                  <div className="flex flex-wrap gap-2">
                     {charVariants.map((cv, idx) => (
                       <div key={idx} className="flex flex-col gap-1">
-                        <div className={`w-10 h-10 flex items-center justify-center border-2 ${accentBorder} text-lg font-bold ${accentColor}`}>
-                          {cv.char}
+                        <div className="flex gap-1">
+                          {cv.variants.map(v => (
+                            <button
+                              key={v}
+                              onClick={() => toggleVariant(idx, v)}
+                              className={`w-8 h-8 flex items-center justify-center text-xs font-bold border transition-all ${
+                                cv.selected.includes(v)
+                                  ? `${accentBg} text-black border-transparent`
+                                  : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
+                              }`}
+                            >
+                              {v}
+                            </button>
+                          ))}
                         </div>
-                        {cv.variants.map((variant, vIdx) => (
-                          <button
-                            key={vIdx}
-                            onClick={() => toggleVariant(idx, variant)}
-                            className={`w-10 h-10 flex items-center justify-center border text-sm font-bold transition-all ${
-                              cv.selected.includes(variant)
-                                ? `${accentBorder} ${accentColor} ${accentBg}/20`
-                                : 'border-gray-700 text-gray-500 hover:border-gray-500'
-                            }`}
-                          >
-                            {variant}
-                          </button>
-                        ))}
                       </div>
                     ))}
                   </div>
                 </div>
+              )}
 
-                <div className="mt-4 text-[10px] text-gray-500">
-                  SELECTED: {charVariants.map(cv => cv.selected.join('/')).join(' ')}
-                </div>
-              </div>
-            )}
-
-            {/* Mining Config */}
-            <div className="border border-white/10 bg-black p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Settings className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-bold uppercase tracking-wider">MINING_CONFIG</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="text-[10px] text-gray-500 uppercase block mb-2">PREFIX_LENGTH</label>
-                  <div className="flex gap-px">
-                    {[0, 2, 3, 4, 5, 6].map(len => (
-                      <button
-                        key={len}
-                        onClick={() => setPrefixLen(len)}
-                        className={`flex-1 py-2 text-xs font-bold ${
-                          prefixLen === len
-                            ? `${accentBg} text-black`
-                            : 'bg-gray-900 text-gray-500 hover:text-white'
-                        }`}
-                      >
-                        {len}
-                      </button>
-                    ))}
+                  <label className="block text-[10px] text-gray-500 uppercase mb-2">PREFIX_LENGTH</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setPrefixLen(Math.max(0, prefixLen - 1))}
+                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="text-xl font-bold w-8 text-center">{prefixLen}</span>
+                    <button
+                      onClick={() => setPrefixLen(Math.min(inputName.length, prefixLen + 1))}
+                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
-
                 <div>
-                  <label className="text-[10px] text-gray-500 uppercase block mb-2">SUFFIX_LENGTH</label>
-                  <div className="flex gap-px">
-                    {[0, 2, 3, 4].map(len => (
-                      <button
-                        key={len}
-                        onClick={() => setSuffixLen(len)}
-                        className={`flex-1 py-2 text-xs font-bold ${
-                          suffixLen === len
-                            ? `${accentBg} text-black`
-                            : 'bg-gray-900 text-gray-500 hover:text-white'
-                        }`}
-                      >
-                        {len}
-                      </button>
-                    ))}
+                  <label className="block text-[10px] text-gray-500 uppercase mb-2">SUFFIX_LENGTH</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setSuffixLen(Math.max(0, suffixLen - 1))}
+                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="text-xl font-bold w-8 text-center">{suffixLen}</span>
+                    <button
+                      onClick={() => setSuffixLen(Math.min(inputName.length - prefixLen, suffixLen + 1))}
+                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* Difficulty Display */}
-              <div className="mt-6 p-3 bg-gray-900/50 border border-gray-800">
+              <div className="pt-4 border-t border-gray-800">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-[10px] text-gray-500 uppercase">DIFFICULTY</span>
                   <span className={`text-xs font-bold uppercase ${
@@ -525,321 +568,254 @@ const VanityGenerator: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* NON-REFUNDABLE DEPOSIT NOTICE */}
-            <div className="bg-red-900/20 border border-red-500/30 p-4 rounded">
-              <h4 className="text-red-400 font-bold text-sm mb-2 uppercase tracking-wider flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" />
-                NON-REFUNDABLE DEPOSIT
-              </h4>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Deposits are used to pay for mining computation and are committed to the platform.
-                <span className="text-red-400 font-semibold"> No withdrawals are permitted — all funds are non-refundable once deposited.</span>
-              </p>
-            </div>
-
-            {/* LIVE COST DISPLAY */}
-            <div className={`border-2 ${accentBorder} bg-black p-6`}>
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-2">
-                  <DollarSign className={`w-4 h-4 ${accentColor}`} />
-                  <span className="text-sm font-bold uppercase tracking-wider">LIVE_MINING_COST</span>
-                </div>
-                <div className={`text-[10px] ${accentBg} text-black px-2 py-0.5 font-bold`}>
-                  PER 5,000 ATTEMPTS
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <div className="text-[10px] text-gray-500 uppercase">BATCH_COST</div>
-                  <div className="text-3xl font-bold text-white">
-                    {formatGOR(batchCostGOR)} <span className={`text-lg ${accentColor}`}>{currency}</span>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-gray-500 uppercase">MULTIPLIER</div>
-                  <div className="text-3xl font-bold text-white">
-                    {difficultyMultiplier}x
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Pattern Complexity:</span>
-                  <span className="text-white uppercase">{difficulty.difficulty}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Est. Attempts for Match:</span>
-                  <span className="text-white">{formatNumber(estimatedAttempts)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Est. Cost for Match:</span>
-                  <span className={`${accentColor} font-bold`}>
-                    ~{estimatedTotalCost > 1000 ? formatNumber(estimatedTotalCost) : estimatedTotalCost.toFixed(2)} {currency}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Time per Batch:</span>
-                  <span className="text-white">~20ms</span>
-                </div>
-              </div>
-
-              {/* Real-time cost accumulator during mining */}
-              {isMining && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500 text-xs uppercase">SESSION_SPENT:</span>
-                    <span className={`text-2xl font-bold ${accentColor}`}>
-                      {formatGOR(totalSpent)} {currency}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-gray-500 mt-1">
-                    {progress?.checked ? formatNumber(progress.checked) : '0'} addresses checked
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Mining Controls */}
-            <div className={`border ${accentBorder} p-1`}>
-              {!isMining ? (
-                <button
-                  onClick={startMining}
-                  disabled={!inputName || prefixLen === 0 || !connected || isInitializing}
-                  className={`w-full ${accentBg} text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity`}
-                >
-                  {isInitializing ? (
-                    <>
-                      <Cpu className="w-4 h-4 animate-spin" />
-                      INITIALIZING...
-                    </>
-                  ) : !connected ? (
-                    <>
-                      <Wallet className="w-4 h-4" />
-                      CONNECT_WALLET
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4" />
-                      START_MINING
-                      <span className="opacity-70">( {formatGOR(batchCostGOR)} {currency}/cycle )</span>
-                    </>
-                  )}
-                </button>
-              ) : (
-                <div className="flex gap-1">
-                  <button
-                    onClick={togglePause}
-                    className="flex-1 bg-yellow-500 text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-2"
-                  >
-                    {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-                    {isPaused ? 'RESUME' : 'PAUSE'}
-                  </button>
-                  <button
-                    onClick={stopMining}
-                    className="flex-1 bg-magic-red text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-2"
-                  >
-                    <Square className="w-4 h-4" />
-                    STOP
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* Right: Progress & Results */}
-          <div className="space-y-6">
-            {/* Mining Progress */}
-            {(isMining || progress) && (
-              <div className={`border ${isMining ? accentBorder : 'border-white/10'} bg-black p-6`}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Cpu className={`w-4 h-4 ${isMining ? accentColor + ' animate-pulse' : 'text-gray-500'}`} />
-                    <span className="text-sm font-bold uppercase tracking-wider">
-                      {isMining ? (isPaused ? 'PAUSED' : 'MINING_IN_PROGRESS') : 'MINING_STOPPED'}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-gray-500">
-                    {workerCount} THREADS
-                  </span>
-                </div>
-
-                {progress && (
-                  <>
-                    {/* Progress bar */}
-                    <div className="w-full h-2 bg-gray-800 overflow-hidden mb-4">
-                      <div
-                        className={`h-full ${accentBg} transition-all duration-300`}
-                        style={{
-                          width: `${Math.min((progress.checked / Math.max(estimatedAttempts, 1)) * 100, 100)}%`
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[10px] text-gray-500 mb-4">
-                      <span>{formatNumber(progress.checked)} checked</span>
-                      <span>Est. {formatNumber(estimatedAttempts)} for match</span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="p-3 bg-gray-900/50 border border-gray-800">
-                        <div className={`text-2xl font-bold ${accentColor}`}>{formatNumber(progress.rate)}/s</div>
-                        <div className="text-[10px] text-gray-500 uppercase">HASH_RATE</div>
-                      </div>
-                      <div className="p-3 bg-gray-900/50 border border-gray-800">
-                        <div className={`text-2xl font-bold ${accentColor}`}>
-                          {formatGOR(totalSpent)}
-                        </div>
-                        <div className="text-[10px] text-gray-500 uppercase">{currency}_SPENT</div>
-                      </div>
-                      <div className="p-3 bg-gray-900/50 border border-gray-800">
-                        <div className="text-2xl font-bold text-white">{formatDuration(progress.elapsed)}</div>
-                        <div className="text-[10px] text-gray-500 uppercase">TIME_ELAPSED</div>
-                      </div>
-                    </div>
-                  </>
-                )}
+          {/* LIVE COST DISPLAY */}
+          <div className={`border-2 ${accentBorder} bg-black p-6`}>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <DollarSign className={`w-4 h-4 ${accentColor}`} />
+                <span className="text-sm font-bold uppercase tracking-wider">LIVE_MINING_COST</span>
               </div>
-            )}
-
-            {/* Matches Found */}
-            <div className="border border-white/10 bg-black p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Trophy className={`w-4 h-4 ${matches.length > 0 ? 'text-yellow-500' : 'text-gray-500'}`} />
-                  <span className="text-sm font-bold uppercase tracking-wider">MATCHES_FOUND</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 ${accentBg} text-black`}>
-                    {matches.length}
-                  </span>
-                </div>
+              <div className={`text-[10px] ${accentBg} text-black px-2 py-0.5 font-bold`}>
+                PER 5,000 ATTEMPTS
               </div>
-
-              {matches.length === 0 ? (
-                <div className="text-center py-12 text-gray-600">
-                  <Zap className="w-8 h-8 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm uppercase">No matches yet</p>
-                  <p className="text-[10px] mt-1">Start mining to find vanity addresses</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {matches.map((match, idx) => (
-                    <div
-                      key={match.address}
-                      className={`p-4 border ${match.unlocked ? accentBorder : 'border-gray-700'} bg-gray-900/50`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            {match.unlocked ? (
-                              <Unlock className="w-3 h-3 text-magic-green flex-shrink-0" />
-                            ) : (
-                              <Lock className="w-3 h-3 text-gray-500 flex-shrink-0" />
-                            )}
-                            <code className={`text-sm font-bold truncate ${match.unlocked ? 'text-white' : 'text-gray-500'}`}>
-                              {match.unlocked ? match.address : blurAddress(match.address)}
-                            </code>
-                            {match.unlocked && (
-                              <button
-                                onClick={() => copyAddress(match.address)}
-                                className="text-gray-500 hover:text-white flex-shrink-0"
-                              >
-                                {copiedAddress === match.address ? (
-                                  <Check className="w-3 h-3 text-magic-green" />
-                                ) : (
-                                  <Copy className="w-3 h-3" />
-                                )}
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <span className={`text-[10px] px-2 py-0.5 ${accentBg} text-black font-bold`}>
-                              SCORE: {match.score}
-                            </span>
-                            {match.matches.map((m, mIdx) => (
-                              <span
-                                key={mIdx}
-                                className="text-[10px] px-2 py-0.5 border border-gray-600 text-gray-400"
-                              >
-                                {m.type}: {m.pattern}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="flex-shrink-0">
-                          {match.unlocked ? (
-                            <button
-                              onClick={() => downloadKeypair(match)}
-                              className={`px-3 py-2 ${accentBg} text-black text-[10px] font-bold uppercase flex items-center gap-1`}
-                            >
-                              <Download className="w-3 h-3" />
-                              DOWNLOAD
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => unlockMatch(idx)}
-                              className={`px-3 py-2 border ${accentBorder} ${accentColor} text-[10px] font-bold uppercase flex items-center gap-1 hover:${accentBg}/10`}
-                            >
-                              <Unlock className="w-3 h-3" />
-                              UNLOCK
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
-            {/* Session Summary */}
-            {totalSpent > 0 && (
-              <div className="border border-white/10 bg-black p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <DollarSign className="w-4 h-4 text-gray-500" />
-                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">SESSION_SUMMARY</span>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <div className="text-[10px] text-gray-500 uppercase">BATCH_COST</div>
+                <div className="text-3xl font-bold text-white">
+                  {formatGOR(batchCostGOR)} <span className={`text-lg ${accentColor}`}>{currency}</span>
                 </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Total Spent:</span>
-                    <span className={`${accentColor} font-bold`}>{formatGOR(totalSpent)} {currency}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Addresses Checked:</span>
-                    <span className="text-white">{formatNumber(progress?.checked || 0)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Cost per Cycle:</span>
-                    <span className="text-white">{formatGOR(batchCostGOR)} {currency}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Matches Found:</span>
-                    <span className="text-white">{matches.length}</span>
-                  </div>
-                  {miningAccount && (
-                    <div className="flex justify-between pt-2 border-t border-gray-800">
-                      <span className="text-gray-400">Remaining Balance:</span>
-                      <span className={`${accentColor} font-bold`}>{formatGOR(miningAccount.balance)} {currency}</span>
-                    </div>
-                  )}
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-500 uppercase">MULTIPLIER</div>
+                <div className="text-3xl font-bold text-white">
+                  {difficultyMultiplier}x
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Pattern Complexity:</span>
+                <span className="text-white uppercase">{difficulty.difficulty}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Est. Attempts for Match:</span>
+                <span className="text-white">{formatNumber(estimatedAttempts)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Est. Cost for Match:</span>
+                <span className={`${accentColor} font-bold`}>
+                  ~{estimatedTotalCost > 1000 ? formatNumber(estimatedTotalCost) : estimatedTotalCost.toFixed(2)} {currency}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Time per Batch:</span>
+                <span className="text-white">~20ms</span>
+              </div>
+            </div>
+
+            {/* Real-time cost accumulator during mining */}
+            {isMining && (
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 text-xs uppercase">SESSION_SPENT:</span>
+                  <span className={`text-2xl font-bold ${accentColor}`}>
+                    {formatGOR(totalSpent)} {currency}
+                  </span>
+                </div>
+                <div className="text-[10px] text-gray-500 mt-1">
+                  {progress?.checked ? formatNumber(progress.checked) : '0'} addresses checked
                 </div>
               </div>
             )}
+          </div>
 
-            {/* Security Notice */}
-            <div className="border border-yellow-500/30 bg-yellow-500/5 p-4 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-              <div className="text-[11px] text-yellow-500/80">
-                <span className="font-bold uppercase">SECURITY_NOTICE:</span> All keypairs are generated
-                client-side in your browser. Private keys never leave your device. {currency} payments
-                are processed on-chain to the platform treasury.{' '}
-                <span className="font-bold text-red-400">
-                  Mining charges are strictly non-refundable. No withdrawals are permitted once funds are deposited.
+          {/* Mining Controls */}
+          <div className={`border ${accentBorder} p-1`}>
+            {!isMining ? (
+              <button
+                onClick={startMining}
+                disabled={!inputName || prefixLen === 0 || !connected || isInitializing}
+                className={`w-full ${accentBg} text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity`}
+              >
+                {isInitializing ? (
+                  <>
+                    <Cpu className="w-4 h-4 animate-spin" />
+                    INITIALIZING...
+                  </>
+                ) : !connected ? (
+                  <>
+                    <Wallet className="w-4 h-4" />
+                    CONNECT_WALLET
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    START_MINING
+                    <span className="opacity-70">( {formatGOR(batchCostGOR)} {currency}/cycle )</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="flex gap-1">
+                <button
+                  onClick={togglePause}
+                  className="flex-1 bg-yellow-500 text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-2"
+                >
+                  {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                  {isPaused ? 'RESUME' : 'PAUSE'}
+                </button>
+                <button
+                  onClick={stopMining}
+                  className="flex-1 bg-magic-red text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-2"
+                >
+                  <Square className="w-4 h-4" />
+                  STOP
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Progress & Results */}
+        <div className="space-y-6">
+          {/* Mining Progress */}
+          {(isMining || progress) && (
+            <div className={`border ${isMining ? accentBorder : 'border-white/10'} bg-black p-6`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Cpu className={`w-4 h-4 ${isMining ? accentColor + ' animate-pulse' : 'text-gray-500'}`} />
+                  <span className="text-sm font-bold uppercase tracking-wider">
+                    {isMining ? (isPaused ? 'PAUSED' : 'MINING_IN_PROGRESS') : 'MINING_STOPPED'}
+                  </span>
+                </div>
+                <span className="text-[10px] text-gray-500">
+                  {workerCount} THREADS
+                </span>
+              </div>
+
+              {progress && (
+                <>
+                  {/* Progress bar */}
+                  <div className="w-full h-2 bg-gray-800 overflow-hidden mb-4">
+                    <div
+                      className={`h-full ${accentBg} transition-all duration-300`}
+                      style={{
+                        width: `${Math.min((progress.checked / Math.max(estimatedAttempts, 1)) * 100, 100)}%`
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-gray-500 mb-4">
+                    <span>{formatNumber(progress.checked)} checked</span>
+                    <span>Est. {formatNumber(estimatedAttempts)} for match</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-3 bg-gray-900/50 border border-gray-800">
+                      <div className={`text-2xl font-bold ${accentColor}`}>{formatNumber(progress.rate)}/s</div>
+                      <div className="text-[10px] text-gray-500 uppercase">HASH_RATE</div>
+                    </div>
+                    <div className="p-3 bg-gray-900/50 border border-gray-800">
+                      <div className={`text-2xl font-bold ${accentColor}`}>
+                        {formatGOR(totalSpent)}
+                      </div>
+                      <div className="text-[10px] text-gray-500 uppercase">{currency}_SPENT</div>
+                    </div>
+                    <div className="p-3 bg-gray-900/50 border border-gray-800">
+                      <div className="text-2xl font-bold text-white">{formatDuration(progress.elapsed)}</div>
+                      <div className="text-[10px] text-gray-500 uppercase">TIME_ELAPSED</div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Matches Found */}
+          <div className="border border-white/10 bg-black p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Trophy className={`w-4 h-4 ${matches.length > 0 ? 'text-yellow-500' : 'text-gray-500'}`} />
+                <span className="text-sm font-bold uppercase tracking-wider">MATCHES_FOUND</span>
+                <span className={`text-xs font-bold px-2 py-0.5 ${accentBg} text-black`}>
+                  {matches.length}
                 </span>
               </div>
             </div>
+
+            {matches.length === 0 ? (
+              <div className="text-center py-12 text-gray-600">
+                <Zap className="w-8 h-8 mx-auto mb-3 opacity-50" />
+                <p className="text-sm uppercase">No matches yet</p>
+                <p className="text-[10px] mt-1">Start mining to find vanity addresses</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {matches.map((match, idx) => (
+                  <div
+                    key={match.address}
+                    className={`p-4 border ${match.unlocked ? accentBorder : 'border-gray-700'} bg-gray-900/50`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          {match.unlocked ? (
+                            <Unlock className="w-3 h-3 text-magic-green" />
+                          ) : (
+                            <Lock className="w-3 h-3 text-gray-500" />
+                          )}
+                          <span className="text-[10px] text-gray-500 uppercase">ADDRESS_FOUND</span>
+                        </div>
+                        <div className="text-sm font-bold break-all text-white">
+                          {match.unlocked ? match.address : blurAddress(match.address)}
+                        </div>
+                        <div className="flex items-center gap-4 mt-2">
+                          <div className="text-[10px] text-gray-500">
+                            SCORE: <span className="text-white">{match.score}</span>
+                          </div>
+                          <div className="text-[10px] text-gray-500">
+                            TIME: <span className="text-white">{formatDuration(match.timestamp / 1000)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        {!match.unlocked ? (
+                          <button
+                            onClick={() => unlockMatch(idx)}
+                            className={`px-3 py-1.5 ${accentBg} text-black text-[10px] font-bold uppercase flex items-center gap-2 hover:opacity-90`}
+                          >
+                            <Unlock className="w-3 h-3" />
+                            UNLOCK
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => copyAddress(match.address)}
+                              className="px-3 py-1.5 bg-gray-800 text-white text-[10px] font-bold uppercase flex items-center gap-2 hover:bg-gray-700"
+                            >
+                              {copiedAddress === match.address ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                              {copiedAddress === match.address ? 'COPIED' : 'COPY'}
+                            </button>
+                            <button
+                              onClick={() => downloadKeypair(match)}
+                              className="px-3 py-1.5 bg-gray-800 text-white text-[10px] font-bold uppercase flex items-center gap-2 hover:bg-gray-700"
+                            >
+                              <Download className="w-3 h-3" />
+                              SAVE
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
