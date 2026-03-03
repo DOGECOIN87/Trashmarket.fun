@@ -424,6 +424,15 @@ const VanityGenerator: React.FC = () => {
 
   return (
     <div className="vanity-generator bg-black text-white min-h-screen p-6 font-mono">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
+        src="/gorbagio-video-meeting.mp4"
+      />
       {/* Match Found Prompt Modal */}
       {showMatchPrompt && pendingMatch && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
