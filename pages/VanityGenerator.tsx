@@ -238,6 +238,11 @@ const VanityGenerator: React.FC = () => {
       onMatch: (data) => {
         setMatches(prev => [...prev, { ...data, encrypted: true, unlocked: false }]);
         recordMatchPayment(data.address);
+        // Stop mining after first match to avoid multiple transactions
+        if (workerManagerRef.current) {
+          workerManagerRef.current.stop();
+          setIsMining(false);
+        }
       },
       onError: (error) => {
         console.error('Mining error:', error);
