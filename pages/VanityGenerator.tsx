@@ -315,6 +315,9 @@ const VanityGenerator: React.FC = () => {
   const accentBorder = accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green';
   const accentBg = accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green';
 
+  // Determine if both prefix and suffix are selected (invalid state)
+  const isBothPrefixAndSuffix = prefixLen > 0 && suffixLen > 0;
+
   return (
     <div className="min-h-screen text-white font-mono">
       {/* Background Video */}
@@ -474,74 +477,116 @@ const VanityGenerator: React.FC = () => {
                 <p className="text-[10px] text-gray-600 mt-2">Base58 characters only (no 0, O, I, l)</p>
               </div>
 
-              {charVariants.length > 0 && (
-                <div>
-                  <label className="block text-[10px] text-gray-500 uppercase mb-3">CHARACTER_SUBSTITUTIONS</label>
-                  <div className="flex gap-4 items-end">
-                    {charVariants.map((cv, idx) => (
-                      <div key={idx} className="flex flex-col gap-1 items-center">
-                        <div className="text-lg font-bold text-white mb-2 h-8 flex items-center">
-                          {cv.char.toUpperCase()}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          {cv.variants.map(v => (
-                            <button
-                              key={v}
-                              onClick={() => toggleVariant(idx, v)}
-                              className={`w-8 h-8 flex items-center justify-center text-xs font-bold border transition-all ${
-                                cv.selected.includes(v)
-                                  ? `${accentBg} text-black border-transparent`
-                                  : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
-                              }`}
-                            >
-                              {v}
-                            </button>
-                          ))}
-                        </div>
+              {/* Prefix/Suffix and Character Substitutions Layout */}
+              <div className="flex gap-8">
+                {/* Left: Prefix/Suffix Controls */}
+                <div className="flex-1">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase mb-2">PREFIX_LENGTH</label>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setPrefixLen(Math.max(0, prefixLen - 1))}
+                          className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="text-xl font-bold w-8 text-center">{prefixLen}</span>
+                        <button
+                          onClick={() => setPrefixLen(Math.min(inputName.length, prefixLen + 1))}
+                          className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
                       </div>
-                    ))}
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase mb-2">SUFFIX_LENGTH</label>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setSuffixLen(Math.max(0, suffixLen - 1))}
+                          className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="text-xl font-bold w-8 text-center">{suffixLen}</span>
+                        <button
+                          onClick={() => setSuffixLen(Math.min(inputName.length - prefixLen, suffixLen + 1))}
+                          className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
+                </div>
+
+                {/* Right: Character Substitutions (Only if valid selection) */}
+                {charVariants.length > 0 && !isBothPrefixAndSuffix && (
+                  <div>
+                    <label className="block text-[10px] text-gray-500 uppercase mb-3">CHARACTER_SUBSTITUTIONS</label>
+                    <div className="flex gap-4 items-end">
+                      {prefixLen > 0 && suffixLen === 0 && (
+                        charVariants.slice(0, prefixLen).map((cv, idx) => (
+                          <div key={idx} className="flex flex-col gap-1 items-center">
+                            <div className="text-lg font-bold text-white mb-2 h-8 flex items-center">
+                              {cv.char.toUpperCase()}
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              {cv.variants.map(v => (
+                                <button
+                                  key={v}
+                                  onClick={() => toggleVariant(idx, v)}
+                                  className={`w-8 h-8 flex items-center justify-center text-xs font-bold border transition-all ${
+                                    cv.selected.includes(v)
+                                      ? `${accentBg} text-black border-transparent`
+                                      : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
+                                  }`}
+                                >
+                                  {v}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      {suffixLen > 0 && prefixLen === 0 && (
+                        charVariants.slice(inputName.length - suffixLen).map((cv, idx) => (
+                          <div key={idx} className="flex flex-col gap-1 items-center">
+                            <div className="text-lg font-bold text-white mb-2 h-8 flex items-center">
+                              {cv.char.toUpperCase()}
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              {cv.variants.map(v => (
+                                <button
+                                  key={v}
+                                  onClick={() => toggleVariant(inputName.length - suffixLen + idx, v)}
+                                  className={`w-8 h-8 flex items-center justify-center text-xs font-bold border transition-all ${
+                                    cv.selected.includes(v)
+                                      ? `${accentBg} text-black border-transparent`
+                                      : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
+                                  }`}
+                                >
+                                  {v}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Invalid State Message */}
+              {isBothPrefixAndSuffix && (
+                <div className="p-4 bg-red-900/20 border border-red-500/50 rounded">
+                  <p className="text-red-400 text-xs uppercase font-bold">
+                    Invalid Configuration: Cannot use both PREFIX and SUFFIX simultaneously. Please select only one.
+                  </p>
                 </div>
               )}
-
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-[10px] text-gray-500 uppercase mb-2">PREFIX_LENGTH</label>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setPrefixLen(Math.max(0, prefixLen - 1))}
-                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="text-xl font-bold w-8 text-center">{prefixLen}</span>
-                    <button
-                      onClick={() => setPrefixLen(Math.min(inputName.length, prefixLen + 1))}
-                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] text-gray-500 uppercase mb-2">SUFFIX_LENGTH</label>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setSuffixLen(Math.max(0, suffixLen - 1))}
-                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="text-xl font-bold w-8 text-center">{suffixLen}</span>
-                    <button
-                      onClick={() => setSuffixLen(Math.min(inputName.length - prefixLen, suffixLen + 1))}
-                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
 
               <div className="pt-4 border-t border-gray-800">
                 <div className="flex justify-between items-center mb-2">
@@ -642,7 +687,7 @@ const VanityGenerator: React.FC = () => {
             {!isMining ? (
               <button
                 onClick={startMining}
-                disabled={!inputName || prefixLen === 0 || !connected || isInitializing}
+                disabled={!inputName || (prefixLen === 0 && suffixLen === 0) || !connected || isInitializing || isBothPrefixAndSuffix}
                 className={`w-full ${accentBg} text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity`}
               >
                 {isInitializing ? (
