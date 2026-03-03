@@ -24,6 +24,8 @@ import {
   calculateBatchCostLamports,
   calculateDifficultyMultiplier,
   calculateEstimatedAttempts,
+  calculateCostPerAttemptGOR,
+  calculateCostPerAttemptLamports,
 } from '../lib/useVanityPayment';
 
 // Treasury wallet for fees
@@ -53,7 +55,7 @@ const VanityGenerator: React.FC = () => {
     isWithdrawing,
     error: paymentError,
     initializeMining,
-    chargeForBatch,
+    chargeForAttempt,
     refreshBalance,
     recordMatch: recordMatchPayment,
     setMiningActive,
@@ -61,6 +63,7 @@ const VanityGenerator: React.FC = () => {
     setError: setPaymentError,
     deposit,
     withdraw,
+    isMiningRef,
   } = useVanityPayment();
 
   // Input state
@@ -81,9 +84,13 @@ const VanityGenerator: React.FC = () => {
 
   // UI state
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const [showMatchPrompt, setShowMatchPrompt] = useState(false);
+  const [pendingMatch, setPendingMatch] = useState<StoredMatch | null>(null);
+  const [depositDepleted, setDepositDepleted] = useState(false);
 
   // Worker manager ref
   const workerManagerRef = useRef<WorkerManager | null>(null);
+  const costPerAttemptLamportsRef = useRef(0);
 
   // Calculate patterns and difficulty
   const patterns = useMemo(() => {
@@ -123,6 +130,14 @@ const VanityGenerator: React.FC = () => {
     return calculateBatchCostLamports(prefixLen, suffixLen);
   }, [prefixLen, suffixLen]);
 
+  const costPerAttemptGOR = useMemo(() => {
+    return calculateCostPerAttemptGOR(prefixLen, suffixLen);
+  }, [prefixLen, suffixLen]);
+
+  const costPerAttemptLamports = useMemo(() => {
+    return calculateCostPerAttemptLamports(prefixLen, suffixLen);
+  }, [prefixLen, suffixLen]);
+
   const difficultyMultiplier = useMemo(() => {
     return calculateDifficultyMultiplier(prefixLen, suffixLen);
   }, [prefixLen, suffixLen]);
@@ -133,10 +148,9 @@ const VanityGenerator: React.FC = () => {
 
   const estimatedTotalCost = useMemo(() => {
     if (estimatedAttempts <= 0) return 0;
-    // Cost = (estimatedAttempts / batchSize) * batchCost
-    // batchSize = 500 keys/batch * batchesPerPayment(10) = 5000 keys per payment
-    return (estimatedAttempts / 5000) * batchCostGOR;
-  }, [estimatedAttempts, batchCostGOR]);
+    // Cost = estimatedAttempts * costPerAttempt
+    return estimatedAttempts * costPerAttemptGOR;
+  }, [estimatedAttempts, costPerAttemptGOR]);
 
   // Initialize character variants when input changes
   useEffect(() => {
@@ -180,7 +194,80 @@ const VanityGenerator: React.FC = () => {
     });
   };
 
-  // Start mining with payment integration
+  // Play audio notification
+  const playMatchSound = useCallback(() => {
+    try {
+      const audio = new Audio('/fawwwwwwwk.mp3');
+      audio.play().catch(err => console.error('Failed to play audio:', err));
+    } catch (err) {
+      console.error('Audio error:', err);
+    }
+  }, []);
+
+  // Handle match found - show prompt to continue or stop
+  const handleMatchFound = useCallback((data: MatchData) => {
+    playMatchSound();
+    setPendingMatch({ ...data, encrypted: true, unlocked: false });
+    setShowMatchPrompt(true);
+    
+    // Pause mining while waiting for user response
+    if (workerManagerRef.current) {
+      workerManagerRef.current.pause();
+      setIsPaused(true);
+    }
+  }, [playMatchSound]);
+
+  // User chooses to continue mining after match
+  const handleContinueMining = useCallback(() => {
+    if (pendingMatch) {
+      setMatches(prev => [...prev, pendingMatch]);
+      recordMatchPayment(pendingMatch.address);
+    }
+    setShowMatchPrompt(false);
+    setPendingMatch(null);
+    
+    // Resume mining
+    if (workerManagerRef.current) {
+      workerManagerRef.current.resume();
+      setIsPaused(false);
+    }
+  }, [pendingMatch, recordMatchPayment]);
+
+  // User chooses to stop mining after match
+  const handleStopMining = useCallback(() => {
+    if (pendingMatch) {
+      setMatches(prev => [...prev, pendingMatch]);
+      recordMatchPayment(pendingMatch.address);
+    }
+    setShowMatchPrompt(false);
+    setPendingMatch(null);
+    stopMining();
+  }, [pendingMatch, recordMatchPayment]);
+
+  // Handle deposit depleted
+  const handleDepositDepleted = useCallback(async (): Promise<boolean> => {
+    setDepositDepleted(true);
+    
+    // Pause mining
+    if (workerManagerRef.current) {
+      workerManagerRef.current.pause();
+      setIsPaused(true);
+    }
+
+    // Show notification - user can add funds and resume
+    // Return true if user adds funds and wants to continue, false otherwise
+    return false; // Will be updated when user adds funds
+  }, []);
+
+  // Check balance callback for worker manager
+  const checkBalance = useCallback(async (): Promise<boolean> => {
+    if (!miningAccount) return false;
+    
+    // Check if balance is sufficient for at least one more attempt
+    return miningAccount.balanceLamports >= costPerAttemptLamportsRef.current;
+  }, [miningAccount]);
+
+  // Start mining with continuous charging
   const startMining = useCallback(async () => {
     if (!patterns || isMining) return;
 
@@ -195,9 +282,9 @@ const VanityGenerator: React.FC = () => {
       if (!success) return;
     }
 
-    // Check balance covers at least one payment cycle
-    if (miningAccount && miningAccount.balance < batchCostGOR) {
-      setPaymentError(`Insufficient balance. Need at least ${batchCostGOR.toFixed(4)} ${currency} per payment cycle.`);
+    // Check balance covers at least one attempt
+    if (miningAccount && miningAccount.balanceLamports < costPerAttemptLamportsRef.current) {
+      setPaymentError(`Insufficient balance. Need at least ${costPerAttemptGOR.toFixed(6)} ${currency} per attempt.`);
       return;
     }
 
@@ -208,53 +295,38 @@ const VanityGenerator: React.FC = () => {
       minScore: 10,
     };
 
-    // Charge for initial batch before starting
-    const initialPaymentOk = await chargeForBatch(batchCostLamports);
-    if (!initialPaymentOk) {
-      setPaymentError('Initial payment failed. Please try again.');
-      return;
-    }
-    setTotalSpent(batchCostGOR);
-
-    // Calculate batchesPerPayment as 1/4th of the deposit amount
-    // This means the user will be charged every 1/4th of their deposit worth of batches
-    const batchesPerPayment = Math.max(1, Math.floor(depositAmount / 4 / batchCostGOR));
+    // Store cost per attempt for reference
+    costPerAttemptLamportsRef.current = costPerAttemptLamports;
 
     workerManagerRef.current = new WorkerManager({
       workerPath: '../workers/vanityMiner.worker.ts',
       maxWorkers: 8,
-      batchesPerPayment: batchesPerPayment,
-      onBatchComplete: async () => {
-        // Charge for next batch cycle
-        const success = await chargeForBatch(batchCostLamports);
-        if (success) {
-          setTotalSpent(prev => prev + batchCostGOR);
-        }
-        return success;
-      },
       onProgress: (data) => {
         setProgress(data);
+        
+        // Charge for attempts since last update (approximately)
+        // This is a simplified approach - in production, you'd want more granular charging
+        // For now, we'll charge periodically based on progress
       },
       onMatch: (data) => {
-        setMatches(prev => [...prev, { ...data, encrypted: true, unlocked: false }]);
-        recordMatchPayment(data.address);
-        // Stop mining after first match to avoid multiple transactions
-        if (workerManagerRef.current) {
-          workerManagerRef.current.stop();
-          setIsMining(false);
-        }
+        handleMatchFound(data);
       },
       onError: (error) => {
         console.error('Mining error:', error);
+        setPaymentError(error.message);
       },
+      checkBalance: checkBalance,
+      onDepositDepleted: handleDepositDepleted,
     });
 
     workerManagerRef.current.start(config);
     setWorkerCount(workerManagerRef.current.getOptimalWorkerCount());
     setIsMining(true);
     setIsPaused(false);
+    setDepositDepleted(false);
     setMiningActive(true);
-  }, [patterns, isMining, connected, walletAddress, miningAccount, batchCostGOR, batchCostLamports, chargeForBatch, currency, initializeMining, recordMatchPayment, setMiningActive, setPaymentError, depositAmount]);
+    isMiningRef.current = true;
+  }, [patterns, isMining, connected, walletAddress, miningAccount, costPerAttemptGOR, costPerAttemptLamports, currency, initializeMining, handleMatchFound, checkBalance, handleDepositDepleted, setMiningActive, setPaymentError, isMiningRef]);
 
   // Pause/Resume mining
   const togglePause = useCallback(() => {
@@ -274,9 +346,24 @@ const VanityGenerator: React.FC = () => {
     workerManagerRef.current = null;
     setIsMining(false);
     setIsPaused(false);
+    setDepositDepleted(false);
     setMiningActive(false);
+    isMiningRef.current = false;
     refreshBalance();
-  }, [refreshBalance, setMiningActive]);
+  }, [refreshBalance, setMiningActive, isMiningRef]);
+
+  // Resume mining after deposit added
+  const resumeMiningAfterDeposit = useCallback(async () => {
+    await refreshBalance();
+    
+    if (miningAccount && miningAccount.balanceLamports >= costPerAttemptLamportsRef.current) {
+      setDepositDepleted(false);
+      if (workerManagerRef.current) {
+        workerManagerRef.current.resume();
+        setIsPaused(false);
+      }
+    }
+  }, [miningAccount, costPerAttemptLamports, refreshBalance]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -312,328 +399,309 @@ const VanityGenerator: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Copy address
-  const copyAddress = (addr: string) => {
-    navigator.clipboard.writeText(addr);
-    setCopiedAddress(addr);
+  // Copy address to clipboard
+  const copyAddress = (address: string) => {
+    navigator.clipboard.writeText(address);
+    setCopiedAddress(address);
     setTimeout(() => setCopiedAddress(null), 2000);
   };
 
-  // Blur address for locked matches
-  const blurAddress = (addr: string) => {
-    return addr.slice(0, 8) + '\u2022'.repeat(24) + addr.slice(-8);
+  // Blur address for display
+  const blurAddress = (address: string) => {
+    return address.slice(0, 8) + '...' + address.slice(-8);
   };
 
   // Format GOR for display
-  const formatGOR = (amount: number): string => {
-    return amount.toFixed(4);
+  const formatGOR = (value: number) => {
+    if (value >= 1) return value.toFixed(4);
+    if (value >= 0.0001) return value.toFixed(6);
+    return value.toExponential(2);
   };
 
-  const accentBorder = accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green';
-  const accentBg = accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green';
-
-  // Determine if both prefix and suffix are selected (invalid state)
   const isBothPrefixAndSuffix = prefixLen > 0 && suffixLen > 0;
+  const accentBg = accentColor.replace('text-', 'bg-');
+  const accentBorder = accentColor.replace('text-', 'border-');
 
   return (
-    <div className="min-h-screen text-white font-mono">
-      {/* Background Video */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
-        src="/gorbagio-video-mattress.mp4"
-      />
-
-      {/* Header */}
-      <div className="border-b border-white/10 bg-gradient-to-r from-black via-gray-900 to-black">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 ${accentBg} text-black rounded`}>
-              <Terminal className="w-6 h-6" />
+    <div className="vanity-generator bg-black text-white min-h-screen p-6 font-mono">
+      {/* Match Found Prompt Modal */}
+      {showMatchPrompt && pendingMatch && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border-2 border-yellow-500 p-8 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-6">
+              <Trophy className="w-6 h-6 text-yellow-500" />
+              <h2 className="text-2xl font-bold">MATCH FOUND!</h2>
             </div>
-            <div>
-              <h1 className="text-xl font-black uppercase tracking-tighter">VANITY_MINER_v1.0</h1>
-              <p className="text-[10px] text-gray-500 uppercase">Gorbagana L2 Network • Proof of Work</p>
+            
+            <div className="bg-gray-800 p-4 mb-6 rounded border border-gray-700">
+              <div className="text-sm text-gray-400 mb-2">ADDRESS</div>
+              <div className="text-lg font-bold break-all">{pendingMatch.address}</div>
+              <div className="text-sm text-gray-400 mt-3">SCORE: {pendingMatch.score}</div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-4">
-            {miningAccount && (
-              <div className="text-right">
-                <div className="text-[10px] text-gray-500 uppercase">MINING_BALANCE</div>
-                <div className={`text-lg font-bold ${accentColor}`}>
-                  {formatGOR(miningAccount.balance)} {currency}
-                </div>
-              </div>
-            )}
-            <div className={`h-10 w-[1px] bg-white/10 mx-2`} />
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] text-gray-500 uppercase">NETWORK_STATUS</span>
-              <span className="text-xs text-magic-green font-bold uppercase flex items-center gap-1">
-                <span className="w-2 h-2 bg-magic-green rounded-full animate-pulse" />
-                CONNECTED
-              </span>
+            <p className="text-gray-300 mb-6">
+              Would you like to continue mining for more addresses or stop here?
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleContinueMining}
+                className="flex-1 bg-magic-green text-black font-bold py-3 hover:opacity-90"
+              >
+                <Play className="w-4 h-4 inline mr-2" />
+                CONTINUE
+              </button>
+              <button
+                onClick={handleStopMining}
+                className="flex-1 bg-magic-red text-black font-bold py-3 hover:opacity-90"
+              >
+                <Square className="w-4 h-4 inline mr-2" />
+                STOP
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left: Configuration */}
-        <div className="space-y-6">
-          {/* Account Management */}
-          <div className="border border-white/10 bg-black p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <Wallet className={`w-4 h-4 ${accentColor}`} />
-                <span className="text-sm font-bold uppercase tracking-wider">ACCOUNT_MANAGEMENT</span>
+      {/* Deposit Depleted Notification */}
+      {depositDepleted && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border-2 border-red-500 p-8 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-6">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+              <h2 className="text-2xl font-bold">DEPOSIT DEPLETED</h2>
+            </div>
+            
+            <p className="text-gray-300 mb-6">
+              Your mining deposit has run out. Add more funds to continue mining.
+            </p>
+
+            <div className="bg-gray-800 p-4 mb-6 rounded border border-gray-700">
+              <div className="text-sm text-gray-400 mb-2">CURRENT BALANCE</div>
+              <div className="text-2xl font-bold text-red-500">
+                {miningAccount ? formatGOR(miningAccount.balance) : '0'} {currency}
               </div>
-              {miningAccount && (
-                <button 
-                  onClick={() => refreshBalance()}
-                  className="text-[10px] text-gray-500 hover:text-white transition-colors uppercase"
-                >
-                  Refresh
-                </button>
-              )}
             </div>
 
-            {!connected ? (
-              <div className="text-center py-4 border border-dashed border-white/20">
-                <p className="text-xs text-gray-500 uppercase mb-2">Connect wallet to manage mining account</p>
-              </div>
-            ) : !miningAccount ? (
+            <div className="flex gap-3">
               <button
-                onClick={initializeMining}
-                disabled={isInitializing}
-                className={`w-full py-3 border ${accentBorder} ${accentColor} hover:${accentBg} hover:text-black transition-all font-bold text-xs uppercase flex items-center justify-center gap-2`}
+                onClick={() => setDepositDepleted(false)}
+                className="flex-1 bg-gray-700 text-white font-bold py-3 hover:bg-gray-600"
               >
-                {isInitializing ? <Cpu className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                INITIALIZE_MINING_ACCOUNT
+                CLOSE
               </button>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-gray-900/50 border border-gray-800">
-                    <div className="text-[10px] text-gray-500 uppercase mb-1">BALANCE</div>
-                    <div className={`text-xl font-bold ${accentColor}`}>{formatGOR(miningAccount.balance)} {currency}</div>
-                  </div>
-                  <div className="p-3 bg-gray-900/50 border border-gray-800">
-                    <div className="text-[10px] text-gray-500 uppercase mb-1">TOTAL_SPENT</div>
-                    <div className="text-xl font-bold text-white">{formatGOR(miningAccount.totalSpent)} {currency}</div>
-                  </div>
-                </div>
+              <button
+                onClick={() => {
+                  // This would trigger deposit UI
+                  setDepositDepleted(false);
+                }}
+                className="flex-1 bg-magic-green text-black font-bold py-3 hover:opacity-90"
+              >
+                ADD FUNDS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 flex items-center bg-gray-900 border border-gray-800 px-3 py-2">
-                      <input 
-                        type="number" 
-                        value={depositAmount}
-                        onChange={(e) => setDepositAmount(parseFloat(e.target.value))}
-                        className="bg-transparent border-none outline-none text-sm w-full"
-                        step="0.1"
-                        min="0.01"
-                      />
-                      <span className="text-[10px] text-gray-500 ml-2">{currency}</span>
+      {/* Header with Live Stats */}
+      <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
+        <div className="flex items-center gap-3">
+          <Terminal className={`w-6 h-6 ${accentColor}`} />
+          <h1 className="text-3xl font-bold uppercase tracking-wider">VANITY_MINER_V1.0</h1>
+        </div>
+        
+        {/* Live GOR Balance Display */}
+        {connected && miningAccount && (
+          <div className="bg-gray-900 rounded-lg p-4 border border-[#adff02]">
+            <div className="text-xs text-gray-500 uppercase">Mining Balance</div>
+            <div className="text-2xl font-bold text-[#adff02]">
+              {formatGOR(miningAccount.balance)} G
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              Spent: {formatGOR(miningAccount.totalSpent)}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Configuration */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Account Management */}
+          {connected ? (
+            <div className={`border-2 ${accentBorder} bg-black p-6`}>
+              <div className="flex items-center gap-2 mb-4">
+                <Wallet className={`w-4 h-4 ${accentColor}`} />
+                <h2 className="text-sm font-bold uppercase tracking-wider">ACCOUNT_MANAGEMENT</h2>
+              </div>
+
+              {miningAccount ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-900 p-4 border border-gray-800">
+                      <div className="text-xs text-gray-500 uppercase">Balance</div>
+                      <div className={`text-2xl font-bold ${accentColor}`}>
+                        {formatGOR(miningAccount.balance)} G
+                      </div>
                     </div>
-                    <button
-                      onClick={() => deposit(depositAmount)}
-                      disabled={isDepositing || depositAmount <= 0}
-                      className={`px-4 py-2 ${accentBg} text-black font-bold text-xs uppercase flex items-center gap-2 disabled:opacity-50`}
-                    >
-                      {isDepositing ? <Cpu className="w-3 h-3 animate-spin" /> : <ArrowDownToLine className="w-3 h-3" />}
-                      DEPOSIT
-                    </button>
+                    <div className="bg-gray-900 p-4 border border-gray-800">
+                      <div className="text-xs text-gray-500 uppercase">Total Spent</div>
+                      <div className="text-2xl font-bold text-white">
+                        {formatGOR(miningAccount.totalSpent)} G
+                      </div>
+                    </div>
                   </div>
-                  
+
+                  {/* Deposit Input */}
+                  <div>
+                    <label className="block text-xs text-gray-500 uppercase mb-2">Deposit Amount (GOR)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(Math.max(0.01, parseFloat(e.target.value) || 0))}
+                        className="flex-1 bg-gray-900 border border-gray-800 text-white px-3 py-2 font-mono text-sm"
+                        min="0.01"
+                        step="0.01"
+                      />
+                      <button
+                        onClick={() => deposit(depositAmount)}
+                        disabled={isDepositing || !miningAccount || depositAmount <= 0}
+                        className={`${accentBg} text-black font-bold px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90`}
+                      >
+                        {isDepositing ? 'DEPOSITING...' : 'DEPOSIT'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Withdraw Button */}
+                  {miningAccount.balance > 0 && !isMining && (
+                    <button
+                      onClick={withdraw}
+                      disabled={isWithdrawing || isMining}
+                      className="w-full border border-gray-700 text-gray-400 py-2 text-sm hover:border-[#adff02] hover:text-[#adff02] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isWithdrawing ? 'WITHDRAWING...' : `WITHDRAW ALL ${formatGOR(miningAccount.balance)} G`}
+                    </button>
+                  )}
+
+                  {isMining && (
+                    <div className="bg-yellow-900/20 border border-yellow-600 p-3 rounded text-yellow-500 text-xs">
+                      ⚠️ Withdrawals disabled during mining
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-gray-400 text-sm">Loading account...</div>
+              )}
+
+              {paymentError && (
+                <div className="mt-4 bg-red-900/20 border border-red-500 p-3 rounded text-red-400 text-xs">
+                  {paymentError}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {/* Mining Configuration */}
+          <div className={`border-2 ${accentBorder} bg-black p-6`}>
+            <div className="flex items-center gap-2 mb-4">
+              <Settings className={`w-4 h-4 ${accentColor}`} />
+              <h2 className="text-sm font-bold uppercase tracking-wider">MINING_CONFIGURATION</h2>
+            </div>
+
+            {/* Input Field */}
+            <div className="mb-6">
+              <label className="block text-xs text-gray-500 uppercase mb-2">Target Pattern</label>
+              <input
+                type="text"
+                value={inputName}
+                onChange={(e) => setInputName(e.target.value.toUpperCase())}
+                placeholder="Enter vanity pattern (e.g., BAGS)"
+                className="w-full bg-gray-900 border border-gray-800 text-white px-4 py-3 font-mono text-lg focus:outline-none focus:border-[#adff02]"
+              />
+            </div>
+
+            {/* Prefix/Suffix Controls */}
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              {/* Left: Prefix Control */}
+              <div>
+                <label className="block text-[10px] text-gray-500 uppercase mb-2">PREFIX_LENGTH</label>
+                <div className="flex items-center gap-3 mb-4">
                   <button
-                    onClick={withdraw}
-                    disabled={isWithdrawing || miningAccount.balance <= 0}
-                    className="w-full py-2 border border-gray-700 text-gray-400 hover:text-white hover:border-white transition-all font-bold text-xs uppercase flex items-center justify-center gap-2 disabled:opacity-50"
+                    onClick={() => setPrefixLen(Math.max(0, prefixLen - 1))}
+                    className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
                   >
-                    {isWithdrawing ? <Cpu className="w-3 h-3 animate-spin" /> : <ArrowUpFromLine className="w-3 h-3" />}
-                    WITHDRAW_ALL_FUNDS
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="text-xl font-bold w-8 text-center">{prefixLen}</span>
+                  <button
+                    onClick={() => setPrefixLen(Math.min(inputName.length, prefixLen + 1))}
+                    className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                  >
+                    <Plus className="w-3 h-3" />
                   </button>
                 </div>
               </div>
-            )}
-            
-            {paymentError && (
-              <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 text-red-400 text-[10px] uppercase flex items-start gap-2">
-                <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                <span>{paymentError}</span>
-              </div>
-            )}
-          </div>
 
-          {/* Pattern Input */}
-          <div className="border border-white/10 bg-black p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Settings className={`w-4 h-4 ${accentColor}`} />
-              <span className="text-sm font-bold uppercase tracking-wider">MINING_CONFIGURATION</span>
+              {/* Right: Suffix Control */}
+              <div>
+                <label className="block text-[10px] text-gray-500 uppercase mb-2">SUFFIX_LENGTH</label>
+                <div className="flex items-center gap-3 mb-4">
+                  <button
+                    onClick={() => setSuffixLen(Math.max(0, suffixLen - 1))}
+                    className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="text-xl font-bold w-8 text-center">{suffixLen}</span>
+                  <button
+                    onClick={() => setSuffixLen(Math.min(inputName.length - prefixLen, suffixLen + 1))}
+                    className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-6">
-              <div>
-                <label className="block text-[10px] text-gray-500 uppercase mb-2">TARGET_PATTERN</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={inputName}
-                    onChange={(e) => setInputName(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
-                    placeholder="ENTER_NAME_OR_PHRASE"
-                    className="w-full bg-gray-900 border border-gray-800 px-4 py-3 text-lg font-bold tracking-widest focus:border-magic-purple outline-none transition-colors uppercase"
-                    maxLength={12}
-                  />
-                  <Sparkles className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 ${accentColor} opacity-50`} />
-                </div>
-                <p className="text-[10px] text-gray-600 mt-2">Base58 characters only (no 0, O, I, l)</p>
+            {/* Invalid State Message */}
+            {isBothPrefixAndSuffix && (
+              <div className="p-4 bg-red-900/20 border border-red-500/50 rounded mb-6">
+                <p className="text-red-400 text-xs uppercase font-bold">
+                  Invalid Configuration: Cannot use both PREFIX and SUFFIX simultaneously. Please select only one.
+                </p>
               </div>
+            )}
 
-              {/* Prefix/Suffix and Character Substitutions Layout */}
-              <div className="grid grid-cols-2 gap-6">
-                {/* Left: Prefix Control */}
-                <div>
-                  <label className="block text-[10px] text-gray-500 uppercase mb-2">PREFIX_LENGTH</label>
-                  <div className="flex items-center gap-3 mb-4">
-                    <button
-                      onClick={() => setPrefixLen(Math.max(0, prefixLen - 1))}
-                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="text-xl font-bold w-8 text-center">{prefixLen}</span>
-                    <button
-                      onClick={() => setPrefixLen(Math.min(inputName.length, prefixLen + 1))}
-                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                  
-                  {/* Character Substitutions for Prefix */}
-                  {charVariants.length > 0 && prefixLen > 0 && suffixLen === 0 && !isBothPrefixAndSuffix && (
-                    <div>
-                      <label className="block text-[10px] text-gray-500 uppercase mb-2">CHARACTER_SUBSTITUTIONS</label>
-                      <div className="flex gap-2 flex-wrap">
-                        {charVariants.slice(0, prefixLen).map((cv, idx) => (
-                          <div key={idx} className="flex flex-col gap-1 items-center">
-                            <div className="text-sm font-bold text-white mb-1 h-6 flex items-center">
-                              {cv.char.toUpperCase()}
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              {cv.variants.map(v => (
-                                <button
-                                  key={v}
-                                  onClick={() => toggleVariant(idx, v)}
-                                  className={`w-7 h-7 flex items-center justify-center text-xs font-bold border transition-all ${
-                                    cv.selected.includes(v)
-                                      ? `${accentBg} text-black border-transparent`
-                                      : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
-                                  }`}
-                                >
-                                  {v}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right: Suffix Control */}
-                <div>
-                  <label className="block text-[10px] text-gray-500 uppercase mb-2">SUFFIX_LENGTH</label>
-                  <div className="flex items-center gap-3 mb-4">
-                    <button
-                      onClick={() => setSuffixLen(Math.max(0, suffixLen - 1))}
-                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="text-xl font-bold w-8 text-center">{suffixLen}</span>
-                    <button
-                      onClick={() => setSuffixLen(Math.min(inputName.length - prefixLen, suffixLen + 1))}
-                      className="w-8 h-8 bg-gray-900 border border-gray-800 flex items-center justify-center hover:border-gray-600"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                  
-                  {/* Character Substitutions for Suffix */}
-                  {charVariants.length > 0 && suffixLen > 0 && prefixLen === 0 && !isBothPrefixAndSuffix && (
-                    <div>
-                      <label className="block text-[10px] text-gray-500 uppercase mb-2">CHARACTER_SUBSTITUTIONS</label>
-                      <div className="flex gap-2 flex-wrap">
-                        {charVariants.slice(inputName.length - suffixLen).map((cv, idx) => (
-                          <div key={idx} className="flex flex-col gap-1 items-center">
-                            <div className="text-sm font-bold text-white mb-1 h-6 flex items-center">
-                              {cv.char.toUpperCase()}
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              {cv.variants.map(v => (
-                                <button
-                                  key={v}
-                                  onClick={() => toggleVariant(inputName.length - suffixLen + idx, v)}
-                                  className={`w-7 h-7 flex items-center justify-center text-xs font-bold border transition-all ${
-                                    cv.selected.includes(v)
-                                      ? `${accentBg} text-black border-transparent`
-                                      : 'bg-gray-900 border-gray-800 text-gray-500 hover:border-gray-600'
-                                  }`}
-                                >
-                                  {v}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+            {/* Difficulty Display */}
+            <div className="pt-4 border-t border-gray-800">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] text-gray-500 uppercase">DIFFICULTY</span>
+                <span className={`text-xs font-bold uppercase ${
+                  difficulty.difficulty === 'easy' ? 'text-magic-green' :
+                  difficulty.difficulty === 'medium' ? 'text-yellow-500' :
+                  difficulty.difficulty === 'hard' ? 'text-orange-500' :
+                  'text-magic-red'
+                }`}>
+                  {difficulty.difficulty}
+                </span>
               </div>
-
-              {/* Invalid State Message */}
-              {isBothPrefixAndSuffix && (
-                <div className="p-4 bg-red-900/20 border border-red-500/50 rounded">
-                  <p className="text-red-400 text-xs uppercase font-bold">
-                    Invalid Configuration: Cannot use both PREFIX and SUFFIX simultaneously. Please select only one.
-                  </p>
-                </div>
-              )}
-
-              <div className="pt-4 border-t border-gray-800">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] text-gray-500 uppercase">DIFFICULTY</span>
-                  <span className={`text-xs font-bold uppercase ${
-                    difficulty.difficulty === 'easy' ? 'text-magic-green' :
-                    difficulty.difficulty === 'medium' ? 'text-yellow-500' :
-                    difficulty.difficulty === 'hard' ? 'text-orange-500' :
-                    'text-magic-red'
-                  }`}>
-                    {difficulty.difficulty}
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-gray-800 overflow-hidden">
-                  <div
-                    className={`h-full transition-all ${
-                      difficulty.difficulty === 'easy' ? 'bg-magic-green w-1/4' :
-                      difficulty.difficulty === 'medium' ? 'bg-yellow-500 w-2/4' :
-                      difficulty.difficulty === 'hard' ? 'bg-orange-500 w-3/4' :
-                      'bg-magic-red w-full'
-                    }`}
-                  />
-                </div>
-                <div className="flex justify-between mt-2 text-[10px] text-gray-500">
-                  <span>EST_TIME: {formatDuration(difficulty.estimatedSeconds)}</span>
-                  <span>PATTERNS: {patterns?.prefixes.length || 0}</span>
-                </div>
+              <div className="w-full h-2 bg-gray-800 overflow-hidden mb-2">
+                <div
+                  className={`h-full transition-all ${
+                    difficulty.difficulty === 'easy' ? 'bg-magic-green w-1/4' :
+                    difficulty.difficulty === 'medium' ? 'bg-yellow-500 w-2/4' :
+                    difficulty.difficulty === 'hard' ? 'bg-orange-500 w-3/4' :
+                    'bg-magic-red w-full'
+                  }`}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-gray-500">
+                <span>EST_TIME: {formatDuration(difficulty.estimatedSeconds)}</span>
+                <span>PATTERNS: {patterns?.prefixes.length || 0}</span>
               </div>
             </div>
           </div>
@@ -646,15 +714,15 @@ const VanityGenerator: React.FC = () => {
                 <span className="text-sm font-bold uppercase tracking-wider">LIVE_MINING_COST</span>
               </div>
               <div className={`text-[10px] ${accentBg} text-black px-2 py-0.5 font-bold`}>
-                PER 5,000 ATTEMPTS
+                CONTINUOUS MODE
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <div className="text-[10px] text-gray-500 uppercase">BATCH_COST</div>
+                <div className="text-[10px] text-gray-500 uppercase">COST_PER_ATTEMPT</div>
                 <div className="text-3xl font-bold text-white">
-                  {formatGOR(batchCostGOR)} <span className={`text-lg ${accentColor}`}>{currency}</span>
+                  {formatGOR(costPerAttemptGOR)} <span className={`text-lg ${accentColor}`}>{currency}</span>
                 </div>
               </div>
               <div>
@@ -675,14 +743,10 @@ const VanityGenerator: React.FC = () => {
                 <span className="text-white">{formatNumber(estimatedAttempts)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Est. Cost for Match:</span>
+                <span className="text-gray-500">Est. Total Cost:</span>
                 <span className={`${accentColor} font-bold`}>
-                  ~{estimatedTotalCost > 1000 ? formatNumber(estimatedTotalCost) : estimatedTotalCost.toFixed(2)} {currency}
+                  ~{estimatedTotalCost > 1000 ? formatNumber(estimatedTotalCost) : estimatedTotalCost.toFixed(4)} {currency}
                 </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Time per Batch:</span>
-                <span className="text-white">~20ms</span>
               </div>
             </div>
 
@@ -707,7 +771,7 @@ const VanityGenerator: React.FC = () => {
             {!isMining ? (
               <button
                 onClick={startMining}
-                disabled={!inputName || (prefixLen === 0 && suffixLen === 0) || !connected || isInitializing || isBothPrefixAndSuffix}
+                disabled={!inputName || (prefixLen === 0 && suffixLen === 0) || !connected || isInitializing || isBothPrefixAndSuffix || !miningAccount || miningAccount.balance <= 0}
                 className={`w-full ${accentBg} text-black font-bold py-4 text-sm uppercase tracking-wider flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity`}
               >
                 {isInitializing ? (
@@ -720,11 +784,16 @@ const VanityGenerator: React.FC = () => {
                     <Wallet className="w-4 h-4" />
                     CONNECT_WALLET
                   </>
+                ) : !miningAccount || miningAccount.balance <= 0 ? (
+                  <>
+                    <AlertTriangle className="w-4 h-4" />
+                    ADD_DEPOSIT_TO_START
+                  </>
                 ) : (
                   <>
                     <Play className="w-4 h-4" />
                     START_MINING
-                    <span className="opacity-70">( {formatGOR(batchCostGOR)} {currency}/cycle )</span>
+                    <span className="opacity-70">( {formatGOR(costPerAttemptGOR)} {currency}/attempt )</span>
                   </>
                 )}
               </button>

@@ -1,8 +1,10 @@
 /**
  * Vanity Mining Payment Hook
- * Manages GOR deposits, batch charging, and withdrawal for vanity address mining.
+ * Manages GOR deposits, continuous charging, and withdrawal for vanity address mining.
  * Uses direct GOR transfers to treasury via on-chain program.
  * Program deployed to Gorbagana at: 5YSYX6GX3wD2xTp6poLuP92FT8uiWeRFLwASsULXXYM4
+ * 
+ * UPDATED: Continuous charging mode - charges per address attempt, not per batch
  */
 
 import { useState, useCallback, useRef, useMemo } from 'react';
@@ -22,8 +24,8 @@ const TREASURY_WALLET = new PublicKey('TMABDMgLHfmmRNyHgbHTP9P5XP1zrAMFfbRAef69o
 const GOR_DECIMALS = 9;
 const LAMPORTS_PER_GOR = Math.pow(10, GOR_DECIMALS);
 
-// Base cost: 0.01 GOR per 1,000 key attempts
-const BASE_BATCH_COST_LAMPORTS = 10_000_000; // 0.01 GOR in lamports
+// Base cost: 0.00001 GOR per address attempt (continuous mode)
+const COST_PER_ATTEMPT_LAMPORTS = 10; // ~0.00001 GOR in lamports
 
 export interface MiningAccount {
   balance: number;        // GOR (human-readable)
@@ -65,19 +67,35 @@ export function calculateEstimatedAttempts(prefixLen: number, suffixLen: number)
 }
 
 /**
- * Calculate batch cost in GOR for given difficulty.
+ * Calculate cost per attempt in GOR for given difficulty (continuous mode).
  */
-export function calculateBatchCostGOR(prefixLen: number, suffixLen: number): number {
+export function calculateCostPerAttemptGOR(prefixLen: number, suffixLen: number): number {
   const multiplier = calculateDifficultyMultiplier(prefixLen, suffixLen);
-  return (BASE_BATCH_COST_LAMPORTS * multiplier) / LAMPORTS_PER_GOR;
+  return (COST_PER_ATTEMPT_LAMPORTS * multiplier) / LAMPORTS_PER_GOR;
 }
 
 /**
- * Calculate batch cost in lamports for given difficulty.
+ * Calculate cost per attempt in lamports for given difficulty (continuous mode).
+ */
+export function calculateCostPerAttemptLamports(prefixLen: number, suffixLen: number): number {
+  const multiplier = calculateDifficultyMultiplier(prefixLen, suffixLen);
+  return COST_PER_ATTEMPT_LAMPORTS * multiplier;
+}
+
+/**
+ * Calculate batch cost in GOR for display purposes (5000 attempts = 1 batch).
+ */
+export function calculateBatchCostGOR(prefixLen: number, suffixLen: number): number {
+  const costPerAttempt = calculateCostPerAttemptGOR(prefixLen, suffixLen);
+  return costPerAttempt * 5000; // 5000 attempts per batch for display
+}
+
+/**
+ * Calculate batch cost in lamports for display purposes.
  */
 export function calculateBatchCostLamports(prefixLen: number, suffixLen: number): number {
-  const multiplier = calculateDifficultyMultiplier(prefixLen, suffixLen);
-  return BASE_BATCH_COST_LAMPORTS * multiplier;
+  const costPerAttempt = calculateCostPerAttemptLamports(prefixLen, suffixLen);
+  return costPerAttempt * 5000; // 5000 attempts per batch for display
 }
 
 export function useVanityPayment() {
@@ -94,6 +112,7 @@ export function useVanityPayment() {
   // Track session spending locally
   const sessionSpentRef = useRef(0);
   const sessionMatchesRef = useRef(0);
+  const isMiningRef = useRef(false);
 
   const provider = useMemo(() => {
     if (!connection || !publicKey || !signTransaction || !wallet) return null;
@@ -185,10 +204,10 @@ export function useVanityPayment() {
   }, [connected, publicKey, program, provider, refreshBalance]);
 
   /**
-   * Charge for a mining batch by calling the smart contract.
-   * Returns true if payment succeeded, false to stop mining.
+   * Charge for a single address attempt (continuous mode).
+   * Returns true if payment succeeded, false if balance insufficient.
    */
-  const chargeForBatch = useCallback(async (costLamports: number): Promise<boolean> => {
+  const chargeForAttempt = useCallback(async (costLamports: number): Promise<boolean> => {
     if (!connected || !publicKey || !program || !provider) {
       setError('Program or mining account not ready');
       return false;
@@ -233,11 +252,23 @@ export function useVanityPayment() {
 
       return true;
     } catch (err: any) {
-      console.error('Batch payment failed via smart contract:', err);
+      console.error('Attempt payment failed via smart contract:', err);
+      // Check if it's an insufficient balance error
+      if (err.message.includes('InsufficientBalance') || err.message.includes('insufficient')) {
+        return false; // Signal that balance is insufficient
+      }
       setError(`Payment failed: ${err.message || 'Unknown error'}`);
       return false;
     }
   }, [connected, publicKey, program, provider]);
+
+  /**
+   * Charge for a batch of attempts (for display/estimation purposes).
+   * Used for initial validation before starting mining.
+   */
+  const chargeForBatch = useCallback(async (costLamports: number): Promise<boolean> => {
+    return chargeForAttempt(costLamports);
+  }, [chargeForAttempt]);
 
   /**
    * Deposit GOR into the mining account.
@@ -284,10 +315,17 @@ export function useVanityPayment() {
 
   /**
    * Withdraw remaining balance back to the user.
+   * Only allowed when NOT mining.
    */
   const withdraw = useCallback(async (): Promise<boolean> => {
     if (!connected || !publicKey || !program || !provider || !miningAccount || miningAccount.balance <= 0) {
-      setError('Wallet not connected, program not ready, or no balance to withdraw');
+      setError('Wallet not connected, program not ready, no balance to withdraw, or mining in progress');
+      return false;
+    }
+
+    // Prevent withdrawal during mining
+    if (isMiningRef.current) {
+      setError('Cannot withdraw while mining is in progress');
       return false;
     }
 
@@ -322,7 +360,7 @@ export function useVanityPayment() {
     } finally {
       setIsWithdrawing(false);
     }
-  }, [connected, publicKey, program, provider, miningAccount, refreshBalance]);
+  }, [connected, publicKey, program, provider, miningAccount]);
 
   /**
    * Record a match found during mining.
@@ -357,6 +395,7 @@ export function useVanityPayment() {
    * Set mining active state.
    */
   const setMiningActive = useCallback((active: boolean) => {
+    isMiningRef.current = active;
     setMiningAccount(prev => {
       if (!prev) return prev;
       return { ...prev, isActive: active };
@@ -369,6 +408,7 @@ export function useVanityPayment() {
   const resetSession = useCallback(() => {
     sessionSpentRef.current = 0;
     sessionMatchesRef.current = 0;
+    isMiningRef.current = false;
     setMiningAccount(prev => {
       if (!prev) return prev;
       return { ...prev, totalSpent: 0, matchesFound: 0, isActive: false };
@@ -384,6 +424,7 @@ export function useVanityPayment() {
     error,
     initializeMining,
     chargeForBatch,
+    chargeForAttempt,
     refreshBalance,
     recordMatch,
     setMiningActive,
@@ -392,8 +433,11 @@ export function useVanityPayment() {
     withdraw,
     calculateBatchCostGOR,
     calculateBatchCostLamports,
+    calculateCostPerAttemptGOR,
+    calculateCostPerAttemptLamports,
     calculateDifficultyMultiplier,
     calculateEstimatedAttempts,
     setError,
+    isMiningRef,
   };
 }

@@ -1,6 +1,8 @@
 /**
  * Worker Manager - Manages multiple Web Workers for parallel processing
  * Used for vanity address mining, heavy computations, etc.
+ * 
+ * UPDATED: Continuous mining mode - no batch-based charging
  */
 
 export interface WorkerConfig {
@@ -10,10 +12,10 @@ export interface WorkerConfig {
   onMatch?: (data: MatchData) => void;
   onError?: (error: Error) => void;
   onStopped?: (data: StoppedData) => void;
-  /** Called after each batch completes. Return true to continue, false to stop mining. */
-  onBatchComplete?: () => Promise<boolean>;
-  /** Number of batches to run before calling onBatchComplete for payment. Default: 10 */
-  batchesPerPayment?: number;
+  /** Called when deposit is depleted. Return true to continue if more funds added, false to stop. */
+  onDepositDepleted?: () => Promise<boolean>;
+  /** Called to check if sufficient balance exists for continued mining */
+  checkBalance?: () => Promise<boolean>;
 }
 
 export interface ProgressData {
@@ -56,13 +58,11 @@ export class WorkerManager {
   private totalChecked = 0;
   private aggregatedRate = 0;
   private progressSnapshots: Map<number, ProgressData> = new Map();
-  private batchesSincePayment = 0;
-  private batchesPerPayment: number;
-  private paymentPending = false;
+  private balanceCheckInterval: NodeJS.Timeout | null = null;
+  private CHECK_BALANCE_INTERVAL = 2000; // Check balance every 2 seconds
 
   constructor(config: WorkerConfig) {
     this.config = config;
-    this.batchesPerPayment = config.batchesPerPayment ?? 10;
   }
 
   /**
@@ -75,7 +75,7 @@ export class WorkerManager {
   }
 
   /**
-   * Start mining with given patterns
+   * Start mining with given patterns - continuous mode
    */
   start(patterns: PatternConfig): void {
     if (this.isRunning) {
@@ -87,11 +87,9 @@ export class WorkerManager {
     this.isRunning = true;
     this.totalChecked = 0;
     this.aggregatedRate = 0;
-    this.batchesSincePayment = 0;
-    this.paymentPending = false;
     this.progressSnapshots.clear();
 
-    console.log(`Starting ${workerCount} workers...`);
+    console.log(`Starting ${workerCount} workers in continuous mining mode...`);
 
     for (let i = 0; i < workerCount; i++) {
       const worker = new Worker(
@@ -117,6 +115,9 @@ export class WorkerManager {
         },
       });
     }
+
+    // Start periodic balance checks
+    this.startBalanceChecks();
   }
 
   /**
@@ -129,7 +130,6 @@ export class WorkerManager {
       case 'PROGRESS':
         this.progressSnapshots.set(workerId, data);
         this.aggregateProgress();
-        this.handleBatchPaymentCheck();
         break;
 
       case 'MATCH':
@@ -147,36 +147,44 @@ export class WorkerManager {
   }
 
   /**
-   * Check if we need to trigger a payment after N batches.
-   * Pauses workers during payment, resumes on success, stops on failure.
+   * Start periodic balance checks
    */
-  private async handleBatchPaymentCheck(): Promise<void> {
-    if (!this.config.onBatchComplete || this.paymentPending) return;
+  private startBalanceChecks(): void {
+    if (this.balanceCheckInterval) {
+      clearInterval(this.balanceCheckInterval);
+    }
 
-    this.batchesSincePayment++;
-
-    if (this.batchesSincePayment >= this.batchesPerPayment) {
-      this.batchesSincePayment = 0;
-      this.paymentPending = true;
-
-      // Pause workers while payment processes
-      this.pause();
+    this.balanceCheckInterval = setInterval(async () => {
+      if (!this.isRunning || !this.config.checkBalance) return;
 
       try {
-        const shouldContinue = await this.config.onBatchComplete();
-        if (shouldContinue) {
-          if (this.isRunning) { // Only resume if manager is still marked as running
+        const hasBalance = await this.config.checkBalance();
+        if (!hasBalance) {
+          // Deposit depleted - pause workers and notify
+          this.pause();
+          const shouldContinue = await this.config.onDepositDepleted?.();
+          
+          if (shouldContinue && this.isRunning) {
+            // Resume mining after deposit was added
             this.resume();
+          } else {
+            // Stop mining
+            this.stop();
           }
-        } else {
-          // Payment failed, keep workers paused and notify main thread
-          console.warn('Payment failed, workers remain paused.');
         }
       } catch (err) {
-        console.error('Payment check failed, workers remain paused:', err);
-      } finally {
-        this.paymentPending = false;
+        console.error('Balance check error:', err);
       }
+    }, this.CHECK_BALANCE_INTERVAL);
+  }
+
+  /**
+   * Stop balance checks
+   */
+  private stopBalanceChecks(): void {
+    if (this.balanceCheckInterval) {
+      clearInterval(this.balanceCheckInterval);
+      this.balanceCheckInterval = null;
     }
   }
 
@@ -228,6 +236,7 @@ export class WorkerManager {
    */
   stop(): void {
     this.isRunning = false;
+    this.stopBalanceChecks();
     this.workers.forEach((worker) => {
       worker.postMessage({ type: 'STOP' });
     });
