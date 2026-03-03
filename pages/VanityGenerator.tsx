@@ -477,10 +477,13 @@ const VanityGenerator: React.FC = () => {
               {charVariants.length > 0 && (
                 <div>
                   <label className="block text-[10px] text-gray-500 uppercase mb-3">CHARACTER_SUBSTITUTIONS</label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex gap-4 items-end">
                     {charVariants.map((cv, idx) => (
-                      <div key={idx} className="flex flex-col gap-1">
-                        <div className="flex gap-1">
+                      <div key={idx} className="flex flex-col gap-1 items-center">
+                        <div className="text-lg font-bold text-white mb-2 h-8 flex items-center">
+                          {cv.char.toUpperCase()}
+                        </div>
+                        <div className="flex flex-col gap-1">
                           {cv.variants.map(v => (
                             <button
                               key={v}
