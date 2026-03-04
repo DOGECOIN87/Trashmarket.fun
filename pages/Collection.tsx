@@ -185,7 +185,7 @@ const Collection: React.FC = () => {
             muted={isMuted}
             playsInline
             className="w-full h-full object-cover"
-            src="/New-bg-hero-vide9.mp4"
+            src="/Trashmarket-index-background-video.mp4"
           />
         ) : (
           <div className="w-full h-full bg-black" />

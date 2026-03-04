@@ -111,7 +111,7 @@ const Home: React.FC = () => {
             muted={isMuted}
             playsInline
             className="absolute top-0 left-0 w-full h-full object-cover opacity-80"
-            src="/New-bg-hero-vide9.mp4"
+            src="/Trashmarket-index-background-video.mp4"
           />
           {/* Mute Button */}
           <button
