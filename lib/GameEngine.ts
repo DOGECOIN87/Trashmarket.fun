@@ -41,7 +41,7 @@ export class GameEngine {
 
   // Game Variables
   private score = 0;
-  private balance = 100;
+  private balance = 0; // Start with 0 - user must deposit DEBRIS tokens to play
   private netProfit = 0;
   private coinsCollectedRecently = 0;
   private lastCollectionTime = 0;
@@ -421,7 +421,9 @@ export class GameEngine {
   }
 
   private spawnInitialCoins() {
-    const numInitial = 20;
+    // Drop a small amount of FREE coins on initial load
+    // These coins are NOT deducted from balance - they're a free sample
+    const numInitial = 10; // Reduced from 20 to make it a small "free" sample
     for (let i = 0; i < numInitial; i++) {
       const x = (Math.random() - 0.5) * 6;
       const z = (Math.random() - 0.5) * 4;
@@ -535,7 +537,7 @@ export class GameEngine {
 
   public reset() {
     this.score = 0;
-    this.balance = 100;
+    this.balance = 0; // Reset to 0 - user must deposit DEBRIS tokens again
     this.netProfit = 0;
     this.coinBodies.forEach(c => this.world.removeRigidBody(c.body));
     this.coinBodies = [];

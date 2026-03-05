@@ -50,6 +50,7 @@ export const Overlay: React.FC<OverlayProps> = ({
     }, [showWalletMenu]);
 
     const DEPOSIT_AMOUNT = 100; // DEBRIS tokens to deposit per refill
+    const LOW_BALANCE_THRESHOLD = 10; // Show "bump" option when balance is this low
 
     const handleDepositClick = async () => {
         // Prevent multiple clicks during transaction processing
@@ -67,16 +68,26 @@ export const Overlay: React.FC<OverlayProps> = ({
 
         try {
             setTxStatus('signing');
-            const sig = await onDeposit(DEPOSIT_AMOUNT);
-            if (sig) {
+            
+            // If balance is 0, deposit DEBRIS tokens
+            // If balance is low (1-10), trigger bump instead
+            if (gameState.balance <= 0) {
+                const sig = await onDeposit(DEPOSIT_AMOUNT);
+                if (sig) {
+                    setTxStatus('confirmed');
+                    setTimeout(() => { setTxStatus('idle'); }, 1500);
+                } else {
+                    setTxStatus('error');
+                    setTimeout(() => setTxStatus('idle'), 2000);
+                }
+            } else {
+                // Trigger bump when balance is low
+                onBump();
                 setTxStatus('confirmed');
                 setTimeout(() => { setTxStatus('idle'); }, 1500);
-            } else {
-                setTxStatus('error');
-                setTimeout(() => setTxStatus('idle'), 2000);
             }
         } catch (error) {
-            console.error('Deposit failed:', error);
+            console.error('Deposit/Bump failed:', error);
             setTxStatus('error');
             setTimeout(() => setTxStatus('idle'), 2000);
         }
@@ -88,7 +99,7 @@ export const Overlay: React.FC<OverlayProps> = ({
         setTxStatus('idle');
     };
 
-    const showPopup = gameState.balance <= 0 && !gameState.isPaused && !isDismissed;
+    const showPopup = (gameState.balance <= 0 || gameState.balance <= LOW_BALANCE_THRESHOLD) && !gameState.isPaused && !isDismissed;
 
     return (
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between overflow-hidden select-none">
@@ -251,20 +262,22 @@ export const Overlay: React.FC<OverlayProps> = ({
 
                     {/* Controls */}
                     <div className="flex flex-wrap gap-1.5 sm:gap-3 pointer-events-auto">
-                        <button
-                            onClick={() => {
-                                soundManager.initialize();
-                                soundManager.play('ui_open');
-                                setShowHighScores(true);
-                            }}
-                            className="group h-9 sm:h-12 min-w-[72px] sm:min-w-[120px] bg-cyan-950/30 border border-cyan-500/30 hover:bg-cyan-900/50 hover:border-cyan-400 transition-all skew-x-[-15deg] backdrop-blur-sm"
-                        >
-                            <div className="skew-x-[15deg] flex items-center justify-center h-full px-2 sm:px-0">
-                                <span className="font-heading text-[8px] sm:text-[10px] text-cyan-200 font-bold tracking-[0.15em] sm:tracking-[0.2em] group-hover:text-white group-hover:drop-shadow-[0_0_5px_#00FFFF] uppercase">
-                                    Scores
-                                </span>
-                            </div>
-                        </button>
+                        {wallet.isConnected && (
+                            <button
+                                onClick={() => {
+                                    soundManager.initialize();
+                                    soundManager.play('ui_open');
+                                    setShowHighScores(true);
+                                }}
+                                className="group h-9 sm:h-12 min-w-[72px] sm:min-w-[120px] bg-cyan-950/30 border border-cyan-500/30 hover:bg-cyan-900/50 hover:border-cyan-400 transition-all skew-x-[-15deg] backdrop-blur-sm"
+                            >
+                                <div className="skew-x-[15deg] flex items-center justify-center h-full px-2 sm:px-0">
+                                    <span className="font-heading text-[8px] sm:text-[10px] text-cyan-200 font-bold tracking-[0.15em] sm:tracking-[0.2em] group-hover:text-white group-hover:drop-shadow-[0_0_5px_#00FFFF] uppercase">
+                                        Scores
+                                    </span>
+                                </div>
+                            </button>
+                        )}
                         <button
                             onClick={() => {
                                 soundManager.initialize();
@@ -344,11 +357,14 @@ export const Overlay: React.FC<OverlayProps> = ({
                             </div>
 
                             <h2 className="text-2xl sm:text-4xl font-bold text-white font-heading mb-1.5 sm:mb-2 tracking-tighter drop-shadow-[0_0_10px_rgba(0,255,0,0.5)]">
-                                OUT OF DEBRIS
+                                {gameState.balance <= 0 ? 'OUT OF DEBRIS' : 'LOW ON DEBRIS'}
                             </h2>
 
                             <p className="text-green-200/60 text-xs sm:text-sm mb-5 sm:mb-8 font-[Inter] leading-relaxed max-w-[90%] sm:max-w-[80%]">
-                                Resource depletion detected. Production halted. <br />
+                                {gameState.balance <= 0 
+                                    ? 'Resource depletion detected. Production halted.' 
+                                    : 'Running low on DEBRIS tokens. Consider refilling to continue.'}
+                                <br />
                                 <span className="text-green-400 font-bold">
                                     {wallet.isConnected
                                         ? 'Deposit DEBRIS tokens to continue playing.'
@@ -368,12 +384,16 @@ export const Overlay: React.FC<OverlayProps> = ({
                                     {txStatus === 'idle' && (
                                         <>
                                             <span className="font-heading font-bold text-white tracking-[0.15em] sm:tracking-[0.2em] text-base sm:text-xl group-hover:text-white drop-shadow-md">
-                                                {wallet.isConnected ? 'DEPOSIT DEBRIS' : 'CONNECT WALLET'}
+                                                {!wallet.isConnected 
+                                                    ? 'CONNECT WALLET'
+                                                    : gameState.balance <= 0
+                                                    ? 'DEPOSIT DEBRIS'
+                                                    : 'BUMP'}
                                             </span>
                                             {wallet.isConnected && (
                                                 <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
                                                     <span className="text-[9px] sm:text-[10px] text-green-200 font-mono bg-black/40 px-1.5 py-0.5 rounded border border-green-500/30">
-                                                        {DEPOSIT_AMOUNT} DEBRIS
+                                                        {gameState.balance <= 0 ? `${DEPOSIT_AMOUNT} DEBRIS` : '50 DEBRIS'}
                                                     </span>
                                                 </div>
                                             )}
