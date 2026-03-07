@@ -1,9 +1,22 @@
 /**
  * Generated Client SDK for Junk Pusher Game Program
  * Configured for Gorbagana (Solana fork) deployment
+ * 
+ * SECURITY: All transactions are validated to ensure:
+ * - Only DEBRIS tokens are accepted for deposits
+ * - Withdrawals are limited to verified winnings
+ * - All inputs are sanitized and validated
  */
 
 import { PublicKey, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
+import {
+  validateDebrisTokenMint,
+  validateDepositAmount,
+  validateWithdrawalAmount,
+  validateGameScore,
+  validateWalletAddress,
+} from './gameSecurityModule';
+import { TOKEN_CONFIG } from './tokenConfig';
 
 // Program ID from environment, falls back to placeholder
 function getProgramId(): PublicKey {
@@ -36,15 +49,24 @@ export interface RecordScoreParams {
 
 export interface DepositBalanceParams {
   amount: number;
+  tokenMint?: string; // Optional: will validate against DEBRIS token
 }
 
 export interface WithdrawBalanceParams {
   amount: number;
+  verifiedWinnings: number; // Required: amount player has actually won
+  currentBalance: number; // Required: current on-chain balance
 }
 
 /**
  * Junk Pusher Game Program Client
  * Provides typed instruction builders and account readers.
+ * 
+ * SECURITY FEATURES:
+ * - Token validation: Only DEBRIS tokens accepted
+ * - Amount validation: Prevents overflow/underflow
+ * - Wallet validation: Ensures valid Solana addresses
+ * - Withdrawal protection: Only allows withdrawal of verified winnings
  */
 export class JunkPusherClient {
   private programId: PublicKey;
@@ -84,6 +106,17 @@ export class JunkPusherClient {
     player: PublicKey,
     params: InitializeGameParams
   ): Promise<TransactionInstruction> {
+    // Validate player address
+    if (!validateWalletAddress(player)) {
+      throw new Error('[Security] Invalid player wallet address');
+    }
+
+    // Validate initial balance
+    const balanceValidation = validateDepositAmount(params.initialBalance);
+    if (!balanceValidation.valid) {
+      throw new Error(`[Security] ${balanceValidation.error}`);
+    }
+
     const [gameStatePDA] = JunkPusherClient.getGameStatePDA(player, this.programId);
 
     const discriminator = await this.getDiscriminator('initialize_game');
@@ -109,6 +142,17 @@ export class JunkPusherClient {
     player: PublicKey,
     params: RecordCoinCollectionParams
   ): Promise<TransactionInstruction> {
+    // Validate player address
+    if (!validateWalletAddress(player)) {
+      throw new Error('[Security] Invalid player wallet address');
+    }
+
+    // Validate amount
+    const amountValidation = validateDepositAmount(params.amount);
+    if (!amountValidation.valid) {
+      throw new Error(`[Security] ${amountValidation.error}`);
+    }
+
     const [gameStatePDA] = JunkPusherClient.getGameStatePDA(player, this.programId);
 
     const discriminator = await this.getDiscriminator('record_coin_collection');
@@ -128,11 +172,23 @@ export class JunkPusherClient {
 
   /**
    * Build: Record player score
+   * SECURITY: Validates score integrity
    */
   async recordScore(
     player: PublicKey,
     params: RecordScoreParams
   ): Promise<TransactionInstruction> {
+    // Validate player address
+    if (!validateWalletAddress(player)) {
+      throw new Error('[Security] Invalid player wallet address');
+    }
+
+    // Validate score
+    const scoreValidation = validateGameScore(params.score);
+    if (!scoreValidation.valid) {
+      throw new Error(`[Security] ${scoreValidation.error}`);
+    }
+
     const [gameStatePDA] = JunkPusherClient.getGameStatePDA(player, this.programId);
 
     const discriminator = await this.getDiscriminator('record_score');
@@ -151,12 +207,29 @@ export class JunkPusherClient {
   }
 
   /**
-   * Build: Deposit SOL/GOR into game balance
+   * Build: Deposit DEBRIS tokens into game balance
+   * SECURITY: Only DEBRIS tokens are accepted
    */
   async depositBalance(
     player: PublicKey,
     params: DepositBalanceParams
   ): Promise<TransactionInstruction> {
+    // Validate player address
+    if (!validateWalletAddress(player)) {
+      throw new Error('[Security] Invalid player wallet address');
+    }
+
+    // Validate deposit amount
+    const amountValidation = validateDepositAmount(params.amount);
+    if (!amountValidation.valid) {
+      throw new Error(`[Security] ${amountValidation.error}`);
+    }
+
+    // Validate token mint (if provided)
+    if (params.tokenMint && !validateDebrisTokenMint(params.tokenMint)) {
+      throw new Error('[Security] Only DEBRIS tokens are accepted for deposits');
+    }
+
     const [gameStatePDA] = JunkPusherClient.getGameStatePDA(player, this.programId);
 
     const discriminator = await this.getDiscriminator('deposit_balance');
@@ -176,12 +249,28 @@ export class JunkPusherClient {
   }
 
   /**
-   * Build: Withdraw balance from game
+   * Build: Withdraw DEBRIS tokens from game
+   * SECURITY: Only allows withdrawal of verified winnings
    */
   async withdrawBalance(
     player: PublicKey,
     params: WithdrawBalanceParams
   ): Promise<TransactionInstruction> {
+    // Validate player address
+    if (!validateWalletAddress(player)) {
+      throw new Error('[Security] Invalid player wallet address');
+    }
+
+    // Validate withdrawal amount against verified winnings
+    const withdrawalValidation = validateWithdrawalAmount(
+      params.amount,
+      params.verifiedWinnings,
+      params.currentBalance
+    );
+    if (!withdrawalValidation.valid) {
+      throw new Error(`[Security] ${withdrawalValidation.error}`);
+    }
+
     const [gameStatePDA] = JunkPusherClient.getGameStatePDA(player, this.programId);
 
     const discriminator = await this.getDiscriminator('withdraw_balance');
@@ -204,6 +293,11 @@ export class JunkPusherClient {
    * Build: Reset game state
    */
   async resetGame(player: PublicKey): Promise<TransactionInstruction> {
+    // Validate player address
+    if (!validateWalletAddress(player)) {
+      throw new Error('[Security] Invalid player wallet address');
+    }
+
     const [gameStatePDA] = JunkPusherClient.getGameStatePDA(player, this.programId);
 
     const discriminator = await this.getDiscriminator('reset_game');

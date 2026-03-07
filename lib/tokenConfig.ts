@@ -9,7 +9,7 @@
 export const TOKEN_CONFIG = {
   // DEBRIS Token - The dapp's token used for all gameplay
   DEBRIS: {
-    address: '', // To be set when the Debris token is created
+    address: 'DebrikgCUTkxMGSxnBoVuwqpW4zivMrUfUP6kUeNUMwy', // Debris token mint address
     symbol: 'DEBRIS',
     decimals: 9,
     name: 'Debris',
