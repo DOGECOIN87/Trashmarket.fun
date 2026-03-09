@@ -1147,12 +1147,11 @@ const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
     const fetchParticipants = async () => {
       try {
         const service = new RaffleService(connection, wallet);
-        // Fetch all ticket accounts for this raffle by scanning program accounts
-        const allTicketAccounts = await (service as any).program.account.ticketAccount.all([
-          { memcmp: { offset: 8, bytes: new BN(raffle.raffleId).toArrayLike(Buffer, 'le', 8).toString('base64') } }
-        ]);
+        // Fetch all ticket accounts and filter by raffle ID client-side
+        const allTicketAccounts = await (service as any).program.account.ticketAccount.all();
 
         const participantData = allTicketAccounts
+          .filter((t: any) => t.account.raffleId.toNumber() === raffle.raffleId)
           .map((t: any) => ({
             buyer: t.account.buyer.toString(),
             ticketCount: t.account.ticketCount.toNumber(),
