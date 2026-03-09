@@ -42,3 +42,4 @@ target/
 programs/**/target/
 programs/**/Cargo.lock
 *.so
+vanity-miner/target/
