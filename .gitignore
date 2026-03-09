@@ -43,3 +43,4 @@ programs/**/target/
 programs/**/Cargo.lock
 *.so
 vanity-miner/target/
+package-lock.json
