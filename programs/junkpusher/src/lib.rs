@@ -4,10 +4,12 @@ use anchor_spl::token_interface::{self, TokenInterface, TokenAccount, TransferCh
 // Will be replaced with actual program ID after first deployment
 declare_id!("5gJkp3DsVTtBP6k7WtbiNBjQhAESgGrgu6AJfypMCAwe");
 
-/// Maximum deposit amount (1 billion DEBRIS in base units)
-const MAX_DEPOSIT: u64 = 1_000_000_000_000_000_000; // 1B * 10^9 decimals
+/// Maximum deposit amount (1 billion DEBRIS in human-readable units)
+const MAX_DEPOSIT: u64 = 1_000_000_000;
 /// Maximum game score
 const MAX_SCORE: u64 = 999_999_999;
+/// DEBRIS token decimals (10^9)
+const DEBRIS_DECIMALS_MULTIPLIER: u64 = 1_000_000_000;
 
 #[program]
 pub mod junkpusher {
@@ -80,6 +82,11 @@ pub mod junkpusher {
         require!(amount > 0, GameError::InvalidAmount);
         require!(amount <= MAX_DEPOSIT, GameError::DepositTooLarge);
 
+        // Convert human-readable amount to base units (9 decimals)
+        let transfer_amount = amount
+            .checked_mul(DEBRIS_DECIMALS_MULTIPLIER)
+            .ok_or(GameError::Overflow)?;
+
         // Transfer DEBRIS tokens: player → treasury (Token-2022 transfer_checked)
         let transfer_ctx = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
@@ -90,7 +97,7 @@ pub mod junkpusher {
                 mint: ctx.accounts.debris_mint.to_account_info(),
             },
         );
-        token_interface::transfer_checked(transfer_ctx, amount, 9)?;
+        token_interface::transfer_checked(transfer_ctx, transfer_amount, 9)?;
 
         // Update game state balance
         game_state.balance = game_state
@@ -125,6 +132,11 @@ pub mod junkpusher {
         );
         require!(amount <= game_state.balance, GameError::InsufficientBalance);
 
+        // Convert human-readable amount to base units (9 decimals)
+        let transfer_amount = amount
+            .checked_mul(DEBRIS_DECIMALS_MULTIPLIER)
+            .ok_or(GameError::Overflow)?;
+
         // Transfer DEBRIS tokens: treasury → player (signed by PDA, Token-2022)
         let seeds = &[b"treasury_authority".as_ref(), &[ctx.bumps.treasury_authority]];
         let signer_seeds = &[&seeds[..]];
@@ -139,7 +151,7 @@ pub mod junkpusher {
             },
             signer_seeds,
         );
-        token_interface::transfer_checked(transfer_ctx, amount, 9)?;
+        token_interface::transfer_checked(transfer_ctx, transfer_amount, 9)?;
 
         // Update game state
         game_state.balance = game_state

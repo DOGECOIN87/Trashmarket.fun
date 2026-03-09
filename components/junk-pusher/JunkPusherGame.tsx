@@ -38,6 +38,7 @@ const JunkPusherGame: React.FC = () => {
     }, []);
 
     // Silently restore saved state on mount to protect player coins
+    const recoveredRef = useRef<{ balance: number; score: number; netProfit: number } | null>(null);
     const hasRestoredRef = useRef(false);
     useEffect(() => {
         if (hasRestoredRef.current) return;
@@ -45,12 +46,15 @@ const JunkPusherGame: React.FC = () => {
 
         const recovered = loadGameState(wallet.publicKey);
         if (recovered) {
+            recoveredRef.current = recovered;
             setGameState(prev => ({
                 ...prev,
                 balance: recovered.balance,
                 score: recovered.score,
                 netProfit: recovered.netProfit,
             }));
+            // Sync into engine if already initialized
+            engineRef.current?.restoreState(recovered.balance, recovered.score, recovered.netProfit);
         }
     }, [wallet.publicKey]);
 
@@ -102,6 +106,11 @@ const JunkPusherGame: React.FC = () => {
         engine.initialize(canvas, handleUpdate).then(() => {
             if (!disposed) {
                 engineRef.current = engine;
+                // Restore saved state into the engine if we recovered before init
+                if (recoveredRef.current) {
+                    const r = recoveredRef.current;
+                    engine.restoreState(r.balance, r.score, r.netProfit);
+                }
                 // Force a resize after init to ensure correct aspect ratio
                 const dims = updateDimensions();
                 engine.resize(dims.width, dims.height);
@@ -187,11 +196,8 @@ const JunkPusherGame: React.FC = () => {
             try {
                 const sig = await oc.depositBalance(amount);
                 if (sig) {
-                    // Credit the in-game balance after successful on-chain deposit
-                    setGameState(prev => ({
-                        ...prev,
-                        balance: prev.balance + amount,
-                    }));
+                    // Credit the engine's internal balance so it stays in sync
+                    engineRef.current?.addBalance(amount);
                 }
                 return sig;
             } catch (err) {
@@ -285,17 +291,17 @@ const JunkPusherGame: React.FC = () => {
             {wallet.isConnected && (
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
                     {onChain.isProgramReady ? (
-                        <div className="flex items-center gap-1.5 bg-black/70 border border-green-500/30 px-3 py-1 rounded-full text-[9px]">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                            <span className="text-green-300 font-mono">ON-CHAIN</span>
+                        <div className="flex items-center gap-1.5 bg-black/80 border border-[#cbf30c]/20 px-2.5 py-1 rounded-full text-[9px] backdrop-blur-sm">
+                            <img src="/assets/logo-circle-transparent.png" alt="" className="w-3.5 h-3.5" />
+                            <span className="text-[#cbf30c]/70 font-bold tracking-widest uppercase">On-Chain</span>
                             {onChain.debrisBalance > 0 && (
-                                <span className="text-green-200 ml-1">{onChain.debrisBalance.toFixed(0)} DEBRIS</span>
+                                <span className="text-white/50 ml-0.5">{onChain.debrisBalance.toFixed(0)} DEBRIS</span>
                             )}
                         </div>
                     ) : (
-                        <div className="flex items-center gap-1.5 bg-black/70 border border-yellow-500/30 px-3 py-1 rounded-full text-[9px]">
+                        <div className="flex items-center gap-1.5 bg-black/80 border border-yellow-500/20 px-2.5 py-1 rounded-full text-[9px] backdrop-blur-sm">
                             <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
-                            <span className="text-yellow-300 font-mono">LOCAL MODE</span>
+                            <span className="text-yellow-300/70 font-bold tracking-widest uppercase">Local Mode</span>
                         </div>
                     )}
                 </div>
@@ -303,17 +309,82 @@ const JunkPusherGame: React.FC = () => {
 
             {/* Transaction status toast */}
             {onChain.txStatus !== 'idle' && (
-                <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-                    <div className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-mono ${
-                        onChain.txStatus === 'error' ? 'bg-red-900/80 border border-red-500/50 text-red-200' :
-                        onChain.txStatus === 'confirmed' ? 'bg-green-900/80 border border-green-500/50 text-green-200' :
-                        'bg-black/80 border border-cyan-500/50 text-cyan-200'
+                <div className="absolute top-12 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[340px] max-w-[90vw]">
+                    <div className={`relative overflow-hidden rounded-lg shadow-2xl ${
+                        onChain.txStatus === 'error'
+                            ? 'bg-gradient-to-b from-red-950/95 to-black/95 border border-red-500/40'
+                            : onChain.txStatus === 'confirmed'
+                            ? 'bg-gradient-to-b from-green-950/95 to-black/95 border border-green-500/40'
+                            : 'bg-gradient-to-b from-[#1a1a0a]/95 to-black/95 border border-[#cbf30c]/30'
                     }`}>
-                        {onChain.txStatus === 'building' && '⏳ Building tx...'}
-                        {onChain.txStatus === 'signing' && '✍️ Sign in wallet...'}
-                        {onChain.txStatus === 'confirming' && '⏳ Confirming...'}
-                        {onChain.txStatus === 'confirmed' && '✅ Confirmed!'}
-                        {onChain.txStatus === 'error' && `❌ ${onChain.error || 'Failed'}`}
+                        {/* Progress bar */}
+                        <div className="absolute top-0 left-0 h-[2px] bg-[#cbf30c]/60" style={{
+                            width: onChain.txStatus === 'building' ? '25%'
+                                : onChain.txStatus === 'signing' ? '50%'
+                                : onChain.txStatus === 'confirming' ? '75%'
+                                : '100%',
+                            transition: 'width 0.4s ease-out',
+                            ...(onChain.txStatus === 'error' ? { background: 'rgb(239 68 68 / 0.6)' } : {}),
+                        }} />
+
+                        <div className="flex items-center gap-3 px-4 py-3">
+                            {/* Logo */}
+                            <img
+                                src="/assets/logo-circle-transparent.png"
+                                alt="TM"
+                                className={`w-8 h-8 shrink-0 ${
+                                    onChain.txStatus === 'confirming' || onChain.txStatus === 'building'
+                                        ? 'animate-pulse' : ''
+                                }`}
+                            />
+
+                            {/* Content */}
+                            <div className="flex flex-col min-w-0">
+                                {/* Header row: brand + label */}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#cbf30c]/80">trashmarket.fun</span>
+                                    {onChain.txLabel && (
+                                        <>
+                                            <span className="text-[#cbf30c]/30 text-[10px]">/</span>
+                                            <span className="text-[10px] font-medium tracking-wide uppercase text-white/60">{onChain.txLabel}</span>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Status message */}
+                                <span className={`text-xs font-medium mt-0.5 ${
+                                    onChain.txStatus === 'error' ? 'text-red-300' :
+                                    onChain.txStatus === 'confirmed' ? 'text-green-300' :
+                                    'text-white/80'
+                                }`}>
+                                    {onChain.txStatus === 'building' && 'Preparing transaction...'}
+                                    {onChain.txStatus === 'signing' && 'Approve in your wallet'}
+                                    {onChain.txStatus === 'confirming' && 'Confirming on Gorbagana...'}
+                                    {onChain.txStatus === 'confirmed' && 'Transaction confirmed'}
+                                    {onChain.txStatus === 'error' && (onChain.error || 'Transaction failed')}
+                                </span>
+                            </div>
+
+                            {/* Status icon */}
+                            <div className="ml-auto shrink-0">
+                                {(onChain.txStatus === 'building' || onChain.txStatus === 'signing' || onChain.txStatus === 'confirming') && (
+                                    <svg className="animate-spin h-4 w-4 text-[#cbf30c]/60" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                )}
+                                {onChain.txStatus === 'confirmed' && (
+                                    <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
+                                {onChain.txStatus === 'error' && (
+                                    <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

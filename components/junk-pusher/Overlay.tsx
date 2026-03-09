@@ -28,6 +28,7 @@ export const Overlay: React.FC<OverlayProps> = ({
     const [showWalletMenu, setShowWalletMenu] = useState(false);
     const [isDismissed, setIsDismissed] = useState(false);
     const [txStatus, setTxStatus] = useState<'idle' | 'signing' | 'broadcasting' | 'confirmed' | 'error'>('idle');
+    const [depositBtnStatus, setDepositBtnStatus] = useState<'idle' | 'signing' | 'broadcasting' | 'confirmed' | 'error'>('idle');
     const [showHighScores, setShowHighScores] = useState(false);
 
     useEffect(() => {
@@ -52,45 +53,43 @@ export const Overlay: React.FC<OverlayProps> = ({
     const DEPOSIT_AMOUNT = 100; // DEBRIS tokens to deposit per refill
     const LOW_BALANCE_THRESHOLD = 10; // Show "bump" option when balance is this low
 
-    const handleDepositClick = async () => {
-        // Prevent multiple clicks during transaction processing
-        if (txStatus !== 'idle') {
-            console.log('Transaction already in progress, ignoring click');
-            return;
-        }
+    const doDeposit = async (statusSetter: typeof setTxStatus) => {
         if (!wallet.isConnected) {
             setShowWalletMenu(true);
             return;
         }
 
-        // Initialize sound if needed
         soundManager.initialize();
 
         try {
-            setTxStatus('signing');
-            
-            // If balance is 0, deposit DEBRIS tokens
-            // If balance is low (1-10), trigger bump instead
-            if (gameState.balance <= 0) {
-                const sig = await onDeposit(DEPOSIT_AMOUNT);
-                if (sig) {
-                    setTxStatus('confirmed');
-                    setTimeout(() => { setTxStatus('idle'); }, 1500);
-                } else {
-                    setTxStatus('error');
-                    setTimeout(() => setTxStatus('idle'), 2000);
-                }
+            statusSetter('signing');
+            const sig = await onDeposit(DEPOSIT_AMOUNT);
+            if (sig) {
+                statusSetter('confirmed');
+                setTimeout(() => statusSetter('idle'), 1500);
             } else {
-                // Trigger bump when balance is low
-                onBump();
-                setTxStatus('confirmed');
-                setTimeout(() => { setTxStatus('idle'); }, 1500);
+                statusSetter('error');
+                setTimeout(() => statusSetter('idle'), 2000);
             }
         } catch (error) {
-            console.error('Deposit/Bump failed:', error);
-            setTxStatus('error');
-            setTimeout(() => setTxStatus('idle'), 2000);
+            console.error('Deposit failed:', error);
+            statusSetter('error');
+            setTimeout(() => statusSetter('idle'), 2000);
         }
+    };
+
+    const handlePopupDepositClick = async () => {
+        if (txStatus !== 'idle') return;
+        if (gameState.balance <= 0) {
+            await doDeposit(setTxStatus);
+        } else {
+            onBump();
+        }
+    };
+
+    const handleDepositClick = async () => {
+        if (depositBtnStatus !== 'idle') return;
+        await doDeposit(setDepositBtnStatus);
     };
 
     const handleClosePopup = () => {
@@ -99,7 +98,7 @@ export const Overlay: React.FC<OverlayProps> = ({
         setTxStatus('idle');
     };
 
-    const showPopup = (gameState.balance <= 0 || gameState.balance <= LOW_BALANCE_THRESHOLD) && !gameState.isPaused && !isDismissed;
+    const showPopup = gameState.balance <= 0 && !gameState.isPaused && !isDismissed;
 
     return (
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between overflow-hidden select-none">
@@ -308,6 +307,59 @@ export const Overlay: React.FC<OverlayProps> = ({
                             </div>
                         </button>
 
+                        {/* Deposit Button */}
+                        {wallet.isConnected && (
+                            <button
+                                onClick={() => {
+                                    soundManager.initialize();
+                                    soundManager.play('button_click');
+                                    handleDepositClick();
+                                }}
+                                disabled={depositBtnStatus !== 'idle'}
+                                className={`group h-9 sm:h-12 min-w-[72px] sm:min-w-[120px] transition-all skew-x-[-15deg] backdrop-blur-sm ${depositBtnStatus === 'idle' ? 'bg-emerald-950/30 border border-emerald-500/30 hover:bg-emerald-900/50 hover:border-emerald-400' : depositBtnStatus === 'confirmed' ? 'bg-emerald-900/50 border border-emerald-400' : depositBtnStatus === 'error' ? 'bg-red-950/30 border border-red-500/30' : 'bg-black/50 border border-emerald-500/30 cursor-wait'}`}
+                            >
+                                <div className="skew-x-[15deg] flex flex-col items-center justify-center h-full px-2 sm:px-0">
+                                    {depositBtnStatus === 'idle' && (
+                                        <>
+                                            <span className="font-heading text-[8px] sm:text-[10px] text-emerald-200 font-bold tracking-[0.15em] sm:tracking-[0.2em] group-hover:text-white group-hover:drop-shadow-[0_0_5px_#00ff88] uppercase">
+                                                Deposit
+                                            </span>
+                                            <span className="text-[7px] sm:text-[8px] text-emerald-400/60 font-mono">{DEPOSIT_AMOUNT} DEBRIS</span>
+                                        </>
+                                    )}
+                                    {(depositBtnStatus === 'signing' || depositBtnStatus === 'broadcasting') && (
+                                        <svg className="animate-spin h-3 w-3 sm:h-4 sm:w-4 text-emerald-300" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    )}
+                                    {depositBtnStatus === 'confirmed' && (
+                                        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                    )}
+                                    {depositBtnStatus === 'error' && (
+                                        <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    )}
+                                </div>
+                            </button>
+                        )}
+
+                        {/* Bump Button */}
+                        <button
+                            onClick={() => {
+                                soundManager.initialize();
+                                onBump();
+                            }}
+                            disabled={gameState.balance < 50}
+                            className={`group h-9 sm:h-12 min-w-[72px] sm:min-w-[120px] transition-all skew-x-[-15deg] backdrop-blur-sm ${gameState.balance >= 50 ? 'bg-fuchsia-950/30 border border-fuchsia-500/30 hover:bg-fuchsia-900/50 hover:border-fuchsia-400' : 'bg-gray-950/30 border border-gray-700/30 opacity-40 cursor-not-allowed'}`}
+                        >
+                            <div className="skew-x-[15deg] flex flex-col items-center justify-center h-full px-2 sm:px-0">
+                                <span className="font-heading text-[8px] sm:text-[10px] text-fuchsia-200 font-bold tracking-[0.15em] sm:tracking-[0.2em] group-hover:text-white group-hover:drop-shadow-[0_0_5px_#ff00ff] uppercase">
+                                    Bump
+                                </span>
+                                <span className="text-[7px] sm:text-[8px] text-fuchsia-400/60 font-mono">-50 DEBRIS</span>
+                            </div>
+                        </button>
+
                     </div>
 
                     {/* Sound Control */}
@@ -374,7 +426,7 @@ export const Overlay: React.FC<OverlayProps> = ({
 
                             {/* Deposit DEBRIS Button */}
                             <button
-                                onClick={handleDepositClick}
+                                onClick={handlePopupDepositClick}
                                 disabled={txStatus !== 'idle'}
                                 className={`group relative w-full h-12 sm:h-16 transition-all clip-path-polygon mb-3 sm:mb-4 overflow-hidden shadow-[0_0_20px_rgba(0,255,0,0.15)] hover:shadow-[0_0_30px_rgba(0,255,0,0.4)] active:scale-[0.98] ${txStatus === 'idle' ? 'bg-gradient-to-r from-green-900 to-emerald-800 hover:from-green-600 hover:to-emerald-500' : 'bg-black border border-green-500/50 cursor-wait'}`}
                             >

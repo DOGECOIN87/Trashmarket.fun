@@ -18,6 +18,8 @@ import { getDebrisBalance, TokenBalance } from './tokenService';
 import { getHighScores, getPlayerRank, HighScoreEntry } from './highScoreService';
 import { TOKEN_CONFIG } from './tokenConfig';
 
+export type TxLabel = 'Deposit DEBRIS' | 'Withdraw DEBRIS' | 'Initialize Game' | 'Record Score' | 'Bump' | '';
+
 export interface OnChainState {
   /** On-chain DEBRIS token balance (human-readable) */
   debrisBalance: number;
@@ -29,6 +31,8 @@ export interface OnChainState {
   lastTxSignature: string | null;
   /** Transaction status */
   txStatus: 'idle' | 'building' | 'signing' | 'confirming' | 'confirmed' | 'error';
+  /** Human-readable label for the current transaction */
+  txLabel: TxLabel;
   /** Error message */
   error: string | null;
 }
@@ -43,6 +47,7 @@ export function useJunkPusherOnChain() {
     isLoadingBalance: false,
     lastTxSignature: null,
     txStatus: 'idle',
+    txLabel: '',
     error: null,
   });
 
@@ -90,14 +95,14 @@ export function useJunkPusherOnChain() {
   // ─── Send a transaction helper ────────────────────────────────────────
 
   const sendTx = useCallback(
-    async (tx: Transaction): Promise<string | null> => {
+    async (tx: Transaction, label: TxLabel = ''): Promise<string | null> => {
       if (!publicKey || !signTransaction || !connection) {
-        setState((s) => ({ ...s, error: 'Wallet not connected', txStatus: 'error' }));
+        setState((s) => ({ ...s, error: 'Wallet not connected', txStatus: 'error', txLabel: label }));
         return null;
       }
 
       try {
-        setState((s) => ({ ...s, txStatus: 'building', error: null }));
+        setState((s) => ({ ...s, txStatus: 'building', txLabel: label, error: null }));
 
         // Set recent blockhash
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
@@ -129,7 +134,7 @@ export function useJunkPusherOnChain() {
 
         // Reset status after a short delay
         setTimeout(() => {
-          setState((s) => ({ ...s, txStatus: 'idle' }));
+          setState((s) => ({ ...s, txStatus: 'idle', txLabel: '' }));
         }, 3000);
 
         return signature;
@@ -141,7 +146,7 @@ export function useJunkPusherOnChain() {
           error: err.message || 'Transaction failed',
         }));
         setTimeout(() => {
-          setState((s) => ({ ...s, txStatus: 'idle' }));
+          setState((s) => ({ ...s, txStatus: 'idle', txLabel: '' }));
         }, 3000);
         return null;
       }
@@ -157,7 +162,7 @@ export function useJunkPusherOnChain() {
       if (!publicKey) return null;
       const ix = await client.initializeGame(publicKey, { initialBalance });
       const tx = new Transaction().add(ix);
-      return sendTx(tx);
+      return sendTx(tx, 'Initialize Game');
     },
     [publicKey, sendTx],
   );
@@ -178,7 +183,7 @@ export function useJunkPusherOnChain() {
         return false;
       }
     },
-    [publicKey, connection],
+    [publicKey, connection, initializeGame],
   );
 
   /** Record a coin collection (bump) on-chain */
@@ -188,7 +193,7 @@ export function useJunkPusherOnChain() {
       await ensureInitialized();
       const ix = await client.recordCoinCollection(publicKey, { amount });
       const tx = new Transaction().add(ix);
-      return sendTx(tx);
+      return sendTx(tx, 'Bump');
     },
     [publicKey, sendTx, ensureInitialized],
   );
@@ -200,7 +205,7 @@ export function useJunkPusherOnChain() {
       await ensureInitialized();
       const ix = await client.recordScore(publicKey, { score });
       const tx = new Transaction().add(ix);
-      return sendTx(tx);
+      return sendTx(tx, 'Record Score');
     },
     [publicKey, sendTx, ensureInitialized],
   );
@@ -209,11 +214,16 @@ export function useJunkPusherOnChain() {
   const depositBalance = useCallback(
     async (amount: number) => {
       if (!publicKey) return null;
+      const initialized = await ensureInitialized();
+      if (!initialized) {
+        setState((s) => ({ ...s, error: 'Failed to initialize game state', txStatus: 'error', txLabel: 'Deposit DEBRIS' }));
+        return null;
+      }
       const ix = await client.depositBalance(publicKey, { amount });
       const tx = new Transaction().add(ix);
-      return sendTx(tx);
+      return sendTx(tx, 'Deposit DEBRIS');
     },
-    [publicKey, sendTx],
+    [publicKey, sendTx, ensureInitialized],
   );
 
   /** Withdraw DEBRIS tokens from game balance */
@@ -226,7 +236,7 @@ export function useJunkPusherOnChain() {
         currentBalance: currentBalance ?? state.debrisBalance,
       });
       const tx = new Transaction().add(ix);
-      return sendTx(tx);
+      return sendTx(tx, 'Withdraw DEBRIS');
     },
     [publicKey, sendTx, state.debrisBalance],
   );

@@ -484,6 +484,20 @@ export class GameEngine {
     this.dropUserCoin(x);
   }
 
+  /** Add tokens to the engine's internal balance (e.g. after an on-chain deposit) */
+  public addBalance(amount: number) {
+    this.balance += amount;
+    this.updateGameState();
+  }
+
+  /** Overwrite the engine's balance/score/netProfit (e.g. restoring saved state) */
+  public restoreState(balance: number, score: number, netProfit: number) {
+    this.balance = balance;
+    this.score = score;
+    this.netProfit = netProfit;
+    this.updateGameState();
+  }
+
   public bump() {
     // Apply fee (50 DEBRIS)
     this.balance -= 50;
