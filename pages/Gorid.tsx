@@ -215,7 +215,7 @@ const Gorid: React.FC = () => {
     } finally {
       setIsListing(false);
     }
-  }, [connected, address, listingDomain, listingPrice]);stingPrice]);
+  }, [connected, address, listingDomain, listingPrice]);
 
   // Fee preview for listing
   const feePreview = useMemo(() => {

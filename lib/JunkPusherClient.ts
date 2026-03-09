@@ -9,6 +9,7 @@
  */
 
 import { PublicKey, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
+import { getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import {
   validateDebrisTokenMint,
   validateDepositAmount,
@@ -16,7 +17,13 @@ import {
   validateGameScore,
   validateWalletAddress,
 } from './gameSecurityModule';
-import { TOKEN_CONFIG } from './tokenConfig';
+import { TOKEN_CONFIG, GAME_TREASURY_WALLET } from './tokenConfig';
+
+const DEBRIS_MINT = new PublicKey(TOKEN_CONFIG.DEBRIS.address);
+const TREASURY_WALLET = new PublicKey(GAME_TREASURY_WALLET);
+
+// PDA-controlled treasury token account (holds DEBRIS for player payouts)
+const TREASURY_TOKEN_ACCOUNT = new PublicKey('2FiLdUB55vgDz24Hq12FqHuQpkmwJadeERUJqf32zi9J');
 
 // Program ID from environment, falls back to placeholder
 function getProgramId(): PublicKey {
@@ -84,6 +91,18 @@ export class JunkPusherClient {
   ): [PublicKey, number] {
     return PublicKey.findProgramAddressSync(
       [Buffer.from('game_state'), playerAddress.toBuffer()],
+      programId
+    );
+  }
+
+  /**
+   * Derive the treasury authority PDA (controls treasury token account)
+   */
+  static getTreasuryAuthorityPDA(
+    programId: PublicKey = PROGRAM_ID
+  ): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from('treasury_authority')],
       programId
     );
   }
@@ -232,6 +251,11 @@ export class JunkPusherClient {
 
     const [gameStatePDA] = JunkPusherClient.getGameStatePDA(player, this.programId);
 
+    // Derive player's DEBRIS token account (Token-2022 ATA)
+    const playerTokenAccount = getAssociatedTokenAddressSync(
+      DEBRIS_MINT, player, false, TOKEN_2022_PROGRAM_ID
+    );
+
     const discriminator = await this.getDiscriminator('deposit_balance');
     const data = Buffer.alloc(16);
     discriminator.copy(data, 0);
@@ -241,7 +265,10 @@ export class JunkPusherClient {
       keys: [
         { pubkey: gameStatePDA, isSigner: false, isWritable: true },
         { pubkey: player, isSigner: true, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: playerTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: TREASURY_TOKEN_ACCOUNT, isSigner: false, isWritable: true },
+        { pubkey: DEBRIS_MINT, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       programId: this.programId,
       data,
@@ -273,6 +300,12 @@ export class JunkPusherClient {
 
     const [gameStatePDA] = JunkPusherClient.getGameStatePDA(player, this.programId);
 
+    // Derive player's DEBRIS token account and treasury authority PDA
+    const playerTokenAccount = getAssociatedTokenAddressSync(
+      DEBRIS_MINT, player, false, TOKEN_2022_PROGRAM_ID
+    );
+    const [treasuryAuthority] = JunkPusherClient.getTreasuryAuthorityPDA(this.programId);
+
     const discriminator = await this.getDiscriminator('withdraw_balance');
     const data = Buffer.alloc(16);
     discriminator.copy(data, 0);
@@ -282,7 +315,11 @@ export class JunkPusherClient {
       keys: [
         { pubkey: gameStatePDA, isSigner: false, isWritable: true },
         { pubkey: player, isSigner: true, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: playerTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: TREASURY_TOKEN_ACCOUNT, isSigner: false, isWritable: true },
+        { pubkey: DEBRIS_MINT, isSigner: false, isWritable: false },
+        { pubkey: treasuryAuthority, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       programId: this.programId,
       data,

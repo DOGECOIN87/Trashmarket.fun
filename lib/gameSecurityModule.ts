@@ -104,7 +104,7 @@ export function validateTransactionSignature(signature: string): boolean {
   
   try {
     // Attempt to decode as base58
-    const base58Regex = /^[1-9A-HJ-NP-Z]+$/;
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
     return base58Regex.test(signature);
   } catch {
     return false;

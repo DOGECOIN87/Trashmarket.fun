@@ -162,26 +162,47 @@ export function useJunkPusherOnChain() {
     [publicKey, sendTx],
   );
 
+  /** Ensure game state PDA is initialized, returns true if already initialized or successfully created */
+  const ensureInitialized = useCallback(
+    async (): Promise<boolean> => {
+      if (!publicKey || !connection) return false;
+      try {
+        const [gameStatePDA] = JunkPusherClient.getGameStatePDA(publicKey);
+        const acct = await connection.getAccountInfo(gameStatePDA);
+        if (acct) return true; // already initialized
+        // Initialize it
+        const sig = await initializeGame();
+        return sig !== null;
+      } catch (err) {
+        console.warn('[OnChain] ensureInitialized error:', err);
+        return false;
+      }
+    },
+    [publicKey, connection],
+  );
+
   /** Record a coin collection (bump) on-chain */
   const recordCoinCollection = useCallback(
     async (amount: number) => {
       if (!publicKey) return null;
+      await ensureInitialized();
       const ix = await client.recordCoinCollection(publicKey, { amount });
       const tx = new Transaction().add(ix);
       return sendTx(tx);
     },
-    [publicKey, sendTx],
+    [publicKey, sendTx, ensureInitialized],
   );
 
   /** Record final score on-chain */
   const recordScore = useCallback(
     async (score: number) => {
       if (!publicKey) return null;
+      await ensureInitialized();
       const ix = await client.recordScore(publicKey, { score });
       const tx = new Transaction().add(ix);
       return sendTx(tx);
     },
-    [publicKey, sendTx],
+    [publicKey, sendTx, ensureInitialized],
   );
 
   /** Deposit DEBRIS tokens into game balance */
@@ -197,13 +218,17 @@ export function useJunkPusherOnChain() {
 
   /** Withdraw DEBRIS tokens from game balance */
   const withdrawBalance = useCallback(
-    async (amount: number) => {
+    async (amount: number, verifiedWinnings?: number, currentBalance?: number) => {
       if (!publicKey) return null;
-      const ix = await client.withdrawBalance(publicKey, { amount });
+      const ix = await client.withdrawBalance(publicKey, {
+        amount,
+        verifiedWinnings: verifiedWinnings ?? amount,
+        currentBalance: currentBalance ?? state.debrisBalance,
+      });
       const tx = new Transaction().add(ix);
       return sendTx(tx);
     },
-    [publicKey, sendTx],
+    [publicKey, sendTx, state.debrisBalance],
   );
 
   // ─── High scores ─────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("EyanJkk7BV9nA5ZzuBQLqC3FWf25dLdgbURhLiV3Hc31");
+declare_id!("4Mk9t8VaZahZq4Y9iPBUzPnnM9yYpfrebBT4sTH7c5ej");
 
 #[program]
 pub mod goraffle {

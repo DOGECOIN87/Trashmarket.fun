@@ -18,7 +18,7 @@ const JunkPusherGame: React.FC = () => {
 
     const [gameState, setGameState] = useState<GameState>({
         score: 0,
-        balance: 0, // Start with 0 - user must deposit DEBRIS tokens to play
+        balance: 100, // Start with 100 free DEBRIS tokens to try the game
         netProfit: 0,
         fps: 0,
         isPaused: false,
@@ -53,6 +53,16 @@ const JunkPusherGame: React.FC = () => {
             }));
         }
     }, [wallet.publicKey]);
+
+    // Initialize sound manager on first user interaction with the game
+    useEffect(() => {
+        const initSound = () => {
+            soundManager.initialize();
+            window.removeEventListener('pointerdown', initSound);
+        };
+        window.addEventListener('pointerdown', initSound);
+        return () => window.removeEventListener('pointerdown', initSound);
+    }, []);
 
     // Setup auto-save (uses refs to avoid re-registering on every state change)
     useEffect(() => {
@@ -162,7 +172,7 @@ const JunkPusherGame: React.FC = () => {
             engineRef.current.reset();
             setGameState({
                 score: 0,
-                balance: 0, // Reset to 0 - user must deposit DEBRIS tokens again
+                balance: 100, // Reset with 100 free DEBRIS tokens
                 netProfit: 0,
                 fps: currentState.fps,
                 isPaused: false,

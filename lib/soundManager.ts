@@ -44,9 +44,14 @@ class SoundManager {
    * Play a sound effect
    */
   play(soundType: SoundType): void {
-    if (!this.isInitialized || this.isMuted || !this.audioContext) {
-      return;
+    if (this.isMuted) return;
+
+    // Lazily initialize on first play attempt (requires prior user gesture)
+    if (!this.isInitialized) {
+      this.initialize();
     }
+
+    if (!this.audioContext) return;
 
     // Resume audio context if suspended (browser autoplay policy)
     if (this.audioContext.state === 'suspended') {
@@ -366,8 +371,16 @@ class SoundManager {
       .catch(err => console.warn('[SoundManager] Failed to load out_of_tokens sound:', err));
   }
 
-  private playOutOfTokens(): void {
-    if (!this.audioContext || !this.outOfTokensBuffer) return;
+  private playOutOfTokens(retries = 3): void {
+    if (!this.audioContext) return;
+
+    // If buffer hasn't loaded yet, retry after a short delay
+    if (!this.outOfTokensBuffer) {
+      if (retries > 0) {
+        setTimeout(() => this.playOutOfTokens(retries - 1), 300);
+      }
+      return;
+    }
 
     const source = this.audioContext.createBufferSource();
     source.buffer = this.outOfTokensBuffer;
