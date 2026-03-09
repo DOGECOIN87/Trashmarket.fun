@@ -44,3 +44,6 @@ programs/**/Cargo.lock
 *.so
 vanity-miner/target/
 package-lock.json
+bridge/Cargo.lock
+bridge-solana/Cargo.lock
+*.png.bak
