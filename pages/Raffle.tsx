@@ -1138,9 +1138,51 @@ const RaffleDetailView: React.FC<{
 
 // Participants Tab
 const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
-  // In production this would fetch actual ticket accounts from on-chain data
-  // For now we show a placeholder if no tickets sold, or mock structure
-  if (raffle.ticketsSold === 0) {
+  const { connection } = useConnection();
+  const wallet = useWallet();
+  const [participants, setParticipants] = useState<{ buyer: string; ticketCount: number }[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(true);
+
+  useEffect(() => {
+    const fetchParticipants = async () => {
+      try {
+        const service = new RaffleService(connection, wallet);
+        // Fetch all ticket accounts for this raffle by scanning program accounts
+        const allTicketAccounts = await (service as any).program.account.ticketAccount.all([
+          { memcmp: { offset: 8, bytes: new BN(raffle.raffleId).toArrayLike(Buffer, 'le', 8).toString('base64') } }
+        ]);
+
+        const participantData = allTicketAccounts
+          .map((t: any) => ({
+            buyer: t.account.buyer.toString(),
+            ticketCount: t.account.ticketCount.toNumber(),
+          }))
+          .filter((p: any) => p.ticketCount > 0)
+          .sort((a: any, b: any) => b.ticketCount - a.ticketCount);
+
+        setParticipants(participantData);
+      } catch (error) {
+        console.error('Error fetching participants:', error);
+        // Fallback: try fetching via transaction signatures
+        setParticipants([]);
+      } finally {
+        setLoadingParticipants(false);
+      }
+    };
+
+    fetchParticipants();
+  }, [raffle.raffleId, raffle.ticketsSold, connection]);
+
+  if (loadingParticipants) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <Loader2 className="w-6 h-6 text-magic-green animate-spin" />
+        <p className="text-gray-500 text-sm">Loading participants...</p>
+      </div>
+    );
+  }
+
+  if (raffle.ticketsSold === 0 || participants.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3">
         <Users className="w-10 h-10 text-gray-600" />
@@ -1148,6 +1190,8 @@ const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
       </div>
     );
   }
+
+  const totalSold = participants.reduce((sum, p) => sum + p.ticketCount, 0);
 
   return (
     <div className="overflow-x-auto">
@@ -1160,13 +1204,24 @@ const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
           </tr>
         </thead>
         <tbody>
-          <tr className="border-b border-white/5">
-            <td className="px-6 py-4" colSpan={3}>
-              <p className="text-gray-500 text-sm text-center">
-                Participant data loads from on-chain ticket accounts
-              </p>
-            </td>
-          </tr>
+          {participants.map((p) => (
+            <tr key={p.buyer} className="border-b border-white/5 hover:bg-white/[0.02]">
+              <td className="px-6 py-4">
+                <a
+                  href={`${EXPLORER_URLS.GORBAGANA}/address/${p.buyer}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-magic-green/80 hover:text-magic-green font-mono text-sm"
+                >
+                  {p.buyer.slice(0, 4)}...{p.buyer.slice(-4)}
+                </a>
+              </td>
+              <td className="px-6 py-4 text-center text-white font-mono text-sm">{p.ticketCount}</td>
+              <td className="px-6 py-4 text-right text-magic-green font-mono text-sm">
+                {totalSold > 0 ? ((p.ticketCount / totalSold) * 100).toFixed(1) : 0}%
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -1175,7 +1230,79 @@ const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
 
 // Transactions Tab
 const TransactionsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
-  if (raffle.ticketsSold === 0) {
+  const { connection } = useConnection();
+  const [transactions, setTransactions] = useState<{
+    signature: string;
+    blockTime: number | null;
+    buyer: string;
+    tickets: number;
+  }[]>([]);
+  const [loadingTx, setLoadingTx] = useState(true);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const rafflePubkey = new PublicKey(raffle.publicKey);
+        // Get all signatures for the raffle account
+        const signatures = await connection.getSignaturesForAddress(rafflePubkey, { limit: 50 }, 'confirmed');
+
+        const txData: typeof transactions = [];
+
+        // Fetch transaction details in parallel (batch of 10)
+        const batchSize = 10;
+        for (let i = 0; i < signatures.length; i += batchSize) {
+          const batch = signatures.slice(i, i + batchSize);
+          const txDetails = await Promise.all(
+            batch.map(sig => connection.getParsedTransaction(sig.signature, { maxSupportedTransactionVersion: 0, commitment: 'confirmed' }).catch(() => null))
+          );
+
+          for (let j = 0; j < batch.length; j++) {
+            const sig = batch[j];
+            const detail = txDetails[j];
+            if (!detail || sig.err) continue;
+
+            // Check if this is a buyTickets transaction by looking at the log messages
+            const logs = detail.meta?.logMessages || [];
+            const buyLog = logs.find(l => l.includes('Bought') && l.includes('tickets for raffle'));
+            if (!buyLog) continue;
+
+            // Parse "Bought X tickets for raffle Y"
+            const match = buyLog.match(/Bought (\d+) tickets/);
+            const ticketCount = match ? parseInt(match[1]) : 1;
+
+            // The buyer is the fee payer (first signer)
+            const buyer = detail.transaction.message.accountKeys[0]?.pubkey?.toString() || 'Unknown';
+
+            txData.push({
+              signature: sig.signature,
+              blockTime: sig.blockTime,
+              buyer,
+              tickets: ticketCount,
+            });
+          }
+        }
+
+        setTransactions(txData);
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+      } finally {
+        setLoadingTx(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [raffle.publicKey, raffle.ticketsSold, connection]);
+
+  if (loadingTx) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <Loader2 className="w-6 h-6 text-magic-green animate-spin" />
+        <p className="text-gray-500 text-sm">Loading transactions...</p>
+      </div>
+    );
+  }
+
+  if (transactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3">
         <ExternalLink className="w-10 h-10 text-gray-600" />
@@ -1196,13 +1323,37 @@ const TransactionsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
           </tr>
         </thead>
         <tbody>
-          <tr className="border-b border-white/5">
-            <td className="px-6 py-4" colSpan={4}>
-              <p className="text-gray-500 text-sm text-center">
-                Transaction history loads from on-chain data
-              </p>
-            </td>
-          </tr>
+          {transactions.map((tx) => (
+            <tr key={tx.signature} className="border-b border-white/5 hover:bg-white/[0.02]">
+              <td className="px-6 py-4">
+                <a
+                  href={`${EXPLORER_URLS.GORBAGANA}/tx/${tx.signature}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-magic-green/80 hover:text-magic-green font-mono text-sm flex items-center gap-1"
+                >
+                  {tx.signature.slice(0, 8)}...{tx.signature.slice(-4)}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </td>
+              <td className="px-6 py-4">
+                <a
+                  href={`${EXPLORER_URLS.GORBAGANA}/address/${tx.buyer}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/80 hover:text-white font-mono text-sm"
+                >
+                  {tx.buyer.slice(0, 4)}...{tx.buyer.slice(-4)}
+                </a>
+              </td>
+              <td className="px-6 py-4 text-gray-400 text-sm font-mono">
+                {tx.blockTime ? new Date(tx.blockTime * 1000).toLocaleString() : '—'}
+              </td>
+              <td className="px-6 py-4 text-right text-white font-mono text-sm">
+                {tx.tickets}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
