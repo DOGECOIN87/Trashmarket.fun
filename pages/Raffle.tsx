@@ -215,35 +215,40 @@ const RaffleCarousel: React.FC<{ raffles: RaffleType[]; onUpdate: () => void }> 
   const [isPaused, setIsPaused] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
 
+  // Fixed card width for consistent sizing
+  const cardWidth = 220; // px
+  const gap = 16; // px (gap-4)
+  const totalItemWidth = cardWidth + gap;
+  const trackWidth = totalItemWidth * raffles.length;
+  const needsScroll = raffles.length > 1;
+
   return (
     <div
       className="relative overflow-hidden bg-black/30 border border-magic-green/20 rounded-sm"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <style>{`
-        @keyframes carousel-scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(calc(-100% / ${raffles.length})); }
-        }
-        .carousel-track {
-          animation: carousel-scroll 30s linear infinite;
-          animation-play-state: ${isPaused ? 'paused' : 'running'};
-        }
-        .carousel-track:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
+      {needsScroll && (
+        <style>{`
+          @keyframes carousel-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-${trackWidth}px); }
+          }
+          .carousel-track {
+            animation: carousel-scroll ${Math.max(raffles.length * 8, 15)}s linear infinite;
+            animation-play-state: ${isPaused ? 'paused' : 'running'};
+          }
+          .carousel-track:hover {
+            animation-play-state: paused;
+          }
+        `}</style>
+      )}
       <div
         ref={carouselRef}
-        className="carousel-track flex gap-4 p-4"
-        style={{
-          width: `${raffles.length * 100}%`,
-        }}
+        className={`flex gap-4 p-4 ${needsScroll ? 'carousel-track' : 'justify-center flex-wrap'}`}
       >
-        {/* Duplicate items for infinite loop */}
-        {[...raffles, ...raffles].map((raffle, idx) => (
-          <div key={`${raffle.publicKey}-${idx}`} className="flex-shrink-0" style={{ width: `calc(100% / ${raffles.length})` }}>
+        {(needsScroll ? [...raffles, ...raffles] : raffles).map((raffle, idx) => (
+          <div key={`${raffle.publicKey}-${idx}`} className="flex-shrink-0 w-[180px] sm:w-[220px] md:w-[240px]">
             <RaffleCard raffle={raffle} onUpdate={onUpdate} isCompact={true} />
           </div>
         ))}

@@ -1,6 +1,14 @@
 import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from '@solana/web3.js';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
+import {
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  createSyncNativeInstruction,
+  createCloseAccountInstruction,
+  getAccount,
+} from '@solana/spl-token';
 import raffleIdl from '../idl/goraffle.json';
 import type { Goraffle } from '../idl/goraffle';
 
@@ -216,21 +224,65 @@ export class RaffleService {
     raffleId: number,
     quantity: number
   ): Promise<string> {
+    const buyer = this.provider.wallet.publicKey;
     const [rafflePDA] = await this.getRafflePDA(raffleId);
     const [escrowTokenAccount] = await this.getEscrowGgorPDA(raffleId);
-    const [ticketAccount] = await this.getTicketAccountPDA(raffleId, this.provider.wallet.publicKey);
+    const [ticketAccount] = await this.getTicketAccountPDA(raffleId, buyer);
 
-    // Get buyer's GGOR token account
+    // Get buyer's wrapped GOR (native mint) token account
     const buyerTokenAccount = await getAssociatedTokenAddress(
       GGOR_MINT,
-      this.provider.wallet.publicKey
+      buyer
     );
 
-    const tx = await this.program.methods
+    // Fetch raffle to calculate total cost
+    const raffleData = await this.program.account.raffle.fetch(rafflePDA);
+    const ticketPrice = (raffleData as any).ticketPrice as BN;
+    const totalCost = ticketPrice.mul(new BN(quantity));
+
+    // Build transaction with wrapping instructions
+    const transaction = new Transaction();
+
+    // 1. Create wrapped GOR ATA if it doesn't exist
+    let ataExists = false;
+    try {
+      await getAccount(this.connection, buyerTokenAccount);
+      ataExists = true;
+    } catch {
+      // ATA doesn't exist, create it
+    }
+
+    if (!ataExists) {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          buyer,
+          buyerTokenAccount,
+          buyer,
+          GGOR_MINT
+        )
+      );
+    }
+
+    // 2. Transfer native GOR into the wrapped token account
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: buyer,
+        toPubkey: buyerTokenAccount,
+        lamports: totalCost.toNumber(),
+      })
+    );
+
+    // 3. Sync the native balance so the token account reflects the deposit
+    transaction.add(
+      createSyncNativeInstruction(buyerTokenAccount)
+    );
+
+    // 4. Buy tickets instruction
+    const buyIx = await this.program.methods
       .buyTickets(new BN(raffleId), new BN(quantity))
       .accounts({
         raffle: rafflePDA,
-        buyer: this.provider.wallet.publicKey,
+        buyer,
         buyerTokenAccount,
         escrowTokenAccount,
         ticketAccount,
@@ -239,7 +291,28 @@ export class RaffleService {
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
       } as any)
-      .rpc();
+      .instruction();
+
+    transaction.add(buyIx);
+
+    // 5. Close the wrapped GOR account to reclaim rent (returns remaining wrapped GOR as native)
+    transaction.add(
+      createCloseAccountInstruction(
+        buyerTokenAccount,
+        buyer,
+        buyer
+      )
+    );
+
+    // Send transaction
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = buyer;
+
+    const signed = await this.provider.wallet.signTransaction(transaction);
+    const tx = await this.connection.sendRawTransaction(signed.serialize());
+    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
 
     return tx;
   }
