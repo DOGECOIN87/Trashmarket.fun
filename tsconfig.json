@@ -23,7 +23,7 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
       ]
     },
     "allowImportingTsExtensions": true,
@@ -32,7 +32,6 @@
   "exclude": [
     "node_modules",
     "bridge/tests",
-    "bridge-solana",
-    "bridge.ts"
+    "bridge-solana"
   ]
 }
