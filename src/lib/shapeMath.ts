@@ -106,7 +106,6 @@ export async function initializeShapeCache(): Promise<void> {
     try {
       await Promise.all(IMAGE_PATHS.map(path => loadImageMask(path)));
       isCacheInitialized = true;
-      console.log('All image masks loaded successfully');
     } catch (error) {
       console.error('Error loading image masks:', error);
     }

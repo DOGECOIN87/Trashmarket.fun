@@ -89,8 +89,6 @@ export class WorkerManager {
     this.aggregatedRate = 0;
     this.progressSnapshots.clear();
 
-    console.log(`Starting ${workerCount} workers in continuous mining mode...`);
-
     for (let i = 0; i < workerCount; i++) {
       const worker = new Worker(
         new URL('../workers/vanityMiner.worker.ts', import.meta.url),

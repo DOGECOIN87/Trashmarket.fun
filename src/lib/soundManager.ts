@@ -34,7 +34,6 @@ class SoundManager {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       this.isInitialized = true;
       this.preloadOutOfTokens();
-      console.log('[SoundManager] Initialized');
     } catch (error) {
       console.error('[SoundManager] Failed to initialize:', error);
     }

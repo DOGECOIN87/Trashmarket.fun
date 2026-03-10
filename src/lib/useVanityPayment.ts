@@ -184,7 +184,6 @@ export function useVanityPayment() {
             systemProgram: SystemProgram.programId,
           })
           .rpc();
-        console.log("Mining account initialized on-chain.");
       } catch (initErr: any) {
         // Ignore if account already exists
         if (!initErr.message.includes("already in use") && !JSON.stringify(initErr).includes("0x0")) {
@@ -384,7 +383,6 @@ export function useVanityPayment() {
             miningAccount: miningAccountPDA,
           })
           .rpc();
-        console.log(`Match recorded on-chain: ${address}`);
       } catch (err) {
         console.error('Failed to record match on-chain:', err);
       }

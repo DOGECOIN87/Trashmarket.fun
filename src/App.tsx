@@ -8,7 +8,6 @@ import Navbar from './components/Navbar';
 import PriceTicker, { ActivityTicker } from './components/PriceTicker';
 import Footer from './components/Footer';
 import Home from './pages/Home';
-// import Collection from './pages/Collection'; // Replaced with GorbagioMarket
 import Docs from './pages/Docs';
 import OfficialDocs from './pages/OfficialDocs';
 import GorbagioMarket from './pages/GorbagioMarket';

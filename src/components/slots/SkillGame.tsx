@@ -193,15 +193,16 @@ export default function SkillGame() {
     circle.classList.add('active');
 
     const cellSymbol = cell?.querySelector('.skill-cell-symbol') as HTMLElement;
-    const originalContent = cellSymbol?.innerHTML || '';
+    const originalChildren = cellSymbol ? Array.from(cellSymbol.childNodes).map(n => n.cloneNode(true)) : [];
     if (cellSymbol) {
-      cellSymbol.innerHTML = '';
+      cellSymbol.textContent = '';
       cellSymbol.appendChild(circle);
     }
 
     setTimeout(() => {
       if (cellSymbol) {
-        cellSymbol.innerHTML = originalContent;
+        cellSymbol.textContent = '';
+        originalChildren.forEach(child => cellSymbol.appendChild(child));
       }
     }, 400);
   };
@@ -275,10 +276,14 @@ export default function SkillGame() {
         cell.textContent = 'WILD';
       } else if (symbol !== null) {
         cell.className = 'skill-cell-symbol';
-        cell.innerHTML = `<img src="${SYMBOL_IMAGES[symbol as number]}" alt="Symbol">`;
+        cell.textContent = '';
+        const img = document.createElement('img');
+        img.src = SYMBOL_IMAGES[symbol as number];
+        img.alt = 'Symbol';
+        cell.appendChild(img);
       } else {
         cell.className = 'skill-cell-symbol';
-        cell.innerHTML = '';
+        cell.textContent = '';
       }
     });
   };
@@ -297,7 +302,11 @@ export default function SkillGame() {
         const spinInterval = setInterval(() => {
           const randomSymbol = Math.floor(Math.random() * 9);
           if (cell) {
-            cell.innerHTML = `<img src="${SYMBOL_IMAGES[randomSymbol]}" alt="Symbol">`;
+            cell.textContent = '';
+            const img = document.createElement('img');
+            img.src = SYMBOL_IMAGES[randomSymbol];
+            img.alt = 'Symbol';
+            cell.appendChild(img);
           }
 
           spinCount++;
@@ -327,10 +336,18 @@ export default function SkillGame() {
         const cell = document.getElementById(`cell-${i}`);
         const finalSymbol = grid[i];
         if (finalSymbol !== null && cell) {
-          cell.innerHTML =
-            finalSymbol === 'WILD'
-              ? '<span class="skill-wild-text">WILD</span>'
-              : `<img src="${SYMBOL_IMAGES[finalSymbol as number]}" alt="Symbol">`;
+          cell.textContent = '';
+          if (finalSymbol === 'WILD') {
+            const span = document.createElement('span');
+            span.className = 'skill-wild-text';
+            span.textContent = 'WILD';
+            cell.appendChild(span);
+          } else {
+            const img = document.createElement('img');
+            img.src = SYMBOL_IMAGES[finalSymbol as number];
+            img.alt = 'Symbol';
+            cell.appendChild(img);
+          }
 
           cell.style.transform = 'scale(1.1)';
           setTimeout(() => {

@@ -296,7 +296,7 @@ export const secureFetch = async (
  */
 export const logSecurityEvent = (context: SecurityContext): void => {
   // In production, this would send to a monitoring service
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.log('[SECURITY]', {
       timestamp: new Date(context.timestamp).toISOString(),
       operationId: context.operationId,

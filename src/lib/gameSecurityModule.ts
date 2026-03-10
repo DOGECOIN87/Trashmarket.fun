@@ -18,7 +18,6 @@ export function validateDebrisTokenMint(tokenMint: string | PublicKey): boolean 
   const authorizedMint = TOKEN_CONFIG.DEBRIS.address;
   
   if (debrisMint !== authorizedMint) {
-    console.error(`[Security] Invalid token mint. Expected ${authorizedMint}, got ${debrisMint}`);
     return false;
   }
   
@@ -88,7 +87,6 @@ export function validateWalletAddress(address: string | PublicKey): boolean {
     }
     return true;
   } catch {
-    console.error('[Security] Invalid wallet address format');
     return false;
   }
 }
@@ -173,7 +171,9 @@ export function validateTokenTransactionIntegrity(
  */
 export function generateSecureNonce(): string {
   const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 15);
+  const randomBytes = new Uint8Array(16);
+  crypto.getRandomValues(randomBytes);
+  const random = Array.from(randomBytes, b => b.toString(16).padStart(2, '0')).join('');
   return `${timestamp}-${random}`;
 }
 

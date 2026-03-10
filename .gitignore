@@ -47,3 +47,7 @@ package-lock.json
 bridge/Cargo.lock
 bridge-solana/Cargo.lock
 *.png.bak
+
+# Python cache
+__pycache__/
+*.pyc
