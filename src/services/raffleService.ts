@@ -9,6 +9,7 @@ import {
   createCloseAccountInstruction,
   getAccount,
 } from '@solana/spl-token';
+import bs58 from 'bs58';
 import raffleIdl from '../idl/goraffle.json';
 import type { Goraffle } from '../idl/goraffle';
 
@@ -317,28 +318,71 @@ export class RaffleService {
     return tx;
   }
 
-  // Draw winner for a raffle
-  async drawWinner(raffleId: number, winnerPubkey: PublicKey, nftMint: PublicKey): Promise<string> {
+  // Draw winner for a raffle (Phase 1: determine winner on-chain via remaining_accounts)
+  async drawWinner(raffleId: number): Promise<string> {
     const [rafflePDA] = await this.getRafflePDA(raffleId);
-    const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
-    const [escrowNftAccount] = await this.getEscrowNftPDA(raffleId);
-    const [escrowTokenAccount] = await this.getEscrowGgorPDA(raffleId);
 
-    // Get raffle data to find creator
-    const raffleData = await this.program.account.raffle.fetch(rafflePDA);
-    const creator = raffleData.creator as PublicKey;
+    // Fetch all ticket accounts for this raffle using memcmp filter
+    const raffleIdBytes = new BN(raffleId).toArrayLike(Buffer, 'le', 8);
+    const ticketAccounts = await this.program.account.ticketAccount.all([
+      {
+        memcmp: {
+          offset: 8, // skip 8-byte discriminator
+          bytes: bs58.encode(raffleIdBytes),
+        },
+      },
+    ]);
 
-    // Get winner's NFT token account
-    const winnerNftAccount = await getAssociatedTokenAddress(nftMint, winnerPubkey);
+    if (ticketAccounts.length === 0) {
+      throw new Error('No ticket accounts found for this raffle');
+    }
 
-    // Get creator's GGOR token account
-    const creatorTokenAccount = await getAssociatedTokenAddress(GGOR_MINT, creator);
+    // Pass all ticket account pubkeys as remaining accounts
+    const remainingAccounts = ticketAccounts.map((t: any) => ({
+      pubkey: t.publicKey,
+      isWritable: false,
+      isSigner: false,
+    }));
 
     const tx = await this.program.methods
       .drawWinner(new BN(raffleId))
       .accounts({
         raffle: rafflePDA,
-        winner: winnerPubkey,
+        authority: this.provider.wallet.publicKey,
+      } as any)
+      .remainingAccounts(remainingAccounts)
+      .rpc();
+
+    return tx;
+  }
+
+  // Claim prize for a raffle (Phase 2: transfer NFT to winner and GGOR to creator)
+  async claimPrize(raffleId: number, nftMint: PublicKey): Promise<string> {
+    const [rafflePDA] = await this.getRafflePDA(raffleId);
+    const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
+    const [escrowNftAccount] = await this.getEscrowNftPDA(raffleId);
+    const [escrowTokenAccount] = await this.getEscrowGgorPDA(raffleId);
+
+    // Get raffle data to find winner and creator
+    const raffleData = await this.program.account.raffle.fetch(rafflePDA);
+    const winner = raffleData.winner as PublicKey;
+    const creator = raffleData.creator as PublicKey;
+
+    if (!winner) {
+      throw new Error('No winner set on raffle - draw winner first');
+    }
+
+    // Get winner's NFT token account
+    const winnerNftAccount = await getAssociatedTokenAddress(nftMint, winner);
+
+    // Get creator's GGOR token account
+    const creatorTokenAccount = await getAssociatedTokenAddress(GGOR_MINT, creator);
+
+    const tx = await this.program.methods
+      .claimPrize(new BN(raffleId))
+      .accounts({
+        raffle: rafflePDA,
+        winner,
         escrowNftAccount,
         winnerNftAccount,
         escrowTokenAccount,

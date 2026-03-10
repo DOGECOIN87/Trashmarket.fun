@@ -24,4 +24,14 @@ pub enum RaffleError {
     InsufficientBalance,       // 6009
     #[msg("Arithmetic overflow")]
     ArithmeticOverflow,        // 6010
+    #[msg("Invalid ticket account")]
+    InvalidTicketAccount,      // 6011
+    #[msg("No ticket accounts provided")]
+    NoTicketAccounts,          // 6012
+    #[msg("Incomplete ticket accounts - all must be provided")]
+    IncompleteTicketAccounts,  // 6013
+    #[msg("Winner not found in ticket accounts")]
+    WinnerNotFound,            // 6014
+    #[msg("Invalid winner")]
+    InvalidWinner,             // 6015
 }

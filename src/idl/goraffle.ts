@@ -247,6 +247,252 @@ export type Goraffle = {
       ]
     },
     {
+      "name": "claimPrize",
+      "discriminator": [
+        157,
+        233,
+        139,
+        121,
+        246,
+        62,
+        234,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "raffle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  97,
+                  102,
+                  102,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "raffleId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "winner",
+          "writable": true
+        },
+        {
+          "name": "escrowNftAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  110,
+                  102,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "raffleId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "winnerNftAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "winner"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nftMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "escrowTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  103,
+                  103,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "raffleId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creatorTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "escrowAuthority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "raffleId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nftMint"
+        },
+        {
+          "name": "ggorMint"
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "raffleId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "createEscrow",
       "discriminator": [
         253,
@@ -539,203 +785,6 @@ export type Goraffle = {
           }
         },
         {
-          "name": "winner",
-          "writable": true
-        },
-        {
-          "name": "escrowNftAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  101,
-                  115,
-                  99,
-                  114,
-                  111,
-                  119,
-                  95,
-                  110,
-                  102,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "raffleId"
-              }
-            ]
-          }
-        },
-        {
-          "name": "winnerNftAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "winner"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "nftMint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
-        },
-        {
-          "name": "escrowTokenAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  101,
-                  115,
-                  99,
-                  114,
-                  111,
-                  119,
-                  95,
-                  103,
-                  103,
-                  111,
-                  114
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "raffleId"
-              }
-            ]
-          }
-        },
-        {
-          "name": "creatorTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "escrowAuthority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  101,
-                  115,
-                  99,
-                  114,
-                  111,
-                  119
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "raffleId"
-              }
-            ]
-          }
-        },
-        {
-          "name": "nftMint"
-        },
-        {
-          "name": "ggorMint"
-        },
-        {
-          "name": "tokenProgram",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
           "name": "authority",
           "writable": true,
           "signer": true
@@ -841,6 +890,19 @@ export type Goraffle = {
     }
   ],
   "events": [
+    {
+      "name": "prizeClaimed",
+      "discriminator": [
+        213,
+        150,
+        192,
+        76,
+        199,
+        33,
+        212,
+        38
+      ]
+    },
     {
       "name": "raffleCancelled",
       "discriminator": [
@@ -949,9 +1011,58 @@ export type Goraffle = {
       "code": 6010,
       "name": "arithmeticOverflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6011,
+      "name": "invalidTicketAccount",
+      "msg": "Invalid ticket account"
+    },
+    {
+      "code": 6012,
+      "name": "noTicketAccounts",
+      "msg": "No ticket accounts provided"
+    },
+    {
+      "code": 6013,
+      "name": "incompleteTicketAccounts",
+      "msg": "Incomplete ticket accounts - all must be provided"
+    },
+    {
+      "code": 6014,
+      "name": "winnerNotFound",
+      "msg": "Winner not found in ticket accounts"
+    },
+    {
+      "code": 6015,
+      "name": "invalidWinner",
+      "msg": "Invalid winner"
     }
   ],
   "types": [
+    {
+      "name": "prizeClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "raffleId",
+            "type": "u64"
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "prizeNft",
+            "type": "pubkey"
+          },
+          {
+            "name": "creatorEarnings",
+            "type": "u64"
+          }
+        ]
+      }
+    },
     {
       "name": "raffle",
       "type": {
@@ -1178,10 +1289,6 @@ export type Goraffle = {
           {
             "name": "prizeNft",
             "type": "pubkey"
-          },
-          {
-            "name": "creatorEarnings",
-            "type": "u64"
           }
         ]
       }

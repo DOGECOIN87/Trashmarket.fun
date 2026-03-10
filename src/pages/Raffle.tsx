@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { RaffleService, Raffle as RaffleType, formatGGOR, formatFeeBps } from '../services/raffleService';
+import { RaffleService, Raffle as RaffleType, formatGGOR, formatFeeBps, RAFFLE_PROGRAM_ID } from '../services/raffleService';
 import { PublicKey } from '@solana/web3.js';
 import { TicketIcon } from '../components/TicketIcon';
-import { Loader2, AlertCircle, CheckCircle2, X, Search, ChevronLeft, ExternalLink, Copy, Clock, Users, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, X, Search, ChevronLeft, ExternalLink, Copy, Clock, Users, ArrowLeft, Trophy } from 'lucide-react';
 import { BN } from '@coral-xyz/anchor';
+import bs58 from 'bs58';
 import { RPC_ENDPOINTS, EXPLORER_URLS } from '../lib/rpcConfig';
 
 interface UserNFT {
@@ -920,14 +921,88 @@ const RaffleDetailView: React.FC<{
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const [drawingWinner, setDrawingWinner] = useState(false);
+
   const shortenAddress = (addr: string) => `${addr.slice(0, 4)}...${addr.slice(-4)}`;
   const progress = (raffle.ticketsSold / raffle.totalTickets) * 100;
   const ticketsRemaining = raffle.totalTickets - raffle.ticketsSold;
   const isActive = raffle.status === 'active' && raffle.endTime > Date.now();
   const isSoldOut = raffle.ticketsSold >= raffle.totalTickets;
-  const isExpiredNoSales = raffle.endTime <= Date.now() && raffle.ticketsSold === 0;
+  const isExpiredNoSales = raffle.endTime <= Date.now() && raffle.ticketsSold === 0 && raffle.status === 'active';
+  const isExpiredWithSales = raffle.status === 'active' && raffle.endTime <= Date.now() && raffle.ticketsSold > 0;
+  const isNeedsDrawOrSoldOut = isSoldOut && raffle.status === 'active';
+  const isDrawingNeedsClaim = raffle.status === 'drawing' && raffle.winner;
   const nftName = nftMetadata?.content?.metadata?.name || `Raffle #${raffle.raffleId}`;
   const nftImage = nftMetadata?.content?.links?.image;
+
+  // Handle drawing winner for expired or sold-out raffles
+  // Handle drawing winner for expired or sold-out raffles (two-phase: draw then claim)
+  const handleDrawWinner = async () => {
+    if (!wallet.publicKey) return;
+    try {
+      setDrawingWinner(true);
+      const service = new RaffleService(connection, wallet);
+
+      // Phase 1: Draw winner on-chain (ticket accounts passed as remaining_accounts)
+      // The smart contract generates randomness and picks the winner trustlessly
+      await service.drawWinner(raffle.raffleId);
+
+      // Phase 2: Claim prize - transfer NFT to winner and GGOR to creator
+      await service.claimPrize(raffle.raffleId, new PublicKey(raffle.nftMint));
+
+      onUpdate();
+    } catch (error) {
+      console.error('Error drawing winner:', error);
+      // If draw succeeded but claim failed, the raffle is in "Drawing" state
+      // User can retry claim by clicking the button again
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.includes('InvalidStatus') || errorMsg.includes('Drawing')) {
+        try {
+          const service = new RaffleService(connection, wallet);
+          await service.claimPrize(raffle.raffleId, new PublicKey(raffle.nftMint));
+          onUpdate();
+          return;
+        } catch (claimError) {
+          console.error('Error claiming prize:', claimError);
+        }
+      }
+      alert('Failed to draw winner. Check console for details.');
+    } finally {
+      setDrawingWinner(false);
+    }
+  };
+
+  // Handle claiming prize for raffles stuck in "Drawing" state
+  const handleClaimPrize = async () => {
+    if (!wallet.publicKey) return;
+    try {
+      setDrawingWinner(true);
+      const service = new RaffleService(connection, wallet);
+      await service.claimPrize(raffle.raffleId, new PublicKey(raffle.nftMint));
+      onUpdate();
+    } catch (error) {
+      console.error('Error claiming prize:', error);
+      alert('Failed to claim prize. Check console for details.');
+    } finally {
+      setDrawingWinner(false);
+    }
+  };
+
+  // Handle returning NFT to creator for expired raffles with no sales
+  const handleReturnNFT = async () => {
+    if (!wallet.publicKey) return;
+    try {
+      setLoading(true);
+      const service = new RaffleService(connection, wallet);
+      await service.cancelRaffle(raffle.raffleId, new PublicKey(raffle.nftMint));
+      onUpdate();
+    } catch (error) {
+      console.error('Error returning NFT:', error);
+      alert('Failed to return NFT. Check console for details.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const tabs = [
     { id: 'participants' as const, label: 'PARTICIPANTS', icon: Users },
@@ -965,13 +1040,19 @@ const RaffleDetailView: React.FC<{
               )}
               {/* Status badge */}
               <div className={`absolute top-4 right-4 px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
+                isDrawingNeedsClaim ? 'bg-blue-500 text-white' :
+                isExpiredWithSales ? 'bg-yellow-500 text-black' :
                 isExpiredNoSales ? 'bg-red-500 text-white' :
+                isNeedsDrawOrSoldOut ? 'bg-yellow-500 text-black' :
                 raffle.status === 'active' ? 'bg-magic-green text-black' :
                 raffle.status === 'completed' ? 'bg-blue-500 text-white' :
                 raffle.status === 'cancelled' ? 'bg-red-500 text-white' :
                 'bg-yellow-500 text-black'
               }`}>
-                {isExpiredNoSales ? 'EXPIRED - RETURNED' : raffle.status}
+                {isDrawingNeedsClaim ? 'WINNER DRAWN - CLAIM' :
+                 isExpiredWithSales ? 'AWAITING DRAW' :
+                 isNeedsDrawOrSoldOut ? 'SOLD OUT - DRAW NOW' :
+                 isExpiredNoSales ? 'EXPIRED' : raffle.status}
               </div>
             </div>
           </div>
@@ -1059,8 +1140,8 @@ const RaffleDetailView: React.FC<{
               </div>
             </div>
 
-            {/* Buy Button */}
-            {isActive && !isSoldOut ? (
+            {/* Buy Button / Action Button */}
+            {isActive && !isSoldOut && !isExpiredWithSales ? (
               <button
                 onClick={handleBuyTicket}
                 disabled={loading || !wallet.connected}
@@ -1077,14 +1158,70 @@ const RaffleDetailView: React.FC<{
                   </>
                 )}
               </button>
-            ) : isSoldOut ? (
-              <div className="w-full py-5 bg-gray-800 text-gray-400 font-bold uppercase tracking-widest text-lg text-center">
-                SOLD OUT
-              </div>
+            ) : isDrawingNeedsClaim ? (
+              <button
+                onClick={handleClaimPrize}
+                disabled={drawingWinner || !wallet.connected}
+                className="w-full py-5 bg-blue-500 text-white font-bold uppercase tracking-widest text-lg hover:bg-blue-400 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                {drawingWinner ? (
+                  <>
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    CLAIMING PRIZE...
+                  </>
+                ) : (
+                  <>
+                    <Trophy className="w-6 h-6" />
+                    CLAIM PRIZE FOR {shortenAddress(raffle.winner!)}
+                  </>
+                )}
+              </button>
+            ) : (isExpiredWithSales || isNeedsDrawOrSoldOut) ? (
+              <button
+                onClick={handleDrawWinner}
+                disabled={drawingWinner || !wallet.connected}
+                className="w-full py-5 bg-yellow-500 text-black font-bold uppercase tracking-widest text-lg hover:bg-yellow-400 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                {drawingWinner ? (
+                  <>
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    DRAWING WINNER...
+                  </>
+                ) : (
+                  <>
+                    <Trophy className="w-6 h-6" />
+                    DRAW WINNER
+                  </>
+                )}
+              </button>
             ) : isExpiredNoSales ? (
-              <div className="w-full py-5 bg-red-500/10 border border-red-500/30 text-center">
-                <div className="text-[10px] text-red-400 uppercase tracking-widest mb-1">STATUS</div>
-                <div className="text-red-400 font-mono font-bold">EXPIRED - RETURNED TO CREATOR</div>
+              <div className="flex flex-col gap-2">
+                {raffle.status === 'cancelled' ? (
+                  <div className="w-full py-5 bg-red-500/10 border border-red-500/30 text-center">
+                    <div className="text-[10px] text-red-400 uppercase tracking-widest mb-1">STATUS</div>
+                    <div className="text-red-400 font-mono font-bold">EXPIRED - NFT RETURNED TO CREATOR</div>
+                  </div>
+                ) : wallet.publicKey?.toString() === raffle.creator ? (
+                  <button
+                    onClick={handleReturnNFT}
+                    disabled={loading}
+                    className="w-full py-5 bg-red-500/80 text-white font-bold uppercase tracking-widest text-lg hover:bg-red-500 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        RETURNING NFT...
+                      </>
+                    ) : (
+                      'RETURN NFT TO WALLET'
+                    )}
+                  </button>
+                ) : (
+                  <div className="w-full py-5 bg-red-500/10 border border-red-500/30 text-center">
+                    <div className="text-[10px] text-red-400 uppercase tracking-widest mb-1">STATUS</div>
+                    <div className="text-red-400 font-mono font-bold">EXPIRED - NO TICKETS SOLD</div>
+                  </div>
+                )}
               </div>
             ) : raffle.status === 'completed' && raffle.winner ? (
               <div className="w-full py-5 bg-blue-500/10 border border-blue-500/30 text-center">
@@ -1147,11 +1284,19 @@ const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
     const fetchParticipants = async () => {
       try {
         const service = new RaffleService(connection, wallet);
-        // Fetch all ticket accounts and filter by raffle ID client-side
-        const allTicketAccounts = await (service as any).program.account.ticketAccount.all();
+        // Use memcmp filter to query only ticket accounts for this specific raffle
+        // TicketAccount layout: 8 bytes discriminator + 8 bytes raffle_id + ...
+        const raffleIdBytes = new BN(raffle.raffleId).toArrayLike(Buffer, 'le', 8);
+        const ticketAccounts = await (service as any).program.account.ticketAccount.all([
+          {
+            memcmp: {
+              offset: 8, // skip 8-byte account discriminator
+              bytes: bs58.encode(raffleIdBytes),
+            },
+          },
+        ]);
 
-        const participantData = allTicketAccounts
-          .filter((t: any) => t.account.raffleId.toNumber() === raffle.raffleId)
+        const participantData = ticketAccounts
           .map((t: any) => ({
             buyer: t.account.buyer.toString(),
             ticketCount: t.account.ticketCount.toNumber(),
@@ -1162,7 +1307,6 @@ const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
         setParticipants(participantData);
       } catch (error) {
         console.error('Error fetching participants:', error);
-        // Fallback: try fetching via transaction signatures
         setParticipants([]);
       } finally {
         setLoadingParticipants(false);
@@ -1230,67 +1374,103 @@ const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
 // Transactions Tab
 const TransactionsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
   const { connection } = useConnection();
+  const wallet = useWallet();
   const [transactions, setTransactions] = useState<{
-    signature: string;
-    blockTime: number | null;
+    signature?: string;
+    blockTime?: number | null;
     buyer: string;
     tickets: number;
+    ticketAccountKey: string;
   }[]>([]);
   const [loadingTx, setLoadingTx] = useState(true);
 
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const rafflePubkey = new PublicKey(raffle.publicKey);
-        // Get all signatures for the raffle account
-        const signatures = await connection.getSignaturesForAddress(rafflePubkey, { limit: 50 }, 'confirmed');
+        const service = new RaffleService(connection, wallet);
 
-        const txData: typeof transactions = [];
+        // Primary: fetch ticket accounts with memcmp filter (always reliable)
+        const raffleIdBytes = new BN(raffle.raffleId).toArrayLike(Buffer, 'le', 8);
+        const ticketAccounts = await (service as any).program.account.ticketAccount.all([
+          {
+            memcmp: {
+              offset: 8,
+              bytes: bs58.encode(raffleIdBytes),
+            },
+          },
+        ]);
 
-        // Fetch transaction details in parallel (batch of 10)
-        const batchSize = 10;
-        for (let i = 0; i < signatures.length; i += batchSize) {
-          const batch = signatures.slice(i, i + batchSize);
-          const txDetails = await Promise.all(
-            batch.map(sig => connection.getParsedTransaction(sig.signature, { maxSupportedTransactionVersion: 0, commitment: 'confirmed' }).catch(() => null))
-          );
+        const purchases = ticketAccounts
+          .map((t: any) => ({
+            buyer: t.account.buyer.toString(),
+            tickets: t.account.ticketCount.toNumber(),
+            ticketAccountKey: t.publicKey.toString(),
+          }))
+          .filter((p: any) => p.tickets > 0)
+          .sort((a: any, b: any) => b.tickets - a.tickets);
 
-          for (let j = 0; j < batch.length; j++) {
-            const sig = batch[j];
-            const detail = txDetails[j];
-            if (!detail || sig.err) continue;
+        // Secondary: try to enrich with tx signatures and timestamps
+        try {
+          const rafflePubkey = new PublicKey(raffle.publicKey);
+          const signatures = await connection.getSignaturesForAddress(rafflePubkey, { limit: 50 }, 'confirmed');
 
-            // Check if this is a buyTickets transaction by looking at the log messages
-            const logs = detail.meta?.logMessages || [];
-            const buyLog = logs.find(l => l.includes('Bought') && l.includes('tickets for raffle'));
-            if (!buyLog) continue;
+          // Build a map of buyer -> tx details from signatures
+          const buyerTxMap = new Map<string, { signature: string; blockTime: number | null }>();
 
-            // Parse "Bought X tickets for raffle Y"
-            const match = buyLog.match(/Bought (\d+) tickets/);
-            const ticketCount = match ? parseInt(match[1]) : 1;
+          const batchSize = 10;
+          for (let i = 0; i < signatures.length; i += batchSize) {
+            const batch = signatures.slice(i, i + batchSize);
+            const txDetails = await Promise.all(
+              batch.map(sig =>
+                connection.getParsedTransaction(sig.signature, { maxSupportedTransactionVersion: 0, commitment: 'confirmed' }).catch(() => null)
+              )
+            );
 
-            // The buyer is the fee payer (first signer)
-            const buyer = detail.transaction.message.accountKeys[0]?.pubkey?.toString() || 'Unknown';
+            for (let j = 0; j < batch.length; j++) {
+              const sig = batch[j];
+              const detail = txDetails[j];
+              if (!detail || sig.err) continue;
 
-            txData.push({
-              signature: sig.signature,
-              blockTime: sig.blockTime,
-              buyer,
-              tickets: ticketCount,
-            });
+              const logs = detail.meta?.logMessages || [];
+              const buyLog = logs.find(l => l.includes('Bought') && l.includes('tickets for raffle'));
+              if (!buyLog) continue;
+
+              const buyer = detail.transaction.message.accountKeys[0]?.pubkey?.toString() || '';
+              if (buyer && !buyerTxMap.has(buyer)) {
+                buyerTxMap.set(buyer, {
+                  signature: sig.signature,
+                  blockTime: sig.blockTime,
+                });
+              }
+            }
           }
-        }
 
-        setTransactions(txData);
+          // Enrich purchases with tx data
+          const enriched = purchases.map((p: any) => {
+            const txInfo = buyerTxMap.get(p.buyer);
+            return {
+              ...p,
+              signature: txInfo?.signature,
+              blockTime: txInfo?.blockTime,
+            };
+          });
+
+          setTransactions(enriched);
+        } catch (txError) {
+          // If tx enrichment fails, show ticket account data without tx details
+          console.warn('Could not fetch transaction details, showing ticket data only:', txError);
+          setTransactions(purchases);
+        }
       } catch (error) {
         console.error('Error fetching transactions:', error);
+        setTransactions([]);
       } finally {
         setLoadingTx(false);
       }
     };
 
     fetchTransactions();
-  }, [raffle.publicKey, raffle.ticketsSold, connection]);
+  }, [raffle.publicKey, raffle.raffleId, raffle.ticketsSold, connection]);
 
   if (loadingTx) {
     return (
@@ -1322,18 +1502,31 @@ const TransactionsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
           </tr>
         </thead>
         <tbody>
-          {transactions.map((tx) => (
-            <tr key={tx.signature} className="border-b border-white/5 hover:bg-white/[0.02]">
+          {transactions.map((tx, idx) => (
+            <tr key={tx.signature || `${tx.buyer}-${idx}`} className="border-b border-white/5 hover:bg-white/[0.02]">
               <td className="px-6 py-4">
-                <a
-                  href={`${EXPLORER_URLS.GORBAGANA}/tx/${tx.signature}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-magic-green/80 hover:text-magic-green font-mono text-sm flex items-center gap-1"
-                >
-                  {tx.signature.slice(0, 8)}...{tx.signature.slice(-4)}
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                {tx.signature ? (
+                  <a
+                    href={`${EXPLORER_URLS.GORBAGANA}/tx/${tx.signature}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-magic-green/80 hover:text-magic-green font-mono text-sm flex items-center gap-1"
+                  >
+                    {tx.signature.slice(0, 8)}...{tx.signature.slice(-4)}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                ) : (
+                  <a
+                    href={`${EXPLORER_URLS.GORBAGANA}/address/${tx.ticketAccountKey}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-500 hover:text-gray-300 font-mono text-sm flex items-center gap-1"
+                    title="View ticket account"
+                  >
+                    {tx.ticketAccountKey.slice(0, 8)}...{tx.ticketAccountKey.slice(-4)}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
               </td>
               <td className="px-6 py-4">
                 <a

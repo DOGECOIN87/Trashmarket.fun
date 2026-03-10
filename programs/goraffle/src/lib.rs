@@ -6,7 +6,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("4Mk9t8VaZahZq4Y9iPBUzPnnM9yYpfrebBT4sTH7c5ej");
+declare_id!("EyanJkk7BV9nA5ZzuBQLqC3FWf25dLdgbURhLiV3Hc31");
 
 #[program]
 pub mod goraffle {
@@ -46,6 +46,13 @@ pub mod goraffle {
         raffle_id: u64,
     ) -> Result<()> {
         instructions::draw_winner::handler(ctx, raffle_id)
+    }
+
+    pub fn claim_prize(
+        ctx: Context<ClaimPrize>,
+        raffle_id: u64,
+    ) -> Result<()> {
+        instructions::claim_prize::handler(ctx, raffle_id)
     }
 
     pub fn cancel_raffle(
