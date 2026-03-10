@@ -61,4 +61,11 @@ pub mod goraffle {
     ) -> Result<()> {
         instructions::cancel_raffle::handler(ctx, raffle_id)
     }
+
+    pub fn purge_raffle(
+        ctx: Context<PurgeRaffle>,
+        raffle_id: u64,
+    ) -> Result<()> {
+        instructions::purge_raffle::handler(ctx, raffle_id)
+    }
 }

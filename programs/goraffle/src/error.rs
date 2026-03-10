@@ -34,4 +34,6 @@ pub enum RaffleError {
     WinnerNotFound,            // 6014
     #[msg("Invalid winner")]
     InvalidWinner,             // 6015
+    #[msg("Unauthorized")]
+    Unauthorized,              // 6016
 }

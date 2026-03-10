@@ -241,6 +241,85 @@ export function useJunkPusherOnChain() {
     [publicKey, sendTx, state.debrisBalance],
   );
 
+  // ─── Update balance (admin-signed via backend) ──────────────────────
+
+  /** Update game balance via admin-signed backend transaction */
+  const updateBalance = useCallback(
+    async (newBalance: number, netProfitDelta: number) => {
+      if (!publicKey || !signTransaction || !connection) return null;
+
+      try {
+        setState((s) => ({ ...s, txStatus: 'building', txLabel: '', error: null }));
+
+        const apiBaseUrl = import.meta.env?.VITE_API_BASE_URL || '';
+
+        // Get the instruction and admin key from backend
+        const { instruction, adminPublicKey } = await client.updateBalanceViaBackend(
+          publicKey,
+          newBalance,
+          netProfitDelta,
+          apiBaseUrl
+        );
+
+        // Build the transaction
+        const tx = new Transaction().add(instruction);
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = publicKey;
+
+        // Serialize the transaction message for admin to sign
+        const txMessage = tx.serializeMessage();
+
+        // Get admin signature from backend
+        const { signature: adminSig } = await client.getAdminSignature(txMessage, apiBaseUrl);
+
+        // Add admin signature to transaction
+        tx.addSignature(adminPublicKey, Buffer.from(adminSig));
+
+        // Player signs the transaction
+        setState((s) => ({ ...s, txStatus: 'signing' }));
+        const signed = await signTransaction(tx);
+
+        // Send
+        setState((s) => ({ ...s, txStatus: 'confirming' }));
+        const signature = await connection.sendRawTransaction(signed.serialize(), {
+          skipPreflight: false,
+          maxRetries: 3,
+        });
+
+        await connection.confirmTransaction(
+          { blockhash, lastValidBlockHeight, signature },
+          'confirmed',
+        );
+
+        setState((s) => ({
+          ...s,
+          txStatus: 'confirmed',
+          lastTxSignature: signature,
+        }));
+
+        setTimeout(() => refreshBalances(), 2000);
+        setTimeout(() => {
+          setState((s) => ({ ...s, txStatus: 'idle', txLabel: '' }));
+        }, 3000);
+
+        return signature;
+      } catch (err: any) {
+        console.error('[OnChain] Update balance error:', err);
+        setState((s) => ({
+          ...s,
+          txStatus: 'error',
+          error: err.message || 'Update balance failed',
+        }));
+        setTimeout(() => {
+          setState((s) => ({ ...s, txStatus: 'idle', txLabel: '' }));
+        }, 3000);
+        return null;
+      }
+    },
+    [publicKey, signTransaction, connection, refreshBalances],
+  );
+
   // ─── High scores ─────────────────────────────────────────────────────
 
   const fetchHighScores = useCallback(
@@ -274,6 +353,7 @@ export function useJunkPusherOnChain() {
     recordScore,
     depositBalance,
     withdrawBalance,
+    updateBalance,
     fetchHighScores,
     fetchPlayerRank,
   };

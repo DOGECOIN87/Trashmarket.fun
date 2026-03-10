@@ -247,6 +247,79 @@ export type Goraffle = {
       ]
     },
     {
+      "name": "purgeRaffle",
+      "discriminator": [
+        38,
+        254,
+        129,
+        90,
+        212,
+        232,
+        249,
+        205
+      ],
+      "accounts": [
+        {
+          "name": "raffleState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  97,
+                  102,
+                  102,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "raffle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  97,
+                  102,
+                  102,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "raffle_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "raffleId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "claimPrize",
       "discriminator": [
         157,
@@ -278,6 +351,30 @@ export type Goraffle = {
               {
                 "kind": "arg",
                 "path": "raffleId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "raffleState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  97,
+                  102,
+                  102,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
               }
             ]
           }
@@ -433,6 +530,10 @@ export type Goraffle = {
         },
         {
           "name": "creatorTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "platformTokenAccount",
           "writable": true
         },
         {
@@ -1036,6 +1137,11 @@ export type Goraffle = {
       "code": 6015,
       "name": "invalidWinner",
       "msg": "Invalid winner"
+    },
+    {
+      "code": 6016,
+      "name": "unauthorized",
+      "msg": "Unauthorized"
     }
   ],
   "types": [

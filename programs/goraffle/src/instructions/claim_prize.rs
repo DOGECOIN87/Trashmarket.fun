@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Mint, Transfer};
 use anchor_spl::associated_token::AssociatedToken;
-use crate::state::{Raffle, RaffleStatus};
+use crate::state::{Raffle, RaffleState, RaffleStatus};
 use crate::error::RaffleError;
 
 #[derive(Accounts)]
@@ -13,6 +13,12 @@ pub struct ClaimPrize<'info> {
         bump
     )]
     pub raffle: Box<Account<'info, Raffle>>,
+
+    #[account(
+        seeds = [b"raffle_state"],
+        bump
+    )]
+    pub raffle_state: Box<Account<'info, RaffleState>>,
 
     /// CHECK: The winner account, validated against raffle.winner
     #[account(
@@ -49,6 +55,13 @@ pub struct ClaimPrize<'info> {
         constraint = creator_token_account.owner == raffle.creator
     )]
     pub creator_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        constraint = platform_token_account.mint == ggor_mint.key(),
+        constraint = platform_token_account.owner == raffle_state.authority
+    )]
+    pub platform_token_account: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: PDA signer for escrow accounts
     #[account(
@@ -128,6 +141,23 @@ pub fn handler(ctx: Context<ClaimPrize>, raffle_id: u64) -> Result<()> {
                 signer,
             ),
             creator_earnings,
+        )?;
+    }
+
+    // Transfer platform fee from escrow to platform wallet
+    if fee_amount > 0 {
+        let fee_transfer = Transfer {
+            from: ctx.accounts.escrow_token_account.to_account_info(),
+            to: ctx.accounts.platform_token_account.to_account_info(),
+            authority: ctx.accounts.escrow_authority.to_account_info(),
+        };
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                fee_transfer,
+                signer,
+            ),
+            fee_amount,
         )?;
     }
 

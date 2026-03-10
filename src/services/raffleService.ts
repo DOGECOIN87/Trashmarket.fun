@@ -359,6 +359,7 @@ export class RaffleService {
   // Claim prize for a raffle (Phase 2: transfer NFT to winner and GGOR to creator)
   async claimPrize(raffleId: number, nftMint: PublicKey): Promise<string> {
     const [rafflePDA] = await this.getRafflePDA(raffleId);
+    const [raffleStatePDA] = await this.getRaffleStatePDA();
     const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
     const [escrowNftAccount] = await this.getEscrowNftPDA(raffleId);
     const [escrowTokenAccount] = await this.getEscrowGgorPDA(raffleId);
@@ -372,21 +373,30 @@ export class RaffleService {
       throw new Error('No winner set on raffle - draw winner first');
     }
 
+    // Get platform authority from raffle state
+    const raffleStateData = await this.program.account.raffleState.fetch(raffleStatePDA);
+    const platformAuthority = raffleStateData.authority as PublicKey;
+
     // Get winner's NFT token account
     const winnerNftAccount = await getAssociatedTokenAddress(nftMint, winner);
 
     // Get creator's GGOR token account
     const creatorTokenAccount = await getAssociatedTokenAddress(GGOR_MINT, creator);
 
+    // Get platform's GGOR token account
+    const platformTokenAccount = await getAssociatedTokenAddress(GGOR_MINT, platformAuthority);
+
     const tx = await this.program.methods
       .claimPrize(new BN(raffleId))
       .accounts({
         raffle: rafflePDA,
+        raffleState: raffleStatePDA,
         winner,
         escrowNftAccount,
         winnerNftAccount,
         escrowTokenAccount,
         creatorTokenAccount,
+        platformTokenAccount,
         escrowAuthority,
         nftMint,
         ggorMint: GGOR_MINT,

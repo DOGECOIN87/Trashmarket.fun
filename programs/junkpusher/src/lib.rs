@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{self, TokenInterface, TokenAccount, TransferChecked};
 
-// Will be replaced with actual program ID after first deployment
 declare_id!("5gJkp3DsVTtBP6k7WtbiNBjQhAESgGrgu6AJfypMCAwe");
 
 /// Maximum deposit amount (1 billion DEBRIS in human-readable units)
@@ -10,10 +9,22 @@ const MAX_DEPOSIT: u64 = 1_000_000_000;
 const MAX_SCORE: u64 = 999_999_999;
 /// DEBRIS token decimals (10^9)
 const DEBRIS_DECIMALS_MULTIPLIER: u64 = 1_000_000_000;
+/// Platform fee in basis points (2.5%)
+const PLATFORM_FEE_BPS: u64 = 250;
 
 #[program]
 pub mod junkpusher {
     use super::*;
+
+    /// Initialize the game config (one-time admin setup).
+    /// Stores the admin authority for privileged operations.
+    pub fn initialize_config(ctx: Context<InitializeConfig>) -> Result<()> {
+        let config = &mut ctx.accounts.game_config;
+        config.admin = ctx.accounts.admin.key();
+
+        msg!("Game config initialized, admin: {}", config.admin);
+        Ok(())
+    }
 
     /// Initialize a new game session for a player.
     /// Creates a PDA-based GameState account tied to the player's wallet.
@@ -73,7 +84,7 @@ pub mod junkpusher {
     }
 
     /// Deposit DEBRIS tokens from the player's token account into the treasury.
-    /// Updates the on-chain game balance accordingly.
+    /// A 2.5% platform fee is deducted from the credited game balance.
     pub fn deposit_balance(ctx: Context<DepositBalance>, amount: u64) -> Result<()> {
         let game_state = &mut ctx.accounts.game_state;
         let clock = Clock::get()?;
@@ -87,7 +98,7 @@ pub mod junkpusher {
             .checked_mul(DEBRIS_DECIMALS_MULTIPLIER)
             .ok_or(GameError::Overflow)?;
 
-        // Transfer DEBRIS tokens: player → treasury (Token-2022 transfer_checked)
+        // Transfer full DEBRIS amount: player → treasury (Token-2022 transfer_checked)
         let transfer_ctx = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             TransferChecked {
@@ -99,14 +110,24 @@ pub mod junkpusher {
         );
         token_interface::transfer_checked(transfer_ctx, transfer_amount, 9)?;
 
-        // Update game state balance
+        // Calculate platform fee (2.5%) - fee stays in treasury as platform revenue
+        let fee = amount
+            .checked_mul(PLATFORM_FEE_BPS)
+            .ok_or(GameError::Overflow)?
+            .checked_div(10_000)
+            .ok_or(GameError::Overflow)?;
+        let credited_amount = amount
+            .checked_sub(fee)
+            .ok_or(GameError::Underflow)?;
+
+        // Credit player's game balance with fee-adjusted amount
         game_state.balance = game_state
             .balance
-            .checked_add(amount)
+            .checked_add(credited_amount)
             .ok_or(GameError::Overflow)?;
         game_state.last_updated = clock.unix_timestamp;
 
-        msg!("Deposited {} DEBRIS tokens", amount);
+        msg!("Deposited {} DEBRIS (credited {} after {}% fee)", amount, credited_amount, PLATFORM_FEE_BPS as f64 / 100.0);
         Ok(())
     }
 
@@ -186,8 +207,9 @@ pub mod junkpusher {
     }
 
     /// Update balance and net profit from game engine results.
-    /// Called after game rounds to sync on-chain state with game outcome.
-    pub fn update_balance(ctx: Context<UpdateGameState>, new_balance: u64, net_profit_delta: i64) -> Result<()> {
+    /// ADMIN ONLY: Requires the game config admin to co-sign.
+    /// This prevents players from arbitrarily setting their own balance/winnings.
+    pub fn update_balance(ctx: Context<AdminUpdateGameState>, new_balance: u64, net_profit_delta: i64) -> Result<()> {
         let game_state = &mut ctx.accounts.game_state;
         let clock = Clock::get()?;
 
@@ -206,6 +228,18 @@ pub mod junkpusher {
 }
 
 // ─── Account Structures ────────────────────────────────────────────────────
+
+/// GameConfig PDA - stores admin authority for privileged operations.
+/// Seeds: ["game_config"]
+#[account]
+pub struct GameConfig {
+    /// The admin authority who can call update_balance
+    pub admin: Pubkey,  // 32 bytes
+}
+
+impl GameConfig {
+    pub const SIZE: usize = 8 + 32; // discriminator + admin
+}
 
 /// GameState PDA - stores per-player game data.
 /// Seeds: ["game_state", player_pubkey]
@@ -245,6 +279,23 @@ impl GameState {
 // ─── Instruction Contexts ──────────────────────────────────────────────────
 
 #[derive(Accounts)]
+pub struct InitializeConfig<'info> {
+    #[account(
+        init,
+        payer = admin,
+        space = GameConfig::SIZE,
+        seeds = [b"game_config"],
+        bump
+    )]
+    pub game_config: Account<'info, GameConfig>,
+
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeGame<'info> {
     #[account(
         init,
@@ -274,6 +325,31 @@ pub struct UpdateGameState<'info> {
     pub player: Signer<'info>,
 }
 
+/// Admin-only game state update — requires admin co-signature
+#[derive(Accounts)]
+pub struct AdminUpdateGameState<'info> {
+    #[account(
+        mut,
+        seeds = [b"game_state", player.key().as_ref()],
+        bump,
+        has_one = player
+    )]
+    pub game_state: Account<'info, GameState>,
+
+    /// CHECK: The player whose state is being updated (not required to sign)
+    pub player: AccountInfo<'info>,
+
+    #[account(
+        seeds = [b"game_config"],
+        bump,
+        has_one = admin @ GameError::Unauthorized
+    )]
+    pub game_config: Account<'info, GameConfig>,
+
+    /// The admin authority — must match game_config.admin
+    pub admin: Signer<'info>,
+}
+
 #[derive(Accounts)]
 pub struct DepositBalance<'info> {
     #[account(
@@ -288,15 +364,30 @@ pub struct DepositBalance<'info> {
     pub player: Signer<'info>,
 
     /// Player's DEBRIS token account (source)
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = player_token_account.owner == player.key() @ GameError::InvalidTokenAccount,
+        constraint = player_token_account.mint == debris_mint.key() @ GameError::InvalidTokenMint
+    )]
     pub player_token_account: InterfaceAccount<'info, TokenAccount>,
 
-    /// Treasury's DEBRIS token account (destination)
-    #[account(mut)]
+    /// Treasury's DEBRIS token account (destination) - must be controlled by treasury PDA
+    #[account(
+        mut,
+        constraint = treasury_token_account.mint == debris_mint.key() @ GameError::InvalidTokenMint,
+        constraint = treasury_token_account.owner == treasury_authority.key() @ GameError::InvalidTreasury
+    )]
     pub treasury_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// DEBRIS token mint
     pub debris_mint: InterfaceAccount<'info, token_interface::Mint>,
+
+    /// CHECK: Treasury authority PDA - validates treasury_token_account ownership
+    #[account(
+        seeds = [b"treasury_authority"],
+        bump
+    )]
+    pub treasury_authority: AccountInfo<'info>,
 
     pub token_program: Interface<'info, TokenInterface>,
 }
@@ -315,11 +406,19 @@ pub struct WithdrawBalance<'info> {
     pub player: Signer<'info>,
 
     /// Player's DEBRIS token account (destination)
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = player_token_account.owner == player.key() @ GameError::InvalidTokenAccount,
+        constraint = player_token_account.mint == debris_mint.key() @ GameError::InvalidTokenMint
+    )]
     pub player_token_account: InterfaceAccount<'info, TokenAccount>,
 
-    /// Treasury's DEBRIS token account (source)
-    #[account(mut)]
+    /// Treasury's DEBRIS token account (source) - must be controlled by treasury PDA
+    #[account(
+        mut,
+        constraint = treasury_token_account.mint == debris_mint.key() @ GameError::InvalidTokenMint,
+        constraint = treasury_token_account.owner == treasury_authority.key() @ GameError::InvalidTreasury
+    )]
     pub treasury_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// DEBRIS token mint
@@ -357,4 +456,12 @@ pub enum GameError {
     Overflow,
     #[msg("Arithmetic underflow")]
     Underflow,
+    #[msg("Invalid token account owner")]
+    InvalidTokenAccount,
+    #[msg("Invalid token mint")]
+    InvalidTokenMint,
+    #[msg("Invalid treasury account")]
+    InvalidTreasury,
+    #[msg("Unauthorized: admin signature required")]
+    Unauthorized,
 }

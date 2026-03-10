@@ -241,6 +241,79 @@
       ]
     },
     {
+      "name": "purge_raffle",
+      "discriminator": [
+        38,
+        254,
+        129,
+        90,
+        212,
+        232,
+        249,
+        205
+      ],
+      "accounts": [
+        {
+          "name": "raffle_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  97,
+                  102,
+                  102,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "raffle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  97,
+                  102,
+                  102,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "raffle_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "raffle_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "claim_prize",
       "discriminator": [
         157,
@@ -272,6 +345,30 @@
               {
                 "kind": "arg",
                 "path": "raffle_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "raffle_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  97,
+                  102,
+                  102,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
               }
             ]
           }
@@ -427,6 +524,10 @@
         },
         {
           "name": "creator_token_account",
+          "writable": true
+        },
+        {
+          "name": "platform_token_account",
           "writable": true
         },
         {
@@ -1030,6 +1131,11 @@
       "code": 6015,
       "name": "InvalidWinner",
       "msg": "Invalid winner"
+    },
+    {
+      "code": 6016,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
     }
   ],
   "types": [
