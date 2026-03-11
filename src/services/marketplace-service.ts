@@ -5,7 +5,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { Program, AnchorProvider, BN, Idl } from '@coral-xyz/anchor';
+import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import goridIdl from '../idl/gor_name_marketplace.json';
 import {
   getAssociatedTokenAddress,
@@ -21,7 +21,7 @@ const TRADING_API_URL = `${RPC_ENDPOINTS.GORBAGANA_API}/trading`;
 
 // Name Service Program
 const NAME_SERVICE_PROGRAM = new PublicKey('namesLPneVptA9Z5rqUDD9tMTWEJwofgaYwp8cawRkX');
-const GORID_ESCROW_PROGRAM_ID = new PublicKey('GorNMkt1111111111111111111111111111111111111'); 
+const GORID_ESCROW_PROGRAM_ID = new PublicKey('GoRidLAhqsVEWYgH1JPdzYChyyUcFZPpJEBkJzUPYnw');
 const WRAPPED_GOR_MINT = new PublicKey(TRADING_CONFIG.WRAPPED_GOR_MINT);
 const FEE_RECIPIENT = new PublicKey(TRADING_CONFIG.FEE_RECIPIENT);
 
@@ -227,7 +227,7 @@ export function getGoridProgram(provider?: AnchorProvider): Program {
     },
     { commitment: 'confirmed' }
   );
-  return new Program(goridIdl as Idl, GORID_ESCROW_PROGRAM_ID, activeProvider);
+  return new Program(goridIdl as any, activeProvider);
 }
 
 /**
@@ -266,7 +266,7 @@ export function getFeeVaultPDA(): [PublicKey, number] {
 export async function fetchOnChainListings(): Promise<MarketplaceListing[]> {
   try {
     const program = getGoridProgram();
-    const accounts = await program.account.listing.all();
+    const accounts = await (program.account as any).listing.all();
     
     return accounts.map(acc => {
       const data = acc.account as any;
@@ -333,6 +333,11 @@ export async function buildOnChainPurchaseTransaction(
   const [feeVaultPDA] = getFeeVaultPDA();
   const sellerPubkey = new PublicKey(listing.seller);
 
+  // Fetch the config to get the admin wallet (fee recipient)
+  const conn = getConnection();
+  const configAccount = await (program.account as any).config.fetch(configPDA);
+  const platformAdmin = configAccount.admin as PublicKey;
+
   const instruction = await program.methods
     .buyListing()
     .accounts({
@@ -343,12 +348,12 @@ export async function buildOnChainPurchaseTransaction(
       buyer: buyerPubkey,
       name: nameAccount,
       nameServiceProgram: NAME_SERVICE_PROGRAM,
+      platformAdmin,
       systemProgram: SystemProgram.programId,
     })
     .instruction();
 
   const transaction = new Transaction().add(instruction);
-  const conn = getConnection();
   const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
   transaction.recentBlockhash = blockhash;
   transaction.lastValidBlockHeight = lastValidBlockHeight;

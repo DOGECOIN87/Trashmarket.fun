@@ -11,7 +11,7 @@ export const TRADING_CONFIG = {
   WRAPPED_DECIMALS: 9,
 
   // Platform fee recipient wallet
-  FEE_RECIPIENT: 'TMABDMgLHfmmRNyHgbHTP9P5XP1zrAMFfbRAef69o9f', // TrashMarket platform treasury
+  FEE_RECIPIENT: 'Drn1GXZoBpER3gUPFCZJTNGEghXvEyFYmtfB7ycoiMAJ', // TrashMarket platform admin (fee vault withdrawals)
 
   // Fee structure (basis points: 100 = 1%)
   PLATFORM_FEE_BPS: 250,    // 2.5%

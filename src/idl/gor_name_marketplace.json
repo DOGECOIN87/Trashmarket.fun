@@ -67,6 +67,7 @@
         { "name": "buyer", "isMut": true, "isSigner": true },
         { "name": "name", "isMut": true, "isSigner": false },
         { "name": "nameServiceProgram", "isMut": false, "isSigner": false },
+        { "name": "platformAdmin", "isMut": true, "isSigner": false },
         { "name": "systemProgram", "isMut": false, "isSigner": false }
       ],
       "args": []
@@ -172,6 +173,10 @@
     { "code": 6005, "name": "InvalidPrice", "msg": "Price must be greater than zero" },
     { "code": 6006, "name": "ArithmeticOverflow", "msg": "Arithmetic overflow occurred" },
     { "code": 6007, "name": "BuyerIsSeller", "msg": "Buyer cannot be the seller" },
-    { "code": 6008, "name": "InvalidNameAccountData", "msg": "Invalid name service account data" }
-  ]
+    { "code": 6008, "name": "InvalidNameAccountData", "msg": "Invalid name service account data" },
+    { "code": 6009, "name": "InvalidFeeRecipient", "msg": "Invalid fee recipient — must match config admin" }
+  ],
+  "metadata": {
+    "address": "GoRidLAhqsVEWYgH1JPdzYChyyUcFZPpJEBkJzUPYnw"
+  }
 }

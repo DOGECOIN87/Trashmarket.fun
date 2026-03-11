@@ -45,7 +45,7 @@ const Gorid: React.FC = () => {
   const [isBuying, setIsBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
   const [buySuccess, setBuySuccess] = useState<string | null>(null);
-  const [useNativeForBuy, setUseNativeForBuy] = useState(false);
+  // Purchases use native GOR (lamports) on-chain — no token toggle needed
   const [isListing, setIsListing] = useState(false);
   const [listingDomain, setListingDomain] = useState<GoridName | null>(null);
   const [listingPrice, setListingPrice] = useState('');
@@ -215,7 +215,7 @@ const Gorid: React.FC = () => {
     } finally {
       setIsListing(false);
     }
-  }, [connected, address, listingDomain, listingPrice]);
+  }, [connected, address, publicKey, signTransaction, connection, listingDomain, listingPrice]);
 
   // Fee preview for listing
   const feePreview = useMemo(() => {
@@ -267,7 +267,7 @@ const Gorid: React.FC = () => {
     } finally {
       setIsCanceling(false);
     }
-  }, [connected, address, listedDomainsMap]);
+  }, [connected, address, publicKey, signTransaction, connection, listedDomainsMap]);
 
   // Styling
   const btnPrimary = 'bg-magic-green text-black hover:bg-white hover:text-black';
@@ -308,19 +308,6 @@ const Gorid: React.FC = () => {
           </button>
         </div>
       )}
-
-      {/* Under Construction Banner */}
-      <div className="bg-yellow-500/20 border-b border-yellow-500/50">
-        <div className="max-w-[1600px] mx-auto px-4 py-3">
-          <div className="flex items-center justify-center gap-3">
-            <Tag className="w-5 h-5 text-yellow-500" />
-            <p className="text-yellow-500 text-sm font-bold uppercase tracking-wider">
-              ⚠️ UNDER CONSTRUCTION — GorID marketplace integration in progress
-            </p>
-            <Tag className="w-5 h-5 text-yellow-500" />
-          </div>
-        </div>
-      </div>
 
       {/* Hero Section */}
       <div className="border-b border-white/20 bg-gradient-to-b from-magic-green/5 to-transparent">
@@ -773,22 +760,8 @@ const Gorid: React.FC = () => {
             )}
 
             <div className="space-y-3">
-              {/* Native GOR Toggle */}
-              <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 mb-4">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white uppercase">Pay with Native GOR</span>
-                  <span className="text-[10px] text-gray-500 font-mono">Uses 6 decimals (Gas Token)</span>
-                </div>
-                <button
-                  onClick={() => setUseNativeForBuy(!useNativeForBuy)}
-                  className={`w-10 h-5 rounded-full relative transition-colors ${useNativeForBuy ? 'bg-magic-green' : 'bg-white/20'}`}
-                >
-                  <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${useNativeForBuy ? 'left-6' : 'left-1'}`} />
-                </button>
-              </div>
-
               <button
-                onClick={() => handleBuy(selectedDomain, useNativeForBuy)}
+                onClick={() => handleBuy(selectedDomain)}
                 disabled={isBuying || !connected}
                 className={`w-full ${btnPrimary} py-3 font-bold uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
@@ -801,7 +774,7 @@ const Gorid: React.FC = () => {
                   'Connect Wallet to Buy'
                 ) : (
                   <>
-                    <ShoppingCart className="w-4 h-4" /> Buy Now — {useNativeForBuy ? 'GOR' : 'wGOR'} {selectedDomain.price}
+                    <ShoppingCart className="w-4 h-4" /> Buy Now — {currency} {selectedDomain.price}
                   </>
                 )}
               </button>
