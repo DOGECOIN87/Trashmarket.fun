@@ -40,7 +40,7 @@ export const BackgroundDecorations: React.FC = () => {
 
     // Generate random floating assets
     const generatedAssets: FloatingAsset[] = [];
-    const assetCount = 10; // Reduced for performance
+    const assetCount = 16; // More assets for a fuller background
 
     for (let i = 0; i < assetCount; i++) {
       const randomAsset = assetPaths[Math.floor(Math.random() * assetPaths.length)];
@@ -54,7 +54,7 @@ export const BackgroundDecorations: React.FC = () => {
         rotation: Math.random() * 360, // Random rotation
         duration: 15 + Math.random() * 35, // Float duration (15-50s) - faster movement
         delay: Math.random() * 10, // Random delay (0-10s)
-        opacity: 0.08 + Math.random() * 0.17, // Opacity (0.08-0.25) - slightly more visible
+        opacity: 0.4 + Math.random() * 0.35, // Opacity (0.4-0.75) - bold and visible
       });
     }
 

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getTopCollections } from '../services/magicEdenService';
 import { getGorbagioCollection, getGorbagioNFTs } from '../services/gorbagioService';
+import { getTokens, type Token } from '../services/tokenService';
 import { Collection, NFT } from '../types';
-import { MOCK_COLLECTIONS, MOCK_NFTS } from '../constants';
+import { TOKEN_CONFIG } from '../lib/tokenConfig';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
 
-import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio, Volume2, VolumeX } from 'lucide-react';
+import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio, Volume2, VolumeX, Users, Coins, TrendingUp, ExternalLink } from 'lucide-react';
 
 import { useNetwork } from '../contexts/NetworkContext';
 
@@ -23,12 +25,28 @@ const Marquee = ({ children, reverse = false, className = "" }: { children?: Rea
   );
 };
 
+interface TokenHolder {
+  wallet: string;
+  tokenAccount: string;
+  amount: number;
+}
+
+const DEBRIS_MINT = TOKEN_CONFIG.DEBRIS.address;
+const DEBRIS_LOGO = 'https://raw.githubusercontent.com/DOGECOIN87/Trashmarket.fun/main/public/assets/logo-circle-transparent.png';
+
+/** Truncate wallet address for display */
+function truncateAddr(addr: string): string {
+  return addr.slice(0, 4) + '...' + addr.slice(-4);
+}
+
 const Home: React.FC = () => {
   const { currency, accentColor } = useNetwork();
 
   const [featuredCollection, setFeaturedCollection] = useState<Collection | null>(null);
   const [featuredArtworks, setFeaturedArtworks] = useState<NFT[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
+  const [tokens, setTokens] = useState<Token[]>([]);
+  const [debrisHolders, setDebrisHolders] = useState<TokenHolder[]>([]);
+  const [debrisSupply, setDebrisSupply] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -45,35 +63,66 @@ const Home: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       const heroArtCount = 18;
-      const gorbagioFallback = MOCK_COLLECTIONS.find((item) => item.id === 'gorbagios') || null;
-      const gorbagioArtFallback = MOCK_NFTS['gorbagios']?.slice(0, heroArtCount) || [];
-      const [featuredResult, topResult, artResult] = await Promise.allSettled([
-        getGorbagioCollection(gorbagioFallback || undefined),
-        getTopCollections(5),
-        getGorbagioNFTs({ limit: heroArtCount, defaultPrice: gorbagioFallback?.floorPrice ?? 0 }),
+
+      const [featuredResult, artResult, tokensResult] = await Promise.allSettled([
+        getGorbagioCollection(),
+        getGorbagioNFTs({ limit: heroArtCount, defaultPrice: 0 }),
+        getTokens(),
       ]);
 
       if (!isMounted) return;
 
       if (featuredResult.status === 'fulfilled') {
         setFeaturedCollection(featuredResult.value);
-      } else {
-        console.error('Error fetching Gorbagios:', featuredResult.reason);
-        setFeaturedCollection(gorbagioFallback);
-      }
-
-      if (topResult.status === 'fulfilled') {
-        setCollections(topResult.value);
-      } else {
-        console.error('Error fetching top collections:', topResult.reason);
       }
 
       if (artResult.status === 'fulfilled') {
         const artItems = artResult.value.filter((item) => item.image);
-        setFeaturedArtworks(artItems.length ? artItems : gorbagioArtFallback);
-      } else {
-        console.error('Error fetching Gorbagio artwork:', artResult.reason);
-        setFeaturedArtworks(gorbagioArtFallback);
+        setFeaturedArtworks(artItems);
+      }
+
+      if (tokensResult.status === 'fulfilled') {
+        setTokens(tokensResult.value);
+      }
+
+      // Fetch DEBRIS holders from RPC
+      try {
+        const conn = new Connection(GORBAGANA_CONFIG.rpcEndpoint, 'confirmed');
+        const mintPk = new PublicKey(DEBRIS_MINT);
+
+        const [largestAccounts, supplyResult] = await Promise.all([
+          conn.getTokenLargestAccounts(mintPk),
+          conn.getTokenSupply(mintPk),
+        ]);
+
+        if (isMounted) {
+          setDebrisSupply(Number(supplyResult.value.amount) / Math.pow(10, TOKEN_CONFIG.DEBRIS.decimals));
+
+          // Resolve owners for accounts with balance > 0
+          const holdersWithBalance = largestAccounts.value.filter(a => Number(a.amount) > 0);
+          const holders: TokenHolder[] = await Promise.all(
+            holdersWithBalance.map(async (acc) => {
+              try {
+                const info = await conn.getParsedAccountInfo(acc.address);
+                const owner = (info.value?.data as any)?.parsed?.info?.owner || acc.address.toBase58();
+                return {
+                  wallet: owner,
+                  tokenAccount: acc.address.toBase58(),
+                  amount: Number(acc.amount) / Math.pow(10, TOKEN_CONFIG.DEBRIS.decimals),
+                };
+              } catch {
+                return {
+                  wallet: acc.address.toBase58(),
+                  tokenAccount: acc.address.toBase58(),
+                  amount: Number(acc.amount) / Math.pow(10, TOKEN_CONFIG.DEBRIS.decimals),
+                };
+              }
+            })
+          );
+          if (isMounted) setDebrisHolders(holders);
+        }
+      } catch (error) {
+        console.error('Error fetching DEBRIS holders:', error);
       }
 
       setLoading(false);
@@ -85,8 +134,10 @@ const Home: React.FC = () => {
   }, []);
 
   const [isHovering, setIsHovering] = useState(false);
-
   const carouselItems = featuredArtworks.filter((item) => item.image);
+
+  const borderAccent = accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green';
+  const bgAccent = accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green';
 
   if (loading) {
     return (
@@ -103,7 +154,6 @@ const Home: React.FC = () => {
       {/* Hero / Spotlight with Background Video */}
       {featuredCollection ? (
         <div className="relative h-[300px] sm:h-[400px] md:h-[450px] w-full overflow-hidden border-b border-white/20">
-          {/* Background Video - Hero Section Only */}
           <video
             ref={videoRef}
             autoPlay
@@ -113,7 +163,6 @@ const Home: React.FC = () => {
             className="absolute top-0 left-0 w-full h-full object-cover opacity-80"
             src="/Trashmarket-index-background-video.mp4"
           />
-          {/* Mute Button */}
           <button
             onClick={toggleMute}
             className="absolute top-4 right-4 z-20 p-2 bg-black/50 border border-white/20 rounded-full hover:bg-black/70 transition-all duration-200 group"
@@ -134,17 +183,14 @@ const Home: React.FC = () => {
           <div className="absolute bottom-0 left-0 w-full p-3 sm:p-6 md:p-12 z-10">
             <div className="max-w-[1600px] mx-auto flex flex-col gap-6">
               <div className="max-w-3xl w-full">
-                <div className={`flex items-center justify-between mb-2 w-full border-b ${accentColor === 'text-magic-purple' ? 'border-magic-purple/30' : 'border-magic-green/30'} pb-2`}>
+                <div className={`flex items-center justify-between mb-2 w-full border-b ${borderAccent}/30 pb-2`}>
                   <div className={`inline-flex items-center gap-2 ${accentColor} text-xs font-bold uppercase tracking-widest font-mono`}>
                     <Terminal className="w-3 h-3" /> System_Spotlight :: {featuredCollection.id.toUpperCase()}
                   </div>
                   <div className="flex gap-4 items-center">
-                    <span className={`text-[10px] font-mono uppercase tracking-widest flex items-center gap-2 text-gray-500`}>
+                    <span className="text-[10px] font-mono uppercase tracking-widest flex items-center gap-2 text-gray-500">
                       <Radio className={`w-3 h-3 ${accentColor} animate-pulse`} />
                       SYSTEM_ONLINE
-                    </span>
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">
-                      [ MARKET_LIVE ]
                     </span>
                   </div>
                 </div>
@@ -155,7 +201,7 @@ const Home: React.FC = () => {
 
                 <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
                   <div className="flex items-center gap-8 text-sm text-gray-400 font-mono">
-                    <div className={`flex flex-col border-l-2 ${accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green'} pl-3`}>
+                    <div className={`flex flex-col border-l-2 ${borderAccent} pl-3`}>
                       <span className="text-[10px] uppercase tracking-wider text-gray-500">Floor_Price</span>
                       <span className="text-white text-xl font-bold">{currency} {featuredCollection.floorPrice}</span>
                     </div>
@@ -167,7 +213,7 @@ const Home: React.FC = () => {
 
                   <Link
                     to={`/collection/gorbagio`}
-                    className={`group relative px-8 py-3 bg-black border ${accentColor === 'text-magic-purple' ? 'border-magic-purple text-magic-purple hover:bg-magic-purple' : 'border-magic-green text-magic-green hover:bg-magic-green'} font-bold uppercase tracking-widest text-xs hover:text-black transition-all duration-200`}
+                    className={`group relative px-8 py-3 bg-black border ${borderAccent} ${accentColor} hover:${bgAccent} font-bold uppercase tracking-widest text-xs hover:text-black transition-all duration-200`}
                   >
                     <span className="relative z-10 flex items-center gap-2">
                       Execute_View <ArrowRight className="w-3 h-3" />
@@ -188,7 +234,7 @@ const Home: React.FC = () => {
                     <Marquee className="py-2">
                       {carouselItems.map((art, idx) => (
                         <div key={`${art.id}-${idx}`} className="mx-2 md:mx-3">
-                          <div className={`w-20 h-20 md:w-24 md:h-24 bg-black border ${accentColor === 'text-magic-purple' ? 'border-magic-purple/40' : 'border-magic-green/40'} overflow-hidden`}>
+                          <div className={`w-20 h-20 md:w-24 md:h-24 bg-black border ${borderAccent}/40 overflow-hidden`}>
                             <img
                               src={art.image}
                               alt={art.name}
@@ -213,81 +259,229 @@ const Home: React.FC = () => {
         </div>
       )}
 
-      {/* Pro Table Section */}
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-12">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2">
-            <Activity className={`w-5 h-5 ${accentColor}`} />
-            <h2 className="text-xl font-bold text-white uppercase tracking-widest font-mono">Market_Feed</h2>
+        {/* ─── DEBRIS Token Showcase ─── */}
+        <div className="mb-12">
+          <div className="flex items-center gap-2 mb-6">
+            <Coins className={`w-5 h-5 ${accentColor}`} />
+            <h2 className="text-xl font-bold text-white uppercase tracking-widest font-mono">DEBRIS_Token</h2>
           </div>
-          <div className="flex gap-px bg-white/10 border border-white/10">
-            <button className="px-4 py-1 bg-black text-gray-500 hover:text-white text-[10px] uppercase font-bold tracking-wider hover:bg-white/5">1h</button>
-            <button className={`px-4 py-1 ${accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green'} text-black text-[10px] uppercase font-bold tracking-wider`}>24h</button>
-            <button className="px-4 py-1 bg-black text-gray-500 hover:text-white text-[10px] uppercase font-bold tracking-wider hover:bg-white/5">7d</button>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Token Card */}
+            <div className={`lg:col-span-1 border ${borderAccent}/30 bg-black p-6 relative`}>
+              <div className={`absolute -top-1 -left-1 w-2 h-2 border-t border-l ${borderAccent}`}></div>
+              <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${borderAccent}`}></div>
+
+              <div className="flex items-center gap-4 mb-6">
+                <div className={`w-16 h-16 border-2 ${borderAccent} overflow-hidden bg-black/50 flex-shrink-0`}>
+                  <img src={DEBRIS_LOGO} alt="DEBRIS" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-white tracking-tight">DEBRIS</h3>
+                  <p className="text-gray-500 text-xs font-mono uppercase">Trashmarket Token</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                  <span className="text-gray-500 text-xs font-mono uppercase">Total Supply</span>
+                  <span className="text-white font-bold font-mono">{debrisSupply > 0 ? debrisSupply.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '---'}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                  <span className="text-gray-500 text-xs font-mono uppercase">Holders</span>
+                  <span className={`${accentColor} font-bold font-mono`}>{debrisHolders.length}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                  <span className="text-gray-500 text-xs font-mono uppercase">Decimals</span>
+                  <span className="text-white font-bold font-mono">{TOKEN_CONFIG.DEBRIS.decimals}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 text-xs font-mono uppercase">Contract</span>
+                  <a
+                    href={`https://trashscan.io/token/${DEBRIS_MINT}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${accentColor} text-xs font-mono hover:underline flex items-center gap-1`}
+                  >
+                    {truncateAddr(DEBRIS_MINT)} <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <Link
+                  to="/junkpusher"
+                  className={`w-full block text-center px-6 py-3 ${bgAccent} text-black font-bold uppercase tracking-widest text-xs hover:opacity-90 transition-opacity`}
+                >
+                  Play Junk Pusher
+                </Link>
+              </div>
+            </div>
+
+            {/* Holders Table */}
+            <div className="lg:col-span-2 border border-white/20 bg-black relative">
+              <div className={`absolute -top-1 -left-1 w-2 h-2 border-t border-l ${borderAccent}`}></div>
+              <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${borderAccent}`}></div>
+
+              <div className="p-4 border-b border-white/10 flex items-center gap-2">
+                <Users className={`w-4 h-4 ${accentColor}`} />
+                <span className="text-sm font-bold text-white uppercase tracking-widest font-mono">Top Holders</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10 text-[8px] sm:text-[10px] text-gray-500 uppercase font-mono tracking-widest bg-white/5">
+                      <th className="p-2 sm:p-4 font-bold w-10">#</th>
+                      <th className="p-2 sm:p-4 font-bold">Wallet</th>
+                      <th className="p-2 sm:p-4 font-bold text-right">Balance</th>
+                      <th className="p-2 sm:p-4 font-bold text-right hidden sm:table-cell">% Supply</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {debrisHolders.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-gray-600 font-mono text-xs uppercase">
+                          Loading holders...
+                        </td>
+                      </tr>
+                    ) : (
+                      debrisHolders.map((holder, idx) => {
+                        const pctSupply = debrisSupply > 0 ? (holder.amount / debrisSupply) * 100 : 0;
+                        const isGameTreasury = holder.wallet === TOKEN_CONFIG.TREASURY.address ||
+                                               holder.tokenAccount === TOKEN_CONFIG.TREASURY.tokenAccount;
+                        return (
+                          <tr key={holder.tokenAccount} className="group hover:bg-white/5 transition-colors">
+                            <td className="p-2 sm:p-4 font-mono text-gray-600 group-hover:text-white transition-colors">
+                              {String(idx + 1).padStart(2, '0')}
+                            </td>
+                            <td className="p-2 sm:p-4">
+                              <a
+                                href={`https://trashscan.io/address/${holder.wallet}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 group/link"
+                              >
+                                <span className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold ${bgAccent} text-black`}>
+                                  {idx === 0 ? '1' : idx + 1}
+                                </span>
+                                <div>
+                                  <div className="font-mono text-gray-300 group-hover/link:text-white transition-colors text-xs sm:text-sm">
+                                    <span className="hidden sm:inline">{holder.wallet}</span>
+                                    <span className="sm:hidden">{truncateAddr(holder.wallet)}</span>
+                                  </div>
+                                  {isGameTreasury && (
+                                    <span className={`text-[10px] ${accentColor} font-bold uppercase`}>Game Treasury</span>
+                                  )}
+                                </div>
+                              </a>
+                            </td>
+                            <td className="p-2 sm:p-4 text-right font-mono font-bold text-white">
+                              {holder.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="p-2 sm:p-4 text-right font-mono text-gray-500 hidden sm:table-cell">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-16 h-1.5 bg-white/10 overflow-hidden">
+                                  <div
+                                    className={`h-full ${bgAccent} transition-all duration-500`}
+                                    style={{ width: `${Math.min(pctSupply, 100)}%` }}
+                                  />
+                                </div>
+                                <span className="w-14 text-right">{pctSupply.toFixed(1)}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="border border-white/20 bg-black relative">
-          <div className={`absolute -top-1 -left-1 w-2 h-2 border-t border-l ${accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green'}`}></div>
-          <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green'}`}></div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs sm:text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-[8px] sm:text-[10px] text-gray-500 uppercase font-mono tracking-widest bg-white/5">
-                  <th className="p-2 sm:p-4 font-bold">Rank / Collection</th>
-                  <th className="p-2 sm:p-4 font-bold text-right">Floor</th>
-                  <th className="p-2 sm:p-4 font-bold text-right hidden sm:table-cell">24h %</th>
-                  <th className="p-2 sm:p-4 font-bold text-right hidden md:table-cell">24h Vol</th>
-                  <th className="p-2 sm:p-4 font-bold text-right hidden lg:table-cell">Sales</th>
-                  <th className="p-2 sm:p-4 font-bold text-right hidden lg:table-cell">Supply</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {collections.map((collection, idx) => (
-                  <tr key={collection.id} className="group hover:bg-white/5 transition-colors">
-
-                    <td className="p-2 sm:p-4">
-                      <Link to={`/collection/${collection.id}`} className="flex items-center gap-4">
-                        <span className="text-gray-700 font-mono text-sm w-4 text-center group-hover:text-white transition-colors">0{idx + 1}</span>
-                        <div className={`w-8 h-8 min-w-[32px] max-w-[32px] min-h-[32px] max-h-[32px] border border-white/20 overflow-hidden bg-gray-900 ${accentColor === 'text-magic-purple' ? 'group-hover:border-magic-purple' : 'group-hover:border-magic-green'} transition-colors`}>
-                          <img src={collection.image} alt={collection.name} className="w-8 h-8 object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
-                        </div>
-                        <div>
-                          <div className="font-bold text-gray-300 group-hover:text-white flex items-center gap-2 uppercase tracking-tight text-sm transition-colors">
-                            {collection.name}
-                            {collection.isVerified && <Zap className={`w-3 h-3 ${accentColor} fill-current`} />}
-                          </div>
-                        </div>
-                      </Link>
-                    </td>
-                    <td className={`p-2 sm:p-4 text-right font-mono font-bold text-gray-300 group-hover:${accentColor} transition-colors`}>
-                      {currency} {collection.floorPrice}
-                    </td>
-                    <td className={`p-2 sm:p-4 text-right font-mono font-bold text-xs ${collection.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'} hidden sm:table-cell`}>
-                      <div className="flex items-center justify-end gap-1">
-                        {collection.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                        {Math.abs(collection.change24h)}%
-                      </div>
-                    </td>
-                    <td className="p-2 sm:p-4 text-right font-mono text-gray-500 text-xs hidden md:table-cell">
-                      {currency} {(collection.totalVolume / 1000).toFixed(1)}k
-                    </td>
-                    <td className="p-2 sm:p-4 text-right font-mono text-gray-500 text-xs hidden lg:table-cell">
-                      {collection.listedCount * 2}
-                    </td>
-                    <td className="p-2 sm:p-4 text-right font-mono text-gray-600 text-xs hidden lg:table-cell">
-                      {collection.supply}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* ─── Live Token Feed ─── */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <TrendingUp className={`w-5 h-5 ${accentColor}`} />
+              <h2 className="text-xl font-bold text-white uppercase tracking-widest font-mono">Token_Feed</h2>
+            </div>
+            <span className="text-[10px] font-mono uppercase tracking-widest text-gray-500 flex items-center gap-2">
+              <Radio className={`w-3 h-3 ${accentColor} animate-pulse`} /> Live from Gorbagana
+            </span>
           </div>
-          <div className="p-2 sm:p-3 border-t border-white/10 text-center bg-black hover:bg-white/5 cursor-pointer transition-colors">
-            <button className="text-[8px] sm:text-[10px] text-gray-400 font-bold flex items-center justify-center gap-2 w-full uppercase tracking-widest hover:text-white">
-              [ LOAD_MORE_DATA ]
-            </button>
+
+          <div className="border border-white/20 bg-black relative">
+            <div className={`absolute -top-1 -left-1 w-2 h-2 border-t border-l ${borderAccent}`}></div>
+            <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${borderAccent}`}></div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-[8px] sm:text-[10px] text-gray-500 uppercase font-mono tracking-widest bg-white/5">
+                    <th className="p-2 sm:p-4 font-bold">Rank / Token</th>
+                    <th className="p-2 sm:p-4 font-bold text-right">Price</th>
+                    <th className="p-2 sm:p-4 font-bold text-right hidden sm:table-cell">24h %</th>
+                    <th className="p-2 sm:p-4 font-bold text-right hidden md:table-cell">Market Cap</th>
+                    <th className="p-2 sm:p-4 font-bold text-right hidden lg:table-cell">Holders</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {tokens.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-gray-600 font-mono text-xs uppercase">
+                        No tokens available
+                      </td>
+                    </tr>
+                  ) : (
+                    tokens.slice(0, 15).map((token, idx) => (
+                      <tr key={token.contractAddress || token.symbol} className="group hover:bg-white/5 transition-colors">
+                        <td className="p-2 sm:p-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-gray-700 font-mono text-sm w-5 text-center group-hover:text-white transition-colors">
+                              {String(idx + 1).padStart(2, '0')}
+                            </span>
+                            {token.logoUrl ? (
+                              <div className={`w-8 h-8 min-w-[32px] border border-white/20 overflow-hidden bg-gray-900 group-hover:${borderAccent} transition-colors`}>
+                                <img src={token.logoUrl} alt={token.symbol} className="w-8 h-8 object-cover" loading="lazy" />
+                              </div>
+                            ) : (
+                              <div className={`w-8 h-8 min-w-[32px] border border-white/20 bg-gray-900 flex items-center justify-center group-hover:${borderAccent} transition-colors`}>
+                                <span className="text-[10px] font-bold text-gray-500">{token.symbol.slice(0, 2)}</span>
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-bold text-gray-300 group-hover:text-white uppercase tracking-tight text-sm transition-colors flex items-center gap-1.5">
+                                {token.symbol}
+                              </div>
+                              <div className="text-[10px] text-gray-600 font-mono">{token.name}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-2 sm:p-4 text-right font-mono font-bold text-gray-300">
+                          {currency} {token.price >= 1 ? token.price.toFixed(2) : token.price >= 0.001 ? token.price.toFixed(4) : token.price.toExponential(2)}
+                        </td>
+                        <td className={`p-2 sm:p-4 text-right font-mono font-bold text-xs ${token.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'} hidden sm:table-cell`}>
+                          <div className="flex items-center justify-end gap-1">
+                            {token.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                            {Math.abs(token.change24h).toFixed(1)}%
+                          </div>
+                        </td>
+                        <td className="p-2 sm:p-4 text-right font-mono text-gray-500 text-xs hidden md:table-cell">
+                          {token.marketCap ? `${currency} ${(token.marketCap / 1000).toFixed(1)}k` : '—'}
+                        </td>
+                        <td className="p-2 sm:p-4 text-right font-mono text-gray-500 text-xs hidden lg:table-cell">
+                          {token.holders || '—'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
