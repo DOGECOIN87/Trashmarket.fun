@@ -1,5 +1,7 @@
 <div align="center">
 
+![Trashmarket.fun Logo](public/logo-circle.png)
+
 # TRASHMARKET.FUN
 
 ### The Marketplace & DeFi Hub for the Gorbagana Chain
