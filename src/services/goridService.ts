@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { getAllDomains, resolve, reverseLookup } from '@gorid/spl-name-service';
+import { getAllDomains, resolve, reverseLookup, getDomainKeySync } from '@gorid/spl-name-service';
 import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
 import {
   fetchListings,
@@ -58,6 +58,13 @@ function getConnection(): Connection {
 }
 
 // ─── Domain Resolution (via @gorid/spl-name-service) ─────────────────
+
+/** Get the name service account PublicKey for a .gor domain name */
+export function getNameAccountKey(domainName: string): PublicKey {
+  const cleanName = domainName.replace(/\.gor$/i, '');
+  const { pubkey } = getDomainKeySync(cleanName);
+  return pubkey;
+}
 
 /** Resolve a .gor domain name to a wallet address */
 export async function resolveGoridName(name: string): Promise<string | null> {
@@ -144,6 +151,12 @@ export async function isDomainAvailable(name: string): Promise<boolean> {
 let listingsCache: { data: GoridListing[]; timestamp: number } | null = null;
 let salesCache: { data: GoridSale[]; timestamp: number } | null = null;
 const CACHE_TTL = 30_000; // 30 seconds
+
+/** Invalidate the listings cache so next fetch is fresh */
+export function invalidateListingsCache(): void {
+  listingsCache = null;
+  salesCache = null;
+}
 
 /** Get all listed domains for sale */
 export async function getListedDomains(): Promise<GoridListing[]> {

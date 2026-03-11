@@ -15,6 +15,8 @@ import {
   GoridSale,
   GoridName,
   GORID_CONFIG,
+  getNameAccountKey,
+  invalidateListingsCache,
 } from '../services/goridService';
 import {
   buildOnChainPurchaseTransaction,
@@ -128,7 +130,8 @@ const Gorid: React.FC = () => {
     setBuySuccess(null);
 
     try {
-      // Build the purchase transaction directly on-chain
+      // Derive the actual name service account from the domain name
+      const nameAccount = getNameAccountKey(listing.name);
       const transaction = await buildOnChainPurchaseTransaction(publicKey, {
         id: listing.listingId || listing.domainKey,
         domainName: listing.name,
@@ -137,7 +140,7 @@ const Gorid: React.FC = () => {
         price: listing.price,
         priceRaw: BigInt(0),
         listedAt: listing.listedAt,
-      });
+      }, nameAccount);
 
       // Request wallet signature
       const signedTx = await signTransaction(transaction);
@@ -148,6 +151,7 @@ const Gorid: React.FC = () => {
 
       setBuySuccess(txSignature);
       setSelectedDomain(null);
+      invalidateListingsCache();
 
       // Refresh data
       const [updatedListings, updatedSales] = await Promise.all([
@@ -170,7 +174,7 @@ const Gorid: React.FC = () => {
 
   // Handle list domain for sale
   const handleListForSale = useCallback(async () => {
-    if (!connected || !address || !listingDomain || !listingPrice) return;
+    if (!connected || !address || !publicKey || !signTransaction || !listingDomain || !listingPrice) return;
 
     const price = parseFloat(listingPrice);
     if (isNaN(price) || price < TRADING_CONFIG.MIN_PRICE || price > TRADING_CONFIG.MAX_PRICE) {
@@ -182,9 +186,10 @@ const Gorid: React.FC = () => {
     setListError(null);
 
     try {
+      const nameAccount = getNameAccountKey(listingDomain.name);
       const transaction = await createGoridListingOnChain(
         publicKey,
-        new PublicKey(listingDomain.mint || listingDomain.domainKey),
+        nameAccount,
         price,
       );
 
@@ -196,6 +201,7 @@ const Gorid: React.FC = () => {
       // Close modal and refresh
       setListingDomain(null);
       setListingPrice('');
+      invalidateListingsCache();
 
       const [updatedListings, updatedSales] = await Promise.all([
         getListedDomains(),
@@ -226,7 +232,7 @@ const Gorid: React.FC = () => {
 
   // Handle cancel listing
   const handleCancelListing = useCallback(async (domain: GoridName) => {
-    if (!connected || !address) return;
+    if (!connected || !address || !publicKey || !signTransaction) return;
 
     setIsCanceling(true);
     setCancelError(null);
@@ -238,9 +244,10 @@ const Gorid: React.FC = () => {
         throw new Error('Domain is not listed for sale');
       }
 
+      const nameAccount = getNameAccountKey(domain.name);
       const transaction = await buildOnChainCancelTransaction(
         publicKey,
-        new PublicKey(domain.domainKey)
+        nameAccount,
       );
       // Sign and send the transaction
       const signedTx = await signTransaction(transaction);
@@ -248,6 +255,7 @@ const Gorid: React.FC = () => {
       await connection.confirmTransaction(txSignature, 'confirmed');
 
       // After successful on-chain cancellation, refresh data
+      invalidateListingsCache();
       const [updatedListings, updatedSales] = await Promise.all([
         getListedDomains(),
         getRecentSales(),
@@ -822,7 +830,7 @@ const Gorid: React.FC = () => {
             {/* Price Input */}
             <div className="mb-4">
               <label className="text-gray-500 text-xs uppercase font-bold mb-2 block">
-                Sale Price (Wrapped GOR)
+                Sale Price (GOR)
               </label>
               <div className="relative">
                 <input
