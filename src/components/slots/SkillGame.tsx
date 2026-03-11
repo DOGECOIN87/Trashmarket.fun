@@ -1,21 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './SkillGame.css';
 
-interface GameState {
-  balance: number;
-  playLevel: number;
-  currentWin: number;
-  stage: 'IDLE' | 'PLAYING' | 'MEMORY';
-  grid: (number | string | null)[];
-  nextGrid: (number | string | null)[];
-  timer: number;
-  timerInterval: NodeJS.Timeout | null;
-  memorySequence: number[];
-  playerSequence: number[];
-  canPreview: boolean;
-  previewShown: boolean;
-}
-
 const SYMBOL_IMAGES = [
   '/symbols/alon.png',
   '/symbols/oscar.png',
@@ -25,431 +10,407 @@ const SYMBOL_IMAGES = [
   '/symbols/pump-pill.png',
   '/symbols/digibin.png',
   '/symbols/box.png',
-  '/symbols/matress.png'
+  '/symbols/matress.png',
 ];
 
-const BASE_PAYOUTS = [20000, 4000, 2000, 400, 200, 80, 40, 20, 10];
+// Payout multipliers per winning line (×wager). Common symbols pay sub-1x
+// (partial recovery), rare symbols pay big. Tuned for ~90-93% RTP overall.
+const BASE_PAYOUTS = [50, 12, 7, 4, 2.5, 1.8, 1.2, 0.8, 0.5];
+
+// Weighted symbol frequency for grid generation. Alon is ultra-rare jackpot
+// tier. Common symbols (high index) appear often but pay little.
+const GRID_WEIGHTS = [1, 3, 5, 7, 10, 13, 16, 20, 25];
+const GRID_TOTAL_WEIGHT = GRID_WEIGHTS.reduce((a, b) => a + b, 0);
+
+// Fixed play levels (wager amounts) - players pick one of these
+const PLAY_LEVELS = [10, 25, 50, 100, 250];
+
+// Memory game consolation: 25% of wager returned (was 105% — guaranteed profit)
+const MEMORY_RETURN = 0.25;
+
 const MEMORY_COLORS = ['#ff0000', '#00ff00', '#0000ff', '#ffff00'];
 
+const WIN_LINES = [
+  [0, 1, 2],
+  [3, 4, 5],
+  [6, 7, 8],
+  [0, 3, 6],
+  [1, 4, 7],
+  [2, 5, 8],
+  [0, 4, 8],
+  [2, 4, 6],
+];
+
+type Stage = 'IDLE' | 'PLAYING' | 'MEMORY';
+type CellValue = number | 'WILD' | null;
+
+const getWeightedSymbol = (): number => {
+  let random = Math.random() * GRID_TOTAL_WEIGHT;
+  for (let i = 0; i < GRID_WEIGHTS.length; i++) {
+    random -= GRID_WEIGHTS[i];
+    if (random <= 0) return i;
+  }
+  return GRID_WEIGHTS.length - 1;
+};
+
+const generateGrid = (): number[] =>
+  Array(9)
+    .fill(0)
+    .map(() => getWeightedSymbol());
+
+const getPayout = (tier: number, level: number) =>
+  Math.round(BASE_PAYOUTS[tier] * level);
+
 export default function SkillGame() {
-  const [gameState, setGameState] = useState<GameState>({
-    balance: 1000,
-    playLevel: 40,
-    currentWin: 0,
-    stage: 'IDLE',
-    grid: Array(9).fill(null),
-    nextGrid: Array(9).fill(null),
-    timer: 30,
-    timerInterval: null,
-    memorySequence: [],
-    playerSequence: [],
-    canPreview: true,
-    previewShown: false,
-  });
+  // Core game state
+  const [grid, setGrid] = useState<CellValue[]>(Array(9).fill(null));
+  const [balance, setBalance] = useState(1000);
+  const [levelIndex, setLevelIndex] = useState(0);
+  const playLevel = PLAY_LEVELS[levelIndex];
+  const [currentWin, setCurrentWin] = useState(0);
+  const [stage, setStage] = useState<Stage>('IDLE');
+  const [statusMessage, setStatusMessage] = useState<string | null>(
+    "Adjust 'Play Level'"
+  );
+  const [winningCells, setWinningCells] = useState<Set<number>>(new Set());
+  const [previewShown, setPreviewShown] = useState(false);
+  const [playButtonText, setPlayButtonText] = useState('Play');
+  const [isPlayDisabled, setIsPlayDisabled] = useState(false);
 
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-  const statusMessageRef = useRef<HTMLDivElement>(null);
-  const timerBarRef = useRef<HTMLDivElement>(null);
-  const playBtnRef = useRef<HTMLButtonElement>(null);
-  const spinIntervalsRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  // Timer
+  const [timerPercent, setTimerPercent] = useState(100);
+  const [showTimer, setShowTimer] = useState(false);
 
-  // Initialize grid cells
+  // Spin animation
+  const [spinningCells, setSpinningCells] = useState<boolean[]>(
+    Array(9).fill(false)
+  );
+  const [spinDisplay, setSpinDisplay] = useState<number[]>(
+    Array(9)
+      .fill(0)
+      .map(() => Math.floor(Math.random() * 9))
+  );
+
+  // Memory game
+  const [memorySequence, setMemorySequence] = useState<number[]>([]);
+  const [playerSequence, setPlayerSequence] = useState<number[]>([]);
+  const [memoryFlash, setMemoryFlash] = useState<number | null>(null);
+  const [acceptingMemoryInput, setAcceptingMemoryInput] = useState(false);
+
+  // Refs for interval/timeout cleanup
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const memoryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const isAnimating = spinningCells.some(Boolean);
+
+  // Cleanup on unmount
   useEffect(() => {
-    initGrid();
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (spinIntervalRef.current) clearInterval(spinIntervalRef.current);
+      if (memoryIntervalRef.current) clearInterval(memoryIntervalRef.current);
+      timeoutsRef.current.forEach((t) => clearTimeout(t));
+    };
   }, []);
 
-  const initGrid = () => {
-    if (!gridContainerRef.current) return;
-    gridContainerRef.current.innerHTML = '';
-    for (let i = 0; i < 9; i++) {
-      const cell = document.createElement('div');
-      cell.className = 'skill-grid-cell';
-      cell.dataset.index = String(i);
-      cell.onclick = () => handleCellClick(i);
+  const addTimeout = (fn: () => void, delay: number) => {
+    const t = setTimeout(fn, delay);
+    timeoutsRef.current.push(t);
+    return t;
+  };
 
-      const symbol = document.createElement('div');
-      symbol.className = 'skill-cell-symbol';
-      symbol.id = `cell-${i}`;
-
-      cell.appendChild(symbol);
-      gridContainerRef.current.appendChild(cell);
+  const clearGameTimer = () => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
     }
   };
 
-  const generateGrid = () => {
-    return Array(9)
-      .fill(0)
-      .map(() => Math.floor(Math.random() * 9));
-  };
+  // Reset game to idle state
+  const resetToIdle = (won: boolean, winAmount: number = 0) => {
+    clearGameTimer();
+    setShowTimer(false);
+    setAcceptingMemoryInput(false);
+    setStage('IDLE');
+    setIsPlayDisabled(false);
+    setPlayButtonText('Play');
+    setPreviewShown(false);
 
-  const handleCellClick = (index: number) => {
-    if (gameState.stage === 'PLAYING') {
-      placeWild(index);
-    } else if (gameState.stage === 'MEMORY') {
-      handleMemoryInput(index);
+    if (won && winAmount > 0) {
+      setBalance((prev) => prev + winAmount);
+      setCurrentWin(winAmount);
+      setStatusMessage('You Win!');
+    } else if (!won) {
+      setStatusMessage('Try Again');
     }
+
+    addTimeout(() => {
+      setCurrentWin(0);
+      setWinningCells(new Set());
+    }, 2000);
   };
 
-  const placeWild = (index: number) => {
-    if (gameState.timerInterval) {
-      clearInterval(gameState.timerInterval);
-    }
+  // Timer - uses only setState inside interval (no stale closures)
+  const startTimer = () => {
+    clearGameTimer();
+    let timerValue = 30;
+    setShowTimer(true);
+    setTimerPercent(100);
 
-    const newGrid = [...gameState.grid];
-    newGrid[index] = 'WILD';
-    setGameState((prev) => ({ ...prev, grid: newGrid }));
+    timerIntervalRef.current = setInterval(() => {
+      timerValue -= 0.1;
+      setTimerPercent((timerValue / 30) * 100);
 
-    setTimeout(() => {
-      renderGrid(newGrid);
-      checkWin(newGrid);
-    }, 0);
+      if (timerValue <= 0) {
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+          timerIntervalRef.current = null;
+        }
+        // Timer expired - lose (wager already deducted at game start)
+        setShowTimer(false);
+        setAcceptingMemoryInput(false);
+        setStatusMessage('Try Again');
+        setStage('IDLE');
+        setIsPlayDisabled(false);
+        setPlayButtonText('Play');
+        setPreviewShown(false);
+      }
+    }, 100);
   };
 
-  const checkWin = (grid: (number | string | null)[]) => {
-    const lines = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6],
-    ];
-
+  // Check for winning lines after WILD placement
+  const checkWin = (finalGrid: CellValue[], currentPlayLevel: number) => {
     let totalWin = 0;
-    const winningLines: number[][] = [];
+    const winCells = new Set<number>();
 
-    lines.forEach((line) => {
-      const symbols = line.map((i) => grid[i]);
+    WIN_LINES.forEach((line) => {
+      const symbols = line.map((i) => finalGrid[i]);
       const unique = [...new Set(symbols)];
 
       if (unique.length === 1 && unique[0] !== null) {
         const tier = unique[0] === 'WILD' ? 0 : (unique[0] as number);
-        totalWin += getPayout(tier, gameState.playLevel);
-        winningLines.push(line);
+        totalWin += getPayout(tier, currentPlayLevel);
+        line.forEach((i) => winCells.add(i));
       } else if (unique.length === 2 && unique.includes('WILD')) {
         const tier = unique.find((s) => s !== 'WILD') as number;
-        totalWin += getPayout(tier, gameState.playLevel);
-        winningLines.push(line);
+        totalWin += getPayout(tier, currentPlayLevel);
+        line.forEach((i) => winCells.add(i));
       }
     });
 
     if (totalWin > 0) {
-      setGameState((prev) => ({ ...prev, currentWin: totalWin }));
-      highlightWinningLines(winningLines);
-      setTimeout(() => endGame(true), 2000);
+      setWinningCells(winCells);
+      setCurrentWin(totalWin);
+      addTimeout(() => resetToIdle(true, totalWin), 2000);
     } else {
       startMemoryGame();
     }
   };
 
-  const getPayout = (tier: number, level: number) => {
-    return BASE_PAYOUTS[tier] * level;
-  };
-
-  const highlightWinningLines = (lines: number[][]) => {
-    lines.flat().forEach((index) => {
-      const cell = document.querySelector(`[data-index="${index}"]`);
-      cell?.classList.add('skill-winning-cell');
-    });
-  };
-
+  // Memory game
   const startMemoryGame = () => {
     const sequence = Array(5)
       .fill(0)
       .map(() => Math.floor(Math.random() * 9));
+    setMemorySequence(sequence);
+    setPlayerSequence([]);
+    setStage('MEMORY');
+    setStatusMessage('Watch the pattern...');
 
-    setGameState((prev) => ({
-      ...prev,
-      stage: 'MEMORY',
-      memorySequence: sequence,
-      playerSequence: [],
-    }));
-
-    showStatus('Watch the pattern...');
-    playMemorySequence(sequence);
-  };
-
-  const playMemorySequence = (sequence: number[]) => {
     let i = 0;
-    const interval = setInterval(() => {
+    memoryIntervalRef.current = setInterval(() => {
       if (i >= sequence.length) {
-        clearInterval(interval);
-        showStatus('Your turn!');
+        if (memoryIntervalRef.current) clearInterval(memoryIntervalRef.current);
+        setStatusMessage('Your turn!');
+        setAcceptingMemoryInput(true);
         return;
       }
-
-      flashCell(sequence[i]);
+      setMemoryFlash(sequence[i]);
+      addTimeout(() => setMemoryFlash(null), 400);
       i++;
     }, 800);
   };
 
-  const flashCell = (index: number) => {
-    const cell = document.querySelector(`[data-index="${index}"]`);
-    const circle = document.createElement('div');
-    circle.className = 'skill-memory-circle';
-    circle.style.background = MEMORY_COLORS[index % 4];
-    circle.classList.add('active');
+  // Cell click - always has fresh closure since it's in JSX onClick
+  const handleCellClick = (index: number) => {
+    if (stage === 'PLAYING') {
+      // Place WILD symbol
+      clearGameTimer();
+      setShowTimer(false);
+      const newGrid = [...grid];
+      newGrid[index] = 'WILD';
+      setGrid(newGrid);
+      checkWin(newGrid, playLevel);
+    } else if (stage === 'MEMORY' && acceptingMemoryInput) {
+      // Memory input
+      setMemoryFlash(index);
+      addTimeout(() => setMemoryFlash(null), 400);
 
-    const cellSymbol = cell?.querySelector('.skill-cell-symbol') as HTMLElement;
-    const originalChildren = cellSymbol ? Array.from(cellSymbol.childNodes).map(n => n.cloneNode(true)) : [];
-    if (cellSymbol) {
-      cellSymbol.textContent = '';
-      cellSymbol.appendChild(circle);
-    }
+      const newPlayerSeq = [...playerSequence, index];
+      setPlayerSequence(newPlayerSeq);
+      const currentIdx = newPlayerSeq.length - 1;
 
-    setTimeout(() => {
-      if (cellSymbol) {
-        cellSymbol.textContent = '';
-        originalChildren.forEach(child => cellSymbol.appendChild(child));
-      }
-    }, 400);
-  };
-
-  const handleMemoryInput = (index: number) => {
-    flashCell(index);
-
-    const newPlayerSequence = [...gameState.playerSequence, index];
-    const current = newPlayerSequence.length - 1;
-
-    if (newPlayerSequence[current] !== gameState.memorySequence[current]) {
-      endGame(false);
-      return;
-    }
-
-    if (newPlayerSequence.length === gameState.memorySequence.length) {
-      const winAmount = Math.floor(gameState.playLevel * 1.05);
-      setGameState((prev) => ({ ...prev, currentWin: winAmount }));
-      setTimeout(() => endGame(true), 1000);
-    } else {
-      setGameState((prev) => ({ ...prev, playerSequence: newPlayerSequence }));
-    }
-  };
-
-  const endGame = (won: boolean) => {
-    setGameState((prev) => {
-      const newBalance = won
-        ? prev.balance + prev.currentWin
-        : prev.balance - prev.playLevel;
-
-      if (won) {
-        showStatus('You Win!');
-      } else {
-        showStatus('Try Again');
+      if (newPlayerSeq[currentIdx] !== memorySequence[currentIdx]) {
+        // Wrong sequence - lose (wager already deducted)
+        resetToIdle(false);
+        return;
       }
 
-      return {
-        ...prev,
-        stage: 'IDLE',
-        balance: newBalance,
-        currentWin: 0,
-      };
-    });
-
-    if (playBtnRef.current) {
-      playBtnRef.current.textContent = 'Play';
-      playBtnRef.current.disabled = false;
-    }
-  };
-
-  const showStatus = (text: string) => {
-    if (statusMessageRef.current) {
-      statusMessageRef.current.textContent = text;
-      statusMessageRef.current.classList.remove('skill-hidden');
-    }
-  };
-
-  const hideStatus = () => {
-    if (statusMessageRef.current) {
-      statusMessageRef.current.classList.add('skill-hidden');
-    }
-  };
-
-  const renderGrid = (grid: (number | string | null)[]) => {
-    grid.forEach((symbol, index) => {
-      const cell = document.getElementById(`cell-${index}`);
-      if (!cell) return;
-
-      if (symbol === 'WILD') {
-        cell.className = 'skill-cell-symbol skill-wild-text';
-        cell.textContent = 'WILD';
-      } else if (symbol !== null) {
-        cell.className = 'skill-cell-symbol';
-        cell.textContent = '';
-        const img = document.createElement('img');
-        img.src = SYMBOL_IMAGES[symbol as number];
-        img.alt = 'Symbol';
-        cell.appendChild(img);
-      } else {
-        cell.className = 'skill-cell-symbol';
-        cell.textContent = '';
+      if (newPlayerSeq.length === memorySequence.length) {
+        // Completed sequence - consolation return
+        const winAmount = Math.round(playLevel * MEMORY_RETURN);
+        setAcceptingMemoryInput(false);
+        setCurrentWin(winAmount);
+        addTimeout(() => resetToIdle(true, winAmount), 1000);
       }
-    });
-  };
-
-  const startSpinAnimation = () => {
-    for (let i = 0; i < 9; i++) {
-      const cellDiv = document.querySelector(`[data-index="${i}"]`);
-
-      setTimeout(() => {
-        cellDiv?.classList.add('skill-spinning');
-
-        const cell = document.getElementById(`cell-${i}`);
-        let spinCount = 0;
-        const maxSpins = 20 + Math.floor(Math.random() * 15);
-
-        const spinInterval = setInterval(() => {
-          const randomSymbol = Math.floor(Math.random() * 9);
-          if (cell) {
-            cell.textContent = '';
-            const img = document.createElement('img');
-            img.src = SYMBOL_IMAGES[randomSymbol];
-            img.alt = 'Symbol';
-            cell.appendChild(img);
-          }
-
-          spinCount++;
-          if (spinCount >= maxSpins) {
-            clearInterval(spinInterval);
-            spinIntervalsRef.current.delete(i);
-          }
-        }, 80 + Math.random() * 40);
-
-        spinIntervalsRef.current.set(i, spinInterval);
-      }, i * 100);
     }
   };
 
-  const stopSpinAnimation = (grid: (number | string | null)[]) => {
-    for (let i = 8; i >= 0; i--) {
-      setTimeout(() => {
-        const cellDiv = document.querySelector(`[data-index="${i}"]`);
-        cellDiv?.classList.remove('skill-spinning');
+  // Spin animation with staggered stop
+  const runSpinAnimation = (finalGrid: number[], onComplete: () => void) => {
+    setSpinningCells(Array(9).fill(true));
 
-        const interval = spinIntervalsRef.current.get(i);
-        if (interval) {
-          clearInterval(interval);
-          spinIntervalsRef.current.delete(i);
-        }
-
-        const cell = document.getElementById(`cell-${i}`);
-        const finalSymbol = grid[i];
-        if (finalSymbol !== null && cell) {
-          cell.textContent = '';
-          if (finalSymbol === 'WILD') {
-            const span = document.createElement('span');
-            span.className = 'skill-wild-text';
-            span.textContent = 'WILD';
-            cell.appendChild(span);
-          } else {
-            const img = document.createElement('img');
-            img.src = SYMBOL_IMAGES[finalSymbol as number];
-            img.alt = 'Symbol';
-            cell.appendChild(img);
-          }
-
-          cell.style.transform = 'scale(1.1)';
-          setTimeout(() => {
-            cell.style.transform = 'scale(1)';
-          }, 150);
-        }
-      }, (8 - i) * 150);
-    }
-  };
-
-  const startTimer = () => {
-    let timer = 30;
-    if (gameState.timerInterval) {
-      clearInterval(gameState.timerInterval);
-    }
-
-    const interval = setInterval(() => {
-      timer -= 0.1;
-      if (timerBarRef.current) {
-        timerBarRef.current.style.width = `${(timer / 30) * 100}%`;
-      }
-
-      if (timer <= 0) {
-        clearInterval(interval);
-        endGame(false);
-      }
+    // Rapidly cycle displayed symbols (using weighted distribution)
+    spinIntervalRef.current = setInterval(() => {
+      setSpinDisplay(
+        Array(9)
+          .fill(0)
+          .map(() => getWeightedSymbol())
+      );
     }, 100);
 
-    setGameState((prev) => ({ ...prev, timerInterval: interval }));
-  };
+    // After 2s, stagger stop from cell 8 down to 0
+    addTimeout(() => {
+      for (let i = 8; i >= 0; i--) {
+        addTimeout(() => {
+          setSpinningCells((prev) => {
+            const next = [...prev];
+            next[i] = false;
+            return next;
+          });
+          setGrid((prev) => {
+            const next = [...prev];
+            next[i] = finalGrid[i];
+            return next;
+          });
 
-  const handleNextPuzzle = () => {
-    if (!gameState.canPreview || gameState.stage !== 'IDLE') return;
-
-    const newGrid = generateGrid();
-    setGameState((prev) => ({ ...prev, grid: newGrid, nextGrid: newGrid }));
-
-    startSpinAnimation();
-
-    setTimeout(() => {
-      stopSpinAnimation(newGrid);
-      setTimeout(() => {
-        showStatus('Preview - Press Play to confirm');
-        setGameState((prev) => ({ ...prev, previewShown: true }));
-        if (playBtnRef.current) {
-          playBtnRef.current.textContent = 'Confirm';
-        }
-      }, 1200);
+          if (i === 0) {
+            if (spinIntervalRef.current) {
+              clearInterval(spinIntervalRef.current);
+              spinIntervalRef.current = null;
+            }
+            addTimeout(onComplete, 200);
+          }
+        }, (8 - i) * 150);
+      }
     }, 2000);
   };
 
-  const handleLevelDown = () => {
-    if (gameState.playLevel > 1) {
-      setGameState((prev) => ({ ...prev, playLevel: prev.playLevel - 1 }));
-    }
+  // Preview generates a unique grid per level so switching levels shows a different board
+  const previewGridsRef = useRef<number[][] | null>(null);
+
+  const handlePreview = () => {
+    if (stage !== 'IDLE' || isAnimating) return;
+
+    // Generate one grid per level
+    const grids = PLAY_LEVELS.map(() => generateGrid());
+    previewGridsRef.current = grids;
+    setGrid(grids[levelIndex]);
+    setStatusMessage('Memorize the board...');
+
+    // Show for 2 seconds, then hide the symbols
+    addTimeout(() => {
+      setGrid(Array(9).fill(null));
+      setPreviewShown(true);
+      setPlayButtonText('Confirm');
+      setStatusMessage('Select level & Press Play');
+    }, 2000);
   };
 
-  const handleLevelUp = () => {
-    setGameState((prev) => ({ ...prev, playLevel: prev.playLevel + 1 }));
-  };
-
-  const handleMaxLevel = () => {
-    setGameState((prev) => ({
-      ...prev,
-      playLevel: Math.floor(prev.balance),
-    }));
-  };
-
+  // Start playing
   const handlePlay = () => {
-    if (gameState.stage !== 'IDLE') return;
-    if (gameState.balance < gameState.playLevel) {
-      showStatus('Insufficient Balance!');
+    if (stage !== 'IDLE' || isAnimating) return;
+    if (balance < playLevel) {
+      setStatusMessage('Insufficient Balance!');
       return;
     }
 
-    if (gameState.previewShown) {
-      setGameState((prev) => ({ ...prev, previewShown: false, stage: 'PLAYING' }));
-      hideStatus();
+    // Deduct wager upfront
+    setBalance((prev) => prev - playLevel);
+    setStatusMessage(null);
+    setIsPlayDisabled(true);
+
+    if (previewShown && previewGridsRef.current) {
+      // Reveal the stored preview grid for the current level and start playing
+      const storedGrid = previewGridsRef.current[levelIndex];
+      previewGridsRef.current = null;
+      setGrid(storedGrid);
+      setPreviewShown(false);
+      setStage('PLAYING');
       startTimer();
-      if (playBtnRef.current) {
-        playBtnRef.current.textContent = 'Playing...';
-        playBtnRef.current.disabled = true;
-      }
+      setPlayButtonText('Playing...');
     } else {
+      // Generate and spin a new grid
       const newGrid = generateGrid();
-      setGameState((prev) => ({ ...prev, grid: newGrid }));
+      setPlayButtonText('Spinning...');
 
-      startSpinAnimation();
-
-      setTimeout(() => {
-        stopSpinAnimation(newGrid);
-        setTimeout(() => {
-          setGameState((prev) => ({ ...prev, stage: 'PLAYING' }));
-          hideStatus();
-          startTimer();
-          if (playBtnRef.current) {
-            playBtnRef.current.textContent = 'Playing...';
-            playBtnRef.current.disabled = true;
-          }
-        }, 1200);
-      }, 2500);
+      runSpinAnimation(newGrid, () => {
+        setStage('PLAYING');
+        startTimer();
+        setPlayButtonText('Playing...');
+      });
     }
+  };
+
+  // Level selection - during preview, switching levels briefly flashes that level's grid
+  const handleLevelSelect = (index: number) => {
+    if (stage !== 'IDLE' || isAnimating) return;
+    setLevelIndex(index);
+
+    if (previewShown && previewGridsRef.current) {
+      // Flash the new level's grid for 2 seconds then hide again
+      setGrid(previewGridsRef.current[index]);
+      setStatusMessage('Memorize the board...');
+      setPreviewShown(false);
+      setPlayButtonText('Play');
+
+      addTimeout(() => {
+        setGrid(Array(9).fill(null));
+        setPreviewShown(true);
+        setPlayButtonText('Confirm');
+        setStatusMessage('Select level & Press Play');
+      }, 2000);
+    }
+  };
+
+  // Render individual cell content
+  const renderCellContent = (index: number) => {
+    // Memory flash takes priority
+    if (memoryFlash === index) {
+      return (
+        <div
+          className="skill-memory-circle active"
+          style={{ background: MEMORY_COLORS[index % 4] }}
+        />
+      );
+    }
+
+    // Spinning - show rapidly changing symbol
+    if (spinningCells[index]) {
+      return <img src={SYMBOL_IMAGES[spinDisplay[index]]} alt="Symbol" />;
+    }
+
+    // Final grid value
+    const value = grid[index];
+    if (value === 'WILD') {
+      return 'WILD';
+    }
+    if (value !== null) {
+      return <img src={SYMBOL_IMAGES[value as number]} alt="Symbol" />;
+    }
+    return null;
   };
 
   return (
@@ -464,28 +425,69 @@ export default function SkillGame() {
                   <img src={SYMBOL_IMAGES[index]} alt={`Symbol ${index}`} />
                 </div>
                 <span className="skill-tier-value">
-                  {payout * gameState.playLevel}
+                  {Math.round(payout * playLevel)}
                 </span>
               </div>
             ))}
 
             <div className="skill-win-display">
               <div className="skill-win-label">Win</div>
-              <div className="skill-win-value">{gameState.currentWin}</div>
+              <div className="skill-win-value">{currentWin}</div>
             </div>
           </div>
         </div>
 
         {/* Play Area */}
         <div className="skill-play-area">
-          <div className="skill-timer-container">
-            <div className="skill-timer-bar" ref={timerBarRef}></div>
+          <div
+            className={`skill-timer-container${showTimer ? ' active' : ''}`}
+          >
+            <div
+              className="skill-timer-bar"
+              style={{ width: `${timerPercent}%` }}
+            />
           </div>
 
-          <div className="skill-grid-container" ref={gridContainerRef}>
-            <div className="skill-status-message skill-hidden" ref={statusMessageRef}>
-              Adjust 'Play Level'
-            </div>
+          <div className="skill-grid-container">
+            {Array.from({ length: 9 }, (_, index) => {
+              const value = grid[index];
+              const isSpinning = spinningCells[index];
+              const isWinning = winningCells.has(index);
+              const isWild = value === 'WILD' && !isSpinning;
+
+              const cellClasses = [
+                'skill-grid-cell',
+                isSpinning && 'skill-spinning',
+                isWinning && 'skill-winning-cell',
+                isWild && 'skill-wild',
+              ]
+                .filter(Boolean)
+                .join(' ');
+
+              const symbolClasses = [
+                'skill-cell-symbol',
+                isWild && 'skill-wild-text',
+              ]
+                .filter(Boolean)
+                .join(' ');
+
+              return (
+                <div
+                  key={index}
+                  className={cellClasses}
+                  data-index={index}
+                  onClick={() => handleCellClick(index)}
+                >
+                  <div className={symbolClasses}>
+                    {renderCellContent(index)}
+                  </div>
+                </div>
+              );
+            })}
+
+            {statusMessage && (
+              <div className="skill-status-message">{statusMessage}</div>
+            )}
           </div>
         </div>
       </div>
@@ -496,53 +498,60 @@ export default function SkillGame() {
           <div className="skill-status-group">
             <span className="skill-status-label">Play Level</span>
             <span className="skill-status-value skill-play-level-value">
-              {gameState.playLevel}
+              {playLevel}
             </span>
           </div>
           <div className="skill-status-group">
             <span className="skill-status-label">Points</span>
             <span className="skill-status-value skill-points-value">
-              {gameState.balance}
+              {balance}
             </span>
           </div>
+        </div>
+
+        <div className="skill-level-bar">
+          {PLAY_LEVELS.map((level, index) => (
+            <button
+              key={level}
+              className={`skill-level-btn${index === levelIndex ? ' active' : ''}`}
+              onClick={() => handleLevelSelect(index)}
+              disabled={stage !== 'IDLE' || isAnimating || balance < level}
+            >
+              {level}
+            </button>
+          ))}
         </div>
 
         <div className="skill-button-bar">
           <button
             className="skill-game-btn"
-            onClick={() => alert('Place the WILD symbol to complete 3-in-a-row lines. Use Next Puzzle to preview the board. Complete the memory game for guaranteed 105% return!')}
+            onClick={() =>
+              alert(
+                'Place the WILD symbol to complete 3-in-a-row lines. Use Next Puzzle to preview the board. Complete the memory game for a 25% consolation return!'
+              )
+            }
           >
             Help
           </button>
-          <button className="skill-game-btn" onClick={handleNextPuzzle}>
-            Next Puzzle
-          </button>
           <button
             className="skill-game-btn"
-            onClick={handleLevelDown}
-            disabled={gameState.playLevel <= 1}
+            onClick={handlePreview}
+            disabled={stage !== 'IDLE' || isAnimating}
           >
-            Level Down
-          </button>
-          <button className="skill-game-btn" onClick={handleLevelUp}>
-            Level Up
-          </button>
-          <button className="skill-game-btn" onClick={handleMaxLevel}>
-            Max
+            Preview
           </button>
           <button
             className="skill-game-btn skill-play"
             onClick={handlePlay}
-            ref={playBtnRef}
-            disabled={gameState.balance < gameState.playLevel}
+            disabled={isPlayDisabled || balance < playLevel}
           >
-            Play
+            {playButtonText}
           </button>
         </div>
 
         <div className="skill-footer">
           <span>TRASHMARKET.FUN SKILL GAME</span>
-          <span>© 2026 All Rights Reserved</span>
+          <span>&copy; 2026 All Rights Reserved</span>
           <span>SKL 402 83 PEN</span>
         </div>
       </div>

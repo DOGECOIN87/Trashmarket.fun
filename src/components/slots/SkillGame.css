@@ -3,7 +3,8 @@
 .skill-game-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* Account for navbar (~64px) + price ticker (~40px) */
+  height: calc(100dvh - var(--navbar-height, 64px) - 40px);
   background: #0a0a0a;
   color: #fff;
   font-family: 'JetBrains Mono', monospace;
@@ -13,28 +14,29 @@
 .skill-game-content {
   display: flex;
   flex: 1;
-  padding: 10px;
-  gap: 10px;
+  padding: 8px;
+  gap: 8px;
   min-height: 0;
 }
 
 /* Paytable Column */
 .skill-paytable-column {
   width: 10%;
-  min-width: 120px;
+  min-width: 110px;
   display: flex;
   flex-direction: column;
   gap: 0;
   justify-content: space-between;
-  height: 100%;
+  min-height: 0;
 }
 
 .skill-paytable-content {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   flex: 1;
   justify-content: space-between;
+  min-height: 0;
 }
 
 .skill-tier-row {
@@ -43,9 +45,10 @@
   align-items: center;
   background: #1a1a1a;
   border: 2px solid #555;
-  padding: 6px 8px;
-  height: 50px;
-  gap: 8px;
+  padding: 4px 6px;
+  flex: 1;
+  min-height: 0;
+  gap: 6px;
   transition: all 0.2s ease;
 }
 
@@ -56,8 +59,9 @@
 }
 
 .skill-tier-symbol {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -71,7 +75,7 @@
 
 .skill-tier-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 20px;
+  font-size: clamp(12px, 1.2vw, 20px);
   color: #888;
   text-shadow: none;
   flex: 1;
@@ -88,9 +92,10 @@
 .skill-win-display {
   background: #000;
   border: 3px solid #555;
-  padding: 15px;
+  padding: 8px;
   text-align: center;
-  margin-top: 10px;
+  margin-top: 4px;
+  flex-shrink: 0;
   transition: all 0.2s ease;
 }
 
@@ -101,7 +106,7 @@
 
 .skill-win-label {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 16px;
+  font-size: 14px;
   color: #888;
   text-transform: uppercase;
   font-weight: bold;
@@ -109,7 +114,7 @@
 
 .skill-win-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 48px;
+  font-size: clamp(24px, 3vw, 48px);
   color: #666;
   text-shadow: none;
   line-height: 1;
@@ -124,12 +129,14 @@
 
 /* Play Area */
 .skill-play-area {
-  width: 90%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   background: #111;
   border: 3px solid #555;
   position: relative;
+  min-height: 0;
+  min-width: 0;
   transition: all 0.2s ease;
 }
 
@@ -143,9 +150,10 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  gap: 15px;
-  padding: 30px;
+  gap: clamp(6px, 1.5vmin, 15px);
+  padding: clamp(10px, 2vmin, 30px);
   position: relative;
+  min-height: 0;
 }
 
 .skill-grid-cell {
@@ -158,6 +166,8 @@
   cursor: pointer;
   transition: all 0.2s;
   overflow: hidden;
+  min-height: 0;
+  min-width: 0;
 }
 
 .skill-grid-cell:hover {
@@ -187,13 +197,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 5px;
+  padding: 5%;
   transition: transform 0.15s ease-out;
+  min-height: 0;
+  min-width: 0;
 }
 
 .skill-cell-symbol img {
-  max-width: 150px;
-  max-height: 150px;
+  max-width: 100%;
+  max-height: 100%;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -201,7 +213,7 @@
 
 .skill-cell-symbol.skill-wild-text {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 24px;
+  font-size: clamp(16px, 2vmin, 24px);
   color: #666;
   text-shadow: none;
   font-weight: 900;
@@ -220,13 +232,14 @@
   left: 50%;
   transform: translate(-50%, -50%);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 32px;
+  font-size: clamp(18px, 2.5vmin, 32px);
   color: #666;
   text-transform: uppercase;
   letter-spacing: 3px;
   pointer-events: none;
   z-index: 10;
   font-weight: bold;
+  white-space: nowrap;
 }
 
 .skill-status-message.skill-hidden {
@@ -236,14 +249,15 @@
 /* Timer */
 .skill-timer-container {
   position: absolute;
-  top: 10px;
-  left: 30px;
-  right: 30px;
-  height: 8px;
+  top: 6px;
+  left: clamp(10px, 2vmin, 30px);
+  right: clamp(10px, 2vmin, 30px);
+  height: 6px;
   background: #333;
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
   display: none;
+  z-index: 5;
 }
 
 .skill-timer-container.active {
@@ -259,8 +273,9 @@
 
 /* Memory Circle */
 .skill-memory-circle {
-  width: 80%;
-  height: 80%;
+  width: 60%;
+  height: 0;
+  padding-bottom: 60%;
   border-radius: 50%;
   opacity: 0.3;
   transition: opacity 0.2s;
@@ -274,23 +289,23 @@
 /* Spinning Animation */
 @keyframes skill-spin-vertical {
   0% {
-    transform: translateY(0px);
+    transform: translateY(0);
     opacity: 1;
   }
   25% {
-    transform: translateY(-50px);
+    transform: translateY(-20%);
     opacity: 0.7;
   }
   50% {
-    transform: translateY(-100px);
+    transform: translateY(-40%);
     opacity: 0.3;
   }
   75% {
-    transform: translateY(-50px);
+    transform: translateY(-20%);
     opacity: 0.7;
   }
   100% {
-    transform: translateY(0px);
+    transform: translateY(0);
     opacity: 1;
   }
 }
@@ -336,10 +351,65 @@
   box-shadow: 0 0 30px #adff02 !important;
 }
 
+/* Level Selector Bar */
+.skill-level-bar {
+  display: flex;
+  gap: 0;
+  background: #0a0a0a;
+  padding: 6px 20px;
+  border-bottom: 1px solid #333;
+}
+
+.skill-level-btn {
+  flex: 1;
+  height: clamp(36px, 4.5vh, 52px);
+  background: linear-gradient(to bottom, #222, #111);
+  border: 2px solid #333;
+  color: #666;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(13px, 1.3vw, 18px);
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.1s;
+  position: relative;
+}
+
+.skill-level-btn:not(:first-child) {
+  border-left: 1px solid #333;
+}
+
+.skill-level-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.skill-level-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.skill-level-btn:hover:not(:disabled):not(.active) {
+  background: linear-gradient(to bottom, #333, #1a1a1a);
+  color: #aaa;
+  border-color: #555;
+}
+
+.skill-level-btn.active {
+  background: linear-gradient(to bottom, #adff02, #8ac900);
+  border-color: #adff02;
+  color: #000;
+  box-shadow: 0 0 15px rgba(173, 255, 2, 0.5);
+  z-index: 1;
+}
+
+.skill-level-btn:disabled:not(.active) {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 /* Control Section */
 .skill-control-section {
   background: #000;
   border-top: 3px solid #555;
+  flex-shrink: 0;
   transition: all 0.2s ease;
 }
 
@@ -351,7 +421,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 30px;
+  padding: 8px 20px;
   background: #0a0a0a;
   border-bottom: 1px solid #444;
 }
@@ -359,12 +429,12 @@
 .skill-status-group {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 10px;
 }
 
 .skill-status-label {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 18px;
+  font-size: clamp(12px, 1.4vw, 18px);
   color: #888;
   text-transform: uppercase;
   font-weight: bold;
@@ -372,11 +442,11 @@
 
 .skill-status-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 36px;
-  padding: 5px 20px;
+  font-size: clamp(20px, 2.5vw, 36px);
+  padding: 4px 14px;
   background: #000;
   border: 2px solid #555;
-  min-width: 100px;
+  min-width: 80px;
   text-align: center;
   font-weight: 900;
   transition: all 0.2s ease;
@@ -405,22 +475,22 @@
 
 .skill-button-bar {
   display: flex;
-  gap: 10px;
-  padding: 15px 30px;
+  gap: 8px;
+  padding: 8px 20px;
   background: #111;
   flex-wrap: wrap;
 }
 
 .skill-game-btn {
   flex: 1;
-  min-width: 100px;
-  height: 70px;
+  min-width: 80px;
+  height: clamp(40px, 5vh, 70px);
   background: linear-gradient(to bottom, #333, #1a1a1a);
   border: 2px solid #555;
   border-radius: 0;
   color: #aaa;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 16px;
+  font-size: clamp(11px, 1.2vw, 16px);
   font-weight: 700;
   text-transform: uppercase;
   cursor: pointer;
@@ -474,31 +544,65 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 30px;
+  padding: 6px 20px;
   background: #000;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-size: 11px;
   color: #555;
   border-top: 1px solid #444;
 }
 
-/* Responsive */
+/* Responsive - Tablets and smaller desktops */
 @media (max-width: 1024px) {
   .skill-paytable-column {
     width: 12%;
-    min-width: 100px;
+    min-width: 90px;
   }
 
-  .skill-game-btn {
-    font-size: 14px;
-    height: 60px;
-  }
-
-  .skill-status-value {
-    font-size: 28px;
+  .skill-tier-symbol {
+    width: 22px;
+    height: 22px;
   }
 }
 
+/* Responsive - Short viewports (landscape, small screens) */
+@media (max-height: 700px) {
+  .skill-game-content {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .skill-tier-row {
+    padding: 2px 4px;
+    border-width: 1px;
+  }
+
+  .skill-win-display {
+    padding: 4px;
+    margin-top: 2px;
+    border-width: 2px;
+  }
+
+  .skill-win-label {
+    font-size: 11px;
+  }
+
+  .skill-status-bar {
+    padding: 4px 12px;
+  }
+
+  .skill-button-bar {
+    padding: 4px 12px;
+    gap: 4px;
+  }
+
+  .skill-footer {
+    padding: 3px 12px;
+    font-size: 10px;
+  }
+}
+
+/* Responsive - Mobile */
 @media (max-width: 768px) {
   .skill-game-content {
     flex-direction: column;
@@ -508,26 +612,36 @@
     width: 100%;
     min-width: auto;
     height: auto;
-    max-height: 150px;
+    max-height: 80px;
     flex-direction: row;
+    flex-shrink: 0;
   }
 
   .skill-paytable-content {
     flex-direction: row;
     overflow-x: auto;
-    gap: 5px;
+    gap: 4px;
   }
 
   .skill-tier-row {
     flex-shrink: 0;
-    width: 70px;
-    height: 60px;
+    width: 60px;
     flex-direction: column;
-    padding: 4px;
+    padding: 3px;
   }
 
   .skill-tier-value {
-    font-size: 14px;
+    font-size: 12px;
+  }
+
+  .skill-win-display {
+    margin-top: 0;
+    margin-left: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
   }
 
   .skill-play-area {
@@ -535,32 +649,84 @@
   }
 
   .skill-grid-container {
-    gap: 10px;
-    padding: 20px;
+    gap: 6px;
+    padding: 10px;
   }
 
   .skill-grid-cell {
     border-width: 1px;
   }
 
+  .skill-level-bar {
+    padding: 4px 12px;
+  }
+
+  .skill-level-btn {
+    height: 36px;
+    font-size: 13px;
+  }
+
   .skill-button-bar {
-    flex-direction: column;
+    flex-wrap: wrap;
+    flex-direction: row;
   }
 
   .skill-game-btn {
-    flex: 1;
-    min-width: auto;
-    height: 50px;
-    font-size: 14px;
+    flex: 1 1 calc(33% - 6px);
+    min-width: 0;
+    height: 44px;
+    font-size: 12px;
+  }
+
+  .skill-game-btn.skill-play {
+    flex: 1 1 100%;
   }
 
   .skill-status-bar {
-    flex-direction: column;
-    gap: 10px;
+    padding: 6px 12px;
   }
 
   .skill-status-value {
-    font-size: 24px;
-    min-width: 80px;
+    font-size: 20px;
+    min-width: 60px;
+    padding: 3px 10px;
+  }
+}
+
+/* Responsive - Very small screens */
+@media (max-width: 480px) {
+  .skill-game-container {
+    height: calc(100dvh - var(--navbar-height, 64px) - 36px);
+  }
+
+  .skill-paytable-column {
+    max-height: 60px;
+  }
+
+  .skill-tier-row {
+    width: 50px;
+  }
+
+  .skill-tier-symbol {
+    width: 18px;
+    height: 18px;
+  }
+
+  .skill-tier-value {
+    font-size: 10px;
+  }
+
+  .skill-status-label {
+    font-size: 11px;
+  }
+
+  .skill-game-btn {
+    height: 38px;
+    font-size: 11px;
+  }
+
+  .skill-footer {
+    font-size: 9px;
+    padding: 3px 8px;
   }
 }

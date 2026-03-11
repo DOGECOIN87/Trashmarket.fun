@@ -14,7 +14,7 @@ const SkillGame = lazy(() => import('../components/slots/SkillGame'));
  */
 export default function SlotsPage() {
     return (
-        <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black overflow-hidden">
+        <div className="bg-gradient-to-b from-gray-900 via-gray-800 to-black">
             {/* Background Video */}
             <video
                 autoPlay
