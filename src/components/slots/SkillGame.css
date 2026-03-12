@@ -191,6 +191,23 @@
   border-color: #adff02;
 }
 
+.skill-grid-cell.skill-choosable {
+  cursor: pointer;
+  border-color: #adff02;
+  animation: choosable-pulse 1.2s ease-in-out infinite;
+}
+
+.skill-grid-cell.skill-choosable:hover {
+  transform: scale(1.06);
+  background: rgba(173, 255, 2, 0.12);
+  box-shadow: 0 0 12px rgba(173, 255, 2, 0.4);
+}
+
+@keyframes choosable-pulse {
+  0%, 100% { border-color: #555; }
+  50% { border-color: #adff02; }
+}
+
 .skill-cell-symbol {
   width: 100%;
   height: 100%;
@@ -552,6 +569,137 @@
   border-top: 1px solid #444;
 }
 
+/* Wallet & Deposit/Withdraw Bar */
+.skill-wallet-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px;
+  background: #0a0a0a;
+  border-bottom: 1px solid #333;
+  gap: 12px;
+}
+
+.skill-wallet-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.skill-wallet-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.skill-wallet-balance {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  color: #adff02;
+  font-weight: 900;
+  text-shadow: 0 0 8px rgba(173, 255, 2, 0.4);
+}
+
+.skill-connect-btn {
+  flex: 1;
+  height: 40px;
+  background: linear-gradient(to bottom, #adff02, #8ac900);
+  border: 2px solid #adff02;
+  color: #000;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: all 0.1s;
+}
+
+.skill-connect-btn:hover {
+  background: linear-gradient(to bottom, #c8ff4d, #adff02);
+  box-shadow: 0 0 20px rgba(173, 255, 2, 0.6);
+}
+
+.skill-deposit-btn {
+  height: 32px;
+  padding: 0 16px;
+  background: linear-gradient(to bottom, #333, #1a1a1a);
+  border: 2px solid #555;
+  color: #aaa;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.skill-deposit-btn:hover:not(:disabled) {
+  border-color: #adff02;
+  color: #adff02;
+  box-shadow: 0 0 10px rgba(173, 255, 2, 0.3);
+}
+
+.skill-deposit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.skill-deposit-panel {
+  padding: 8px 20px;
+  background: #111;
+  border-bottom: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skill-deposit-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.skill-deposit-input {
+  flex: 1;
+  height: 34px;
+  background: #0a0a0a;
+  border: 2px solid #444;
+  color: #adff02;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  padding: 0 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.skill-deposit-input:focus {
+  border-color: #adff02;
+  box-shadow: 0 0 8px rgba(173, 255, 2, 0.3);
+}
+
+.skill-deposit-input::placeholder {
+  color: #555;
+}
+
+.skill-deposit-action,
+.skill-withdraw-action {
+  height: 34px;
+  min-width: 100px;
+  font-size: 12px !important;
+}
+
+.skill-tx-message {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #adff02;
+  text-align: center;
+  padding: 4px 0;
+  text-shadow: 0 0 8px rgba(173, 255, 2, 0.4);
+}
+
 /* Responsive - Tablets and smaller desktops */
 @media (max-width: 1024px) {
   .skill-paytable-column {
@@ -690,6 +838,39 @@
     font-size: 20px;
     min-width: 60px;
     padding: 3px 10px;
+  }
+}
+
+/* Responsive - Wallet bar on mobile */
+@media (max-width: 768px) {
+  .skill-wallet-bar {
+    padding: 6px 12px;
+    gap: 8px;
+  }
+
+  .skill-wallet-balance {
+    font-size: 15px;
+  }
+
+  .skill-deposit-panel {
+    padding: 6px 12px;
+  }
+
+  .skill-deposit-input {
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .skill-deposit-action,
+  .skill-withdraw-action {
+    height: 30px;
+    min-width: 80px;
+    font-size: 11px !important;
+  }
+
+  .skill-connect-btn {
+    height: 36px;
+    font-size: 12px;
   }
 }
 

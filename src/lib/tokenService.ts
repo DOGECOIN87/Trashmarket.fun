@@ -5,6 +5,7 @@ import {
   getAccount,
   TokenAccountNotFoundError,
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { TOKEN_CONFIG } from './tokenConfig';
 
@@ -18,29 +19,41 @@ export interface TokenBalance {
 
 /**
  * Get DEBRIS token balance for a wallet
+ * Tries both TOKEN_PROGRAM_ID and TOKEN_2022_PROGRAM_ID since the token
+ * may use either program depending on how it was created.
  */
 export async function getDebrisBalance(
   connection: Connection,
   walletAddress: PublicKey
 ): Promise<number> {
-  try {
-    const debrisMint = new PublicKey(TOKEN_CONFIG.DEBRIS.address);
-    const tokenAccount = await getAssociatedTokenAddress(
-      debrisMint,
-      walletAddress
-    );
+  const debrisMint = new PublicKey(TOKEN_CONFIG.DEBRIS.address);
 
-    const accountInfo = await getAccount(connection, tokenAccount);
-    const balance = Number(accountInfo.amount) / Math.pow(10, TOKEN_CONFIG.DEBRIS.decimals);
-    return balance;
-  } catch (error) {
-    if (error instanceof TokenAccountNotFoundError) {
-      // Token account doesn't exist yet, balance is 0
-      return 0;
+  // Try standard SPL Token first, then Token-2022
+  for (const programId of [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID]) {
+    try {
+      const tokenAccount = await getAssociatedTokenAddress(
+        debrisMint,
+        walletAddress,
+        false,
+        programId,
+      );
+
+      const accountInfo = await getAccount(connection, tokenAccount, undefined, programId);
+      const balance = Number(accountInfo.amount) / Math.pow(10, TOKEN_CONFIG.DEBRIS.decimals);
+      return balance;
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError) {
+        continue; // Try next program ID
+      }
+      // For other errors on first attempt, try the other program
+      if (programId === TOKEN_PROGRAM_ID) continue;
+      console.error('Error fetching DEBRIS balance:', error);
+      throw error;
     }
-    console.error('Error fetching DEBRIS balance:', error);
-    throw error;
   }
+
+  // No account found with either program
+  return 0;
 }
 
 /**

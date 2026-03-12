@@ -1,4 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { getDebrisBalance } from '../../lib/tokenService';
+import { TOKEN_CONFIG } from '../../lib/tokenConfig';
+import { useJunkPusherOnChain } from '../../lib/useJunkPusherOnChain';
 import './SkillGame.css';
 
 const SYMBOL_IMAGES = [
@@ -13,22 +18,37 @@ const SYMBOL_IMAGES = [
   '/symbols/matress.png',
 ];
 
-// Payout multipliers per winning line (×wager). Common symbols pay sub-1x
-// (partial recovery), rare symbols pay big. Tuned for ~90-93% RTP overall.
-const BASE_PAYOUTS = [50, 12, 7, 4, 2.5, 1.8, 1.2, 0.8, 0.5];
+// Payout multipliers (×wager). Only the BEST single line pays out.
+// Grid is pre-constructed per patent US20070232385A1 — outcome determined first,
+// then grid built to match. Player skill: find the optimal WILD placement.
+// ~90% RTP assuming optimal play, ~10% house edge.
+const BASE_PAYOUTS = [30, 10, 5, 3, 2.2, 1.7, 1.2, 0.7, 0.4];
 
-// Weighted symbol frequency for grid generation. Alon is ultra-rare jackpot
-// tier. Common symbols (high index) appear often but pay little.
-const GRID_WEIGHTS = [1, 3, 5, 7, 10, 13, 16, 20, 25];
+// Symbol weights — moderate spread. Rare symbols are less frequent.
+const GRID_WEIGHTS = [3, 5, 8, 11, 13, 15, 17, 19, 20];
 const GRID_TOTAL_WEIGHT = GRID_WEIGHTS.reduce((a, b) => a + b, 0);
 
 // Fixed play levels (wager amounts) - players pick one of these
 const PLAY_LEVELS = [10, 25, 50, 100, 250];
 
-// Memory game consolation: 25% of wager returned (was 105% — guaranteed profit)
-const MEMORY_RETURN = 0.25;
-
-const MEMORY_COLORS = ['#ff0000', '#00ff00', '#0000ff', '#ffff00'];
+// ─── Outcome Pool (Patent-inspired controlled grid construction) ──────
+// Pre-determines game outcome, then constructs grid to match.
+// tier=-1 means LOSS (no WILD placement can win).
+// RTP = 0.30×0.4 + 0.15×0.7 + 0.12×1.2 + 0.065×1.7 + 0.05×2.2
+//     + 0.03×3.0 + 0.02×5.0 + 0.006×10 + 0.002×30 ≈ 0.90
+const OUTCOME_POOL = [
+  { tier: -1, weight: 257 }, // 25.7% LOSS
+  { tier: 8,  weight: 300 }, // 30.0% → 0.4x
+  { tier: 7,  weight: 150 }, // 15.0% → 0.7x
+  { tier: 6,  weight: 120 }, // 12.0% → 1.2x
+  { tier: 5,  weight: 65 },  //  6.5% → 1.7x
+  { tier: 4,  weight: 50 },  //  5.0% → 2.2x
+  { tier: 3,  weight: 30 },  //  3.0% → 3.0x
+  { tier: 2,  weight: 20 },  //  2.0% → 5.0x
+  { tier: 1,  weight: 6 },   //  0.6% → 10x
+  { tier: 0,  weight: 2 },   //  0.2% → 30x
+];
+const OUTCOME_TOTAL = OUTCOME_POOL.reduce((s, o) => s + o.weight, 0);
 
 const WIN_LINES = [
   [0, 1, 2],
@@ -41,7 +61,7 @@ const WIN_LINES = [
   [2, 4, 6],
 ];
 
-type Stage = 'IDLE' | 'PLAYING' | 'MEMORY';
+type Stage = 'IDLE' | 'PLAYING' | 'CHOOSING_WILD';
 type CellValue = number | 'WILD' | null;
 
 const getWeightedSymbol = (): number => {
@@ -61,25 +81,166 @@ const generateGrid = (): number[] =>
 const getPayout = (tier: number, level: number) =>
   Math.round(BASE_PAYOUTS[tier] * level);
 
+// ─── Pre-computed line partner pairs (cells sharing a win line) ────────
+// For a LOSS grid: no pair sharing a line may match.
+const LINE_PARTNER_PAIRS: [number, number][] = (() => {
+  const pairs: [number, number][] = [];
+  const seen = new Set<string>();
+  for (const line of WIN_LINES) {
+    for (let i = 0; i < 3; i++) {
+      for (let j = i + 1; j < 3; j++) {
+        const a = Math.min(line[i], line[j]);
+        const b = Math.max(line[i], line[j]);
+        const key = `${a},${b}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          pairs.push([a, b]);
+        }
+      }
+    }
+  }
+  return pairs;
+})();
+
+/** Roll a random outcome from the weighted pool. Returns tier (-1 = LOSS). */
+function rollOutcome(): number {
+  let r = Math.random() * OUTCOME_TOTAL;
+  for (const o of OUTCOME_POOL) {
+    r -= o.weight;
+    if (r <= 0) return o.tier;
+  }
+  return -1;
+}
+
+/** Construct a LOSS grid where no WILD placement creates any win. */
+function constructLossGrid(): number[] {
+  for (let attempt = 0; attempt < 500; attempt++) {
+    const grid = generateGrid();
+    let ok = true;
+    for (const [a, b] of LINE_PARTNER_PAIRS) {
+      if (grid[a] === grid[b]) { ok = false; break; }
+    }
+    if (ok) return grid;
+  }
+  // Fallback: all unique symbols, shuffled
+  const syms = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  for (let i = 8; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [syms[i], syms[j]] = [syms[j], syms[i]];
+  }
+  return syms;
+}
+
+/**
+ * Construct a WIN grid where the optimal WILD placement creates a match of `winTier`.
+ * No other WILD position should yield a better payout.
+ */
+function constructWinGrid(winTier: number): number[] {
+  for (let attempt = 0; attempt < 500; attempt++) {
+    const winPos = Math.floor(Math.random() * 9);
+    const linesThrough = WIN_LINES.filter((l) => l.includes(winPos));
+    const winLine = linesThrough[Math.floor(Math.random() * linesThrough.length)];
+    const partners = winLine.filter((c) => c !== winPos);
+
+    const grid = generateGrid();
+    grid[partners[0]] = winTier;
+    grid[partners[1]] = winTier;
+    // Ensure winPos cell isn't the same tier (no natural 3-of-a-kind)
+    if (grid[winPos] === winTier) {
+      grid[winPos] = (winTier + 1 + Math.floor(Math.random() * 8)) % 9;
+    }
+
+    // Reject if any line has natural 3-of-a-kind
+    let bad = false;
+    for (const line of WIN_LINES) {
+      if (grid[line[0]] === grid[line[1]] && grid[line[1]] === grid[line[2]]) {
+        bad = true;
+        break;
+      }
+    }
+    if (bad) continue;
+
+    // CRITICAL: Ensure OTHER lines through winPos don't have matching partners.
+    // Without this, placing WILD at winPos could win on a better line than intended.
+    let winPosClean = true;
+    for (const line of linesThrough) {
+      if (line === winLine) continue; // skip the intended win line
+      const others = line.filter((c) => c !== winPos);
+      if (grid[others[0]] === grid[others[1]]) {
+        winPosClean = false;
+        break;
+      }
+    }
+    if (!winPosClean) continue;
+
+    // Check no other WILD position creates a better payout
+    let bestOther = 0;
+    for (let pos = 0; pos < 9; pos++) {
+      if (pos === winPos) continue;
+      for (const line of WIN_LINES) {
+        if (!line.includes(pos)) continue;
+        const others = line.filter((c) => c !== pos);
+        if (grid[others[0]] === grid[others[1]]) {
+          bestOther = Math.max(bestOther, BASE_PAYOUTS[grid[others[0]]]);
+        }
+      }
+    }
+    if (BASE_PAYOUTS[winTier] >= bestOther) return grid;
+  }
+
+  // Fallback: all-unique + forced win pair
+  const syms = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  for (let i = 8; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [syms[i], syms[j]] = [syms[j], syms[i]];
+  }
+  const winPos = Math.floor(Math.random() * 9);
+  const line = WIN_LINES.filter((l) => l.includes(winPos))[0];
+  const partners = line.filter((c) => c !== winPos);
+  syms[partners[0]] = winTier;
+  syms[partners[1]] = winTier;
+  if (syms[winPos] === winTier) syms[winPos] = (winTier + 1) % 9;
+  return syms;
+}
+
+/** Construct a grid based on a rolled outcome. */
+function constructGameGrid(): number[] {
+  const tier = rollOutcome();
+  return tier === -1 ? constructLossGrid() : constructWinGrid(tier);
+}
+
 export default function SkillGame() {
+  // Wallet & on-chain integration
+  const { publicKey, connected } = useWallet();
+  const { connection } = useConnection();
+  const { setVisible: showWalletModal } = useWalletModal();
+  const onChain = useJunkPusherOnChain();
+
+  // DEBRIS wallet balance (on-chain)
+  const [debrisBalance, setDebrisBalance] = useState(0);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+
+  // Deposit/withdraw UI
+  const [showDepositUI, setShowDepositUI] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [txPending, setTxPending] = useState(false);
+  const [txMessage, setTxMessage] = useState<string | null>(null);
+
   // Core game state
   const [grid, setGrid] = useState<CellValue[]>(Array(9).fill(null));
-  const [balance, setBalance] = useState(1000);
+  const [balance, setBalance] = useState(0);
   const [levelIndex, setLevelIndex] = useState(0);
   const playLevel = PLAY_LEVELS[levelIndex];
   const [currentWin, setCurrentWin] = useState(0);
   const [stage, setStage] = useState<Stage>('IDLE');
   const [statusMessage, setStatusMessage] = useState<string | null>(
-    "Adjust 'Play Level'"
+    'Connect Wallet to Play'
   );
   const [winningCells, setWinningCells] = useState<Set<number>>(new Set());
   const [previewShown, setPreviewShown] = useState(false);
   const [playButtonText, setPlayButtonText] = useState('Play');
   const [isPlayDisabled, setIsPlayDisabled] = useState(false);
-
-  // Timer
-  const [timerPercent, setTimerPercent] = useState(100);
-  const [showTimer, setShowTimer] = useState(false);
 
   // Spin animation
   const [spinningCells, setSpinningCells] = useState<boolean[]>(
@@ -91,26 +252,139 @@ export default function SkillGame() {
       .map(() => Math.floor(Math.random() * 9))
   );
 
-  // Memory game
-  const [memorySequence, setMemorySequence] = useState<number[]>([]);
-  const [playerSequence, setPlayerSequence] = useState<number[]>([]);
-  const [memoryFlash, setMemoryFlash] = useState<number | null>(null);
-  const [acceptingMemoryInput, setAcceptingMemoryInput] = useState(false);
-
   // Refs for interval/timeout cleanup
-  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const memoryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const isAnimating = spinningCells.some(Boolean);
 
+  // ─── Fetch on-chain DEBRIS balance ──────────────────────────────────
+  const refreshDebrisBalance = useCallback(async () => {
+    if (!publicKey || !connection) return;
+    setIsLoadingBalance(true);
+    try {
+      const bal = await getDebrisBalance(connection, publicKey);
+      setDebrisBalance(bal);
+    } catch (err) {
+      console.error('[Slots] Failed to fetch DEBRIS balance:', err);
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  }, [publicKey, connection]);
+
+  // Refresh balance on wallet connect
+  useEffect(() => {
+    if (connected && publicKey) {
+      refreshDebrisBalance();
+      setStatusMessage("Adjust 'Play Level'");
+    } else {
+      setDebrisBalance(0);
+      setBalance(0);
+      setStatusMessage('Connect Wallet to Play');
+    }
+  }, [connected, publicKey, refreshDebrisBalance]);
+
+  // Restore in-game balance from localStorage on wallet connect
+  useEffect(() => {
+    if (!publicKey) return;
+    const key = `slots_balance_${publicKey.toBase58()}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      const parsed = parseFloat(saved);
+      if (!isNaN(parsed) && parsed > 0) setBalance(parsed);
+    }
+  }, [publicKey]);
+
+  // Auto-save in-game balance
+  useEffect(() => {
+    if (!publicKey) return;
+    const key = `slots_balance_${publicKey.toBase58()}`;
+    localStorage.setItem(key, balance.toString());
+  }, [balance, publicKey]);
+
+  // ─── Deposit DEBRIS into game ────────────────────────────────────────
+  const handleDeposit = async () => {
+    const amount = parseFloat(depositAmount);
+    if (!amount || amount <= 0) return;
+
+    // Round to integer for on-chain validation
+    const intAmount = Math.floor(amount);
+    if (intAmount <= 0) {
+      setTxMessage('Amount must be at least 1 DEBRIS');
+      setTimeout(() => setTxMessage(null), 3000);
+      return;
+    }
+
+    if (intAmount > debrisBalance && debrisBalance > 0) {
+      setTxMessage(`Insufficient DEBRIS. Wallet balance: ${debrisBalance.toFixed(2)}`);
+      setTimeout(() => setTxMessage(null), 3000);
+      return;
+    }
+
+    setTxPending(true);
+    setTxMessage('Depositing DEBRIS...');
+    try {
+      const sig = await onChain.depositBalance(intAmount);
+      if (sig) {
+        setBalance((prev) => prev + intAmount);
+        setDepositAmount('');
+        setTxMessage('Deposit confirmed!');
+        setTimeout(() => refreshDebrisBalance(), 2000);
+      } else {
+        setTxMessage(onChain.error || 'Deposit failed - check wallet');
+      }
+    } catch (err: any) {
+      console.error('[Slots] Deposit error:', err);
+      setTxMessage(err.message || 'Deposit failed');
+    } finally {
+      setTxPending(false);
+      setTimeout(() => setTxMessage(null), 5000);
+    }
+  };
+
+  // ─── Withdraw DEBRIS from game ───────────────────────────────────────
+  const handleWithdraw = async () => {
+    const amount = parseFloat(withdrawAmount);
+    if (!amount || amount <= 0) return;
+
+    const intAmount = Math.floor(amount);
+    if (intAmount <= 0) {
+      setTxMessage('Amount must be at least 1 DEBRIS');
+      setTimeout(() => setTxMessage(null), 3000);
+      return;
+    }
+
+    if (intAmount > balance) {
+      setTxMessage(`Insufficient game balance: ${balance.toFixed(2)} DEBRIS`);
+      setTimeout(() => setTxMessage(null), 3000);
+      return;
+    }
+
+    setTxPending(true);
+    setTxMessage('Withdrawing DEBRIS...');
+    try {
+      const sig = await onChain.withdrawBalance(intAmount, intAmount, Math.floor(balance));
+      if (sig) {
+        setBalance((prev) => prev - intAmount);
+        setWithdrawAmount('');
+        setTxMessage('Withdrawal confirmed!');
+        setTimeout(() => refreshDebrisBalance(), 2000);
+      } else {
+        setTxMessage(onChain.error || 'Withdrawal failed - check wallet');
+      }
+    } catch (err: any) {
+      console.error('[Slots] Withdraw error:', err);
+      setTxMessage(err.message || 'Withdrawal failed');
+    } finally {
+      setTxPending(false);
+      setTimeout(() => setTxMessage(null), 5000);
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       if (spinIntervalRef.current) clearInterval(spinIntervalRef.current);
-      if (memoryIntervalRef.current) clearInterval(memoryIntervalRef.current);
       timeoutsRef.current.forEach((t) => clearTimeout(t));
     };
   }, []);
@@ -121,18 +395,8 @@ export default function SkillGame() {
     return t;
   };
 
-  const clearGameTimer = () => {
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-  };
-
   // Reset game to idle state
   const resetToIdle = (won: boolean, winAmount: number = 0) => {
-    clearGameTimer();
-    setShowTimer(false);
-    setAcceptingMemoryInput(false);
     setStage('IDLE');
     setIsPlayDisabled(false);
     setPlayButtonText('Play');
@@ -152,120 +416,66 @@ export default function SkillGame() {
     }, 2000);
   };
 
-  // Timer - uses only setState inside interval (no stale closures)
-  const startTimer = () => {
-    clearGameTimer();
-    let timerValue = 30;
-    setShowTimer(true);
-    setTimerPercent(100);
-
-    timerIntervalRef.current = setInterval(() => {
-      timerValue -= 0.1;
-      setTimerPercent((timerValue / 30) * 100);
-
-      if (timerValue <= 0) {
-        if (timerIntervalRef.current) {
-          clearInterval(timerIntervalRef.current);
-          timerIntervalRef.current = null;
-        }
-        // Timer expired - lose (wager already deducted at game start)
-        setShowTimer(false);
-        setAcceptingMemoryInput(false);
-        setStatusMessage('Try Again');
-        setStage('IDLE');
-        setIsPlayDisabled(false);
-        setPlayButtonText('Play');
-        setPreviewShown(false);
-      }
-    }, 100);
-  };
-
-  // Check for winning lines after WILD placement
+  // Check for winning lines after WILD placement — pays BEST single line only.
+  // WILD only counts on lines that contain the WILD cell (2 natural matches + WILD).
+  // Lines without the WILD cell can still win with 3 natural matches.
   const checkWin = (finalGrid: CellValue[], currentPlayLevel: number) => {
-    let totalWin = 0;
-    const winCells = new Set<number>();
+    let bestWin = 0;
+    let bestLine: number[] = [];
+    const wildIdx = finalGrid.indexOf('WILD');
 
     WIN_LINES.forEach((line) => {
       const symbols = line.map((i) => finalGrid[i]);
-      const unique = [...new Set(symbols)];
+      const lineHasWild = line.includes(wildIdx);
 
-      if (unique.length === 1 && unique[0] !== null) {
-        const tier = unique[0] === 'WILD' ? 0 : (unique[0] as number);
-        totalWin += getPayout(tier, currentPlayLevel);
-        line.forEach((i) => winCells.add(i));
-      } else if (unique.length === 2 && unique.includes('WILD')) {
-        const tier = unique.find((s) => s !== 'WILD') as number;
-        totalWin += getPayout(tier, currentPlayLevel);
-        line.forEach((i) => winCells.add(i));
+      if (lineHasWild) {
+        // WILD line: the other 2 cells must be matching natural symbols
+        const nonWild = symbols.filter((s) => s !== 'WILD');
+        if (nonWild.length === 2 && nonWild[0] === nonWild[1]) {
+          const tier = nonWild[0] as number;
+          const lineWin = getPayout(tier, currentPlayLevel);
+          if (lineWin > bestWin) {
+            bestWin = lineWin;
+            bestLine = line;
+          }
+        }
+      } else {
+        // Non-WILD line: all 3 must be the same natural symbol
+        const unique = [...new Set(symbols)];
+        if (unique.length === 1 && typeof unique[0] === 'number') {
+          const tier = unique[0];
+          const lineWin = getPayout(tier, currentPlayLevel);
+          if (lineWin > bestWin) {
+            bestWin = lineWin;
+            bestLine = line;
+          }
+        }
       }
     });
 
-    if (totalWin > 0) {
+    if (bestWin > 0) {
+      const winCells = new Set<number>(bestLine);
       setWinningCells(winCells);
-      setCurrentWin(totalWin);
-      addTimeout(() => resetToIdle(true, totalWin), 2000);
+      setCurrentWin(bestWin);
+      addTimeout(() => resetToIdle(true, bestWin), 2000);
     } else {
-      startMemoryGame();
+      // No win — wager already deducted
+      resetToIdle(false);
     }
   };
 
-  // Memory game
-  const startMemoryGame = () => {
-    const sequence = Array(5)
-      .fill(0)
-      .map(() => Math.floor(Math.random() * 9));
-    setMemorySequence(sequence);
-    setPlayerSequence([]);
-    setStage('MEMORY');
-    setStatusMessage('Watch the pattern...');
-
-    let i = 0;
-    memoryIntervalRef.current = setInterval(() => {
-      if (i >= sequence.length) {
-        if (memoryIntervalRef.current) clearInterval(memoryIntervalRef.current);
-        setStatusMessage('Your turn!');
-        setAcceptingMemoryInput(true);
-        return;
-      }
-      setMemoryFlash(sequence[i]);
-      addTimeout(() => setMemoryFlash(null), 400);
-      i++;
-    }, 800);
-  };
-
-  // Cell click - always has fresh closure since it's in JSX onClick
+  // ─── Cell click: place WILD during CHOOSING_WILD stage ──────────────
   const handleCellClick = (index: number) => {
-    if (stage === 'PLAYING') {
-      // Place WILD symbol
-      clearGameTimer();
-      setShowTimer(false);
-      const newGrid = [...grid];
-      newGrid[index] = 'WILD';
-      setGrid(newGrid);
-      checkWin(newGrid, playLevel);
-    } else if (stage === 'MEMORY' && acceptingMemoryInput) {
-      // Memory input
-      setMemoryFlash(index);
-      addTimeout(() => setMemoryFlash(null), 400);
+    if (stage !== 'CHOOSING_WILD') return;
 
-      const newPlayerSeq = [...playerSequence, index];
-      setPlayerSequence(newPlayerSeq);
-      const currentIdx = newPlayerSeq.length - 1;
+    const finalGrid: CellValue[] = [...grid];
+    finalGrid[index] = 'WILD';
+    setGrid(finalGrid);
+    setStage('PLAYING');
+    setPlayButtonText('...');
+    setStatusMessage(null);
 
-      if (newPlayerSeq[currentIdx] !== memorySequence[currentIdx]) {
-        // Wrong sequence - lose (wager already deducted)
-        resetToIdle(false);
-        return;
-      }
-
-      if (newPlayerSeq.length === memorySequence.length) {
-        // Completed sequence - consolation return
-        const winAmount = Math.round(playLevel * MEMORY_RETURN);
-        setAcceptingMemoryInput(false);
-        setCurrentWin(winAmount);
-        addTimeout(() => resetToIdle(true, winAmount), 1000);
-      }
-    }
+    addTimeout(() => checkWin(finalGrid, playLevel), 600);
   };
 
   // Spin animation with staggered stop
@@ -313,6 +523,10 @@ export default function SkillGame() {
 
   const handlePreview = () => {
     if (stage !== 'IDLE' || isAnimating) return;
+    if (!connected) {
+      showWalletModal(true);
+      return;
+    }
 
     // Generate one grid per level
     const grids = PLAY_LEVELS.map(() => generateGrid());
@@ -332,8 +546,13 @@ export default function SkillGame() {
   // Start playing
   const handlePlay = () => {
     if (stage !== 'IDLE' || isAnimating) return;
+    if (!connected) {
+      showWalletModal(true);
+      return;
+    }
     if (balance < playLevel) {
-      setStatusMessage('Insufficient Balance!');
+      setStatusMessage('Deposit DEBRIS to Play!');
+      setShowDepositUI(true);
       return;
     }
 
@@ -342,26 +561,23 @@ export default function SkillGame() {
     setStatusMessage(null);
     setIsPlayDisabled(true);
 
-    if (previewShown && previewGridsRef.current) {
-      // Reveal the stored preview grid for the current level and start playing
-      const storedGrid = previewGridsRef.current[levelIndex];
+    // Construct outcome-controlled grid (patent approach)
+    const baseGrid = constructGameGrid();
+    // Clear any preview state
+    if (previewShown) {
       previewGridsRef.current = null;
-      setGrid(storedGrid);
       setPreviewShown(false);
-      setStage('PLAYING');
-      startTimer();
-      setPlayButtonText('Playing...');
-    } else {
-      // Generate and spin a new grid
-      const newGrid = generateGrid();
-      setPlayButtonText('Spinning...');
-
-      runSpinAnimation(newGrid, () => {
-        setStage('PLAYING');
-        startTimer();
-        setPlayButtonText('Playing...');
-      });
     }
+
+    setPlayButtonText('Spinning...');
+    setStage('PLAYING');
+
+    runSpinAnimation(baseGrid, () => {
+      // After spin: let player choose where to place WILD
+      setStage('CHOOSING_WILD');
+      setPlayButtonText('Place WILD');
+      setStatusMessage('Tap a cell to place WILD!');
+    });
   };
 
   // Level selection - during preview, switching levels briefly flashes that level's grid
@@ -387,16 +603,6 @@ export default function SkillGame() {
 
   // Render individual cell content
   const renderCellContent = (index: number) => {
-    // Memory flash takes priority
-    if (memoryFlash === index) {
-      return (
-        <div
-          className="skill-memory-circle active"
-          style={{ background: MEMORY_COLORS[index % 4] }}
-        />
-      );
-    }
-
     // Spinning - show rapidly changing symbol
     if (spinningCells[index]) {
       return <img src={SYMBOL_IMAGES[spinDisplay[index]]} alt="Symbol" />;
@@ -439,27 +645,20 @@ export default function SkillGame() {
 
         {/* Play Area */}
         <div className="skill-play-area">
-          <div
-            className={`skill-timer-container${showTimer ? ' active' : ''}`}
-          >
-            <div
-              className="skill-timer-bar"
-              style={{ width: `${timerPercent}%` }}
-            />
-          </div>
-
           <div className="skill-grid-container">
             {Array.from({ length: 9 }, (_, index) => {
               const value = grid[index];
               const isSpinning = spinningCells[index];
               const isWinning = winningCells.has(index);
               const isWild = value === 'WILD' && !isSpinning;
+              const isChoosable = stage === 'CHOOSING_WILD' && !isSpinning;
 
               const cellClasses = [
                 'skill-grid-cell',
                 isSpinning && 'skill-spinning',
                 isWinning && 'skill-winning-cell',
                 isWild && 'skill-wild',
+                isChoosable && 'skill-choosable',
               ]
                 .filter(Boolean)
                 .join(' ');
@@ -494,6 +693,81 @@ export default function SkillGame() {
 
       {/* Control Section */}
       <div className="skill-control-section">
+        {/* Wallet & DEBRIS Balance Bar */}
+        <div className="skill-wallet-bar">
+          {connected ? (
+            <>
+              <div className="skill-wallet-info">
+                <span className="skill-wallet-label">DEBRIS</span>
+                <span className="skill-wallet-balance">
+                  {isLoadingBalance ? '...' : debrisBalance.toFixed(2)}
+                </span>
+              </div>
+              <button
+                className="skill-deposit-btn"
+                onClick={() => setShowDepositUI(!showDepositUI)}
+                disabled={txPending}
+              >
+                {showDepositUI ? 'Close' : 'Deposit / Withdraw'}
+              </button>
+            </>
+          ) : (
+            <button
+              className="skill-connect-btn"
+              onClick={() => showWalletModal(true)}
+            >
+              Connect Wallet to Play
+            </button>
+          )}
+        </div>
+
+        {/* Deposit/Withdraw Panel */}
+        {showDepositUI && connected && (
+          <div className="skill-deposit-panel">
+            <div className="skill-deposit-row">
+              <input
+                type="number"
+                className="skill-deposit-input"
+                placeholder={`Deposit DEBRIS (wallet: ${debrisBalance.toFixed(2)})`}
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                min="0"
+                step="1"
+                disabled={txPending}
+              />
+              <button
+                className="skill-game-btn skill-deposit-action"
+                onClick={handleDeposit}
+                disabled={txPending || !depositAmount || parseFloat(depositAmount) <= 0}
+              >
+                Deposit
+              </button>
+            </div>
+            <div className="skill-deposit-row">
+              <input
+                type="number"
+                className="skill-deposit-input"
+                placeholder={`Withdraw DEBRIS (game: ${balance.toFixed(2)})`}
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                min="0"
+                step="1"
+                disabled={txPending}
+              />
+              <button
+                className="skill-game-btn skill-withdraw-action"
+                onClick={handleWithdraw}
+                disabled={txPending || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > balance}
+              >
+                Withdraw
+              </button>
+            </div>
+            {txMessage && (
+              <div className="skill-tx-message">{txMessage}</div>
+            )}
+          </div>
+        )}
+
         <div className="skill-status-bar">
           <div className="skill-status-group">
             <span className="skill-status-label">Play Level</span>
@@ -502,9 +776,9 @@ export default function SkillGame() {
             </span>
           </div>
           <div className="skill-status-group">
-            <span className="skill-status-label">Points</span>
+            <span className="skill-status-label">DEBRIS</span>
             <span className="skill-status-value skill-points-value">
-              {balance}
+              {balance.toFixed(2)}
             </span>
           </div>
         </div>
@@ -527,7 +801,7 @@ export default function SkillGame() {
             className="skill-game-btn"
             onClick={() =>
               alert(
-                'Place the WILD symbol to complete 3-in-a-row lines. Use Next Puzzle to preview the board. Complete the memory game for a 25% consolation return!'
+                'After the spin, tap a cell to place your WILD symbol. If it completes a 3-in-a-row line, you win! Find the best spot for the highest payout. Only the best single line pays out.'
               )
             }
           >
@@ -536,22 +810,22 @@ export default function SkillGame() {
           <button
             className="skill-game-btn"
             onClick={handlePreview}
-            disabled={stage !== 'IDLE' || isAnimating}
+            disabled={stage !== 'IDLE' || isAnimating || !connected}
           >
             Preview
           </button>
           <button
             className="skill-game-btn skill-play"
             onClick={handlePlay}
-            disabled={isPlayDisabled || balance < playLevel}
+            disabled={isPlayDisabled || stage === 'CHOOSING_WILD' || (!connected ? false : balance < playLevel)}
           >
-            {playButtonText}
+            {connected ? playButtonText : 'Connect'}
           </button>
         </div>
 
         <div className="skill-footer">
           <span>TRASHMARKET.FUN SKILL GAME</span>
-          <span>&copy; 2026 All Rights Reserved</span>
+          <span>Currency: DEBRIS</span>
           <span>SKL 402 83 PEN</span>
         </div>
       </div>
