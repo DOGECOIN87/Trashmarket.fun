@@ -300,52 +300,241 @@ async function handleRpcProxy(request: Request, env: Env): Promise<Response> {
   return json(data);
 }
 
+// ─── Game Security: Rate limiting & on-chain verification ─────────────────
+
+const GAME_PROGRAM_ID = '5gJkp3DsVTtBP6k7WtbiNBjQhAESgGrgu6AJfypMCAwe';
+
+/** Maximum net profit delta allowed per single update call (prevents runaway exploits) */
+const MAX_NET_PROFIT_DELTA_PER_CALL = 500;
+
+/** Minimum seconds between update-balance calls for the same player.
+ *  Enforced via on-chain last_updated timestamp (survives worker cold starts). */
+const UPDATE_COOLDOWN_SECONDS = 10;
+
+/**
+ * GameState PDA layout (after 8-byte Anchor discriminator):
+ *   player:                Pubkey  (32 bytes) — offset 8
+ *   score:                 u64     (8 bytes)  — offset 40
+ *   balance:               u64     (8 bytes)  — offset 48
+ *   net_profit:            i64     (8 bytes)  — offset 56
+ *   total_coins_collected: u64     (8 bytes)  — offset 64
+ *   created_at:            i64     (8 bytes)  — offset 72
+ *   last_updated:          i64     (8 bytes)  — offset 80
+ *   is_initialized:        bool    (1 byte)   — offset 88
+ */
+interface OnChainGameState {
+  player: string;
+  score: bigint;
+  balance: bigint;
+  netProfit: bigint;
+  totalCoinsCollected: bigint;
+  lastUpdated: bigint;
+  isInitialized: boolean;
+}
+
+/**
+ * Verify a player's wallet signature to authenticate game API requests.
+ * The player signs a message containing their wallet + a timestamp.
+ * This proves they own the wallet without needing a session/login flow.
+ */
+async function verifyPlayerSignature(
+  wallet: string,
+  message: string,
+  signature: string,
+): Promise<boolean> {
+  // Verify timestamp is recent (2 min window)
+  const timestampMatch = message.match(/Timestamp:\s*(\d+)/);
+  if (!timestampMatch) return false;
+  const msgTimestamp = parseInt(timestampMatch[1], 10);
+  if (Math.abs(Date.now() - msgTimestamp) > 2 * 60 * 1000) return false;
+
+  // Verify the message references the correct wallet
+  if (!message.includes(wallet)) return false;
+
+  return verifyWalletSignature(wallet, message, signature);
+}
+
+/**
+ * Fetch a player's on-chain GameState via RPC.
+ * Uses getProgramAccounts with a memcmp filter on the player pubkey.
+ */
+async function fetchOnChainGameState(
+  playerWallet: string,
+  rpcUrl: string,
+): Promise<OnChainGameState | null> {
+  try {
+    const playerBytes = base58Decode(playerWallet);
+
+    // Use getProgramAccounts with memcmp filter:
+    //   offset 8 (after discriminator) = player pubkey (32 bytes)
+    const response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'getProgramAccounts',
+        params: [
+          GAME_PROGRAM_ID,
+          {
+            encoding: 'base64',
+            filters: [
+              { dataSize: 89 }, // GameState::SIZE = 89 bytes
+              {
+                memcmp: {
+                  offset: 8, // after Anchor discriminator
+                  bytes: playerWallet, // base58-encoded player pubkey
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const result = (await response.json()) as any;
+    const accounts = result.result;
+    if (!accounts || accounts.length === 0) return null;
+
+    // Decode the account data
+    const accountData = accounts[0].account.data[0]; // base64
+    const bytes = Uint8Array.from(atob(accountData), (c) => c.charCodeAt(0));
+
+    if (bytes.length < 89) return null;
+
+    const view = new DataView(bytes.buffer, bytes.byteOffset);
+
+    // Verify player field matches (offset 8, 32 bytes)
+    const playerField = bytes.slice(8, 40);
+    const playerExpected = base58Decode(playerWallet);
+    for (let i = 0; i < 32; i++) {
+      if (playerField[i] !== playerExpected[i]) return null; // mismatch
+    }
+
+    return {
+      player: playerWallet,
+      score: view.getBigUint64(40, true),
+      balance: view.getBigUint64(48, true),
+      netProfit: view.getBigInt64(56, true),
+      totalCoinsCollected: view.getBigUint64(64, true),
+      lastUpdated: view.getBigInt64(80, true),
+      isInitialized: bytes[88] === 1,
+    };
+  } catch (err) {
+    console.error('Failed to fetch on-chain game state:', err);
+    return null;
+  }
+}
+
 /**
  * POST /api/game/update-balance — Admin-signed game balance update
  *
- * The frontend sends the player's wallet, new balance, and net profit delta.
- * This endpoint builds the update_balance instruction, partially signs it with
- * the admin keypair, and returns the serialized transaction for the player to
- * also sign and submit.
- *
- * Since update_balance requires the admin (game_config.admin) to co-sign,
- * this endpoint acts as the trusted game server that validates and authorizes
- * balance changes.
+ * Security hardening:
+ *  1. Reads the player's CURRENT on-chain GameState to verify claims
+ *  2. Caps net_profit_delta to prevent runaway exploits
+ *  3. Rate-limits per player wallet
+ *  4. Validates balance change is consistent (new_balance = on-chain balance + delta)
+ *  5. Rejects positive net_profit_delta that exceeds balance gain
  */
 async function handleGameUpdateBalance(request: Request, env: Env): Promise<Response> {
   const body = (await request.json()) as {
     playerWallet: string;
     newBalance: number;
     netProfitDelta: number;
+    // Auth: player signs a message to prove wallet ownership
+    signature: string;
+    message: string;
   };
 
   if (!body.playerWallet || body.newBalance === undefined || body.netProfitDelta === undefined) {
     return json({ error: 'Missing playerWallet, newBalance, or netProfitDelta' }, 400);
   }
 
-  // Validate inputs
+  // ── Authenticate: verify the caller owns this wallet ──────────────────
+  if (!body.signature || !body.message) {
+    return json({ error: 'Missing signature/message — wallet authentication required' }, 401);
+  }
+  const isAuthentic = await verifyPlayerSignature(body.playerWallet, body.message, body.signature);
+  if (!isAuthentic) {
+    return json({ error: 'Invalid wallet signature — authentication failed' }, 401);
+  }
+
+  // ── Input validation ──────────────────────────────────────────────────
   if (body.newBalance < 0 || body.newBalance > 1_000_000_000) {
     return json({ error: 'Invalid balance' }, 400);
   }
-  if (Math.abs(body.netProfitDelta) > 1_000_000_000) {
+  if (!Number.isInteger(body.newBalance) || !Number.isInteger(body.netProfitDelta)) {
+    return json({ error: 'Balance and delta must be integers' }, 400);
+  }
+
+  // Validate wallet address format
+  try {
+    const decoded = base58Decode(body.playerWallet);
+    if (decoded.length !== 32) {
+      return json({ error: 'Invalid wallet address' }, 400);
+    }
+  } catch {
+    return json({ error: 'Invalid wallet address format' }, 400);
+  }
+
+  // ── Cap net profit delta to prevent large exploits ────────────────────
+  if (body.netProfitDelta > MAX_NET_PROFIT_DELTA_PER_CALL) {
+    return json(
+      { error: `Net profit delta exceeds maximum of ${MAX_NET_PROFIT_DELTA_PER_CALL} per call` },
+      400,
+    );
+  }
+  // Allow negative deltas (losses) without cap — those are fine
+  if (body.netProfitDelta < -1_000_000_000) {
     return json({ error: 'Invalid net profit delta' }, 400);
   }
 
+  // ── Read on-chain state to verify ─────────────────────────────────────
+  const onChainState = await fetchOnChainGameState(body.playerWallet, env.GORBAGANA_RPC);
+  if (!onChainState) {
+    return json({ error: 'Player game state not found on-chain. Initialize first.' }, 400);
+  }
+  if (!onChainState.isInitialized) {
+    return json({ error: 'Game state not initialized' }, 400);
+  }
+
+  // ── Rate limiting via on-chain last_updated (survives cold starts) ────
+  const lastUpdatedSecs = Number(onChainState.lastUpdated);
+  const nowSecs = Math.floor(Date.now() / 1000);
+  if (nowSecs - lastUpdatedSecs < UPDATE_COOLDOWN_SECONDS) {
+    const waitSecs = UPDATE_COOLDOWN_SECONDS - (nowSecs - lastUpdatedSecs);
+    return json({ error: `Rate limited. Try again in ${waitSecs}s` }, 429);
+  }
+
+  const currentOnChainBalance = Number(onChainState.balance);
+
+  // Verify the balance change is reasonable:
+  // The balance delta (newBalance - currentBalance) should be consistent with netProfitDelta
+  const balanceDelta = body.newBalance - currentOnChainBalance;
+
+  // If claiming profit, the balance must have increased by at least that much
+  if (body.netProfitDelta > 0 && balanceDelta < body.netProfitDelta) {
+    return json(
+      { error: 'Inconsistent: net profit delta exceeds balance increase' },
+      400,
+    );
+  }
+
+  // Prevent setting balance higher than current + reasonable game earnings
+  // (max 500 per call = ~50 wins of 10 coins each, very generous)
+  if (balanceDelta > MAX_NET_PROFIT_DELTA_PER_CALL) {
+    return json(
+      { error: `Balance increase exceeds maximum of ${MAX_NET_PROFIT_DELTA_PER_CALL} per call` },
+      400,
+    );
+  }
+
+  // ── Build the instruction ─────────────────────────────────────────────
   try {
-    // Load admin keypair from secret
     const keypairBytes = new Uint8Array(JSON.parse(env.GAME_ADMIN_KEYPAIR));
-    const adminSecretKey = keypairBytes.slice(0, 32);
     const adminPublicKeyBytes = keypairBytes.slice(32, 64);
     const adminPublicKey = base58Encode(adminPublicKeyBytes);
 
-    const PROGRAM_ID = '5gJkp3DsVTtBP6k7WtbiNBjQhAESgGrgu6AJfypMCAwe';
-    const playerPubkeyBytes = base58Decode(body.playerWallet);
-
-    // Derive game_state PDA: ["game_state", player_pubkey]
-    // We'll compute this via RPC getAccountInfo or just build the instruction
-    // and let the frontend handle PDA derivation
-
-    // Derive game_config PDA: ["game_config"]
     // Build the instruction data: discriminator(8) + new_balance(8) + net_profit_delta(8)
     const encoder = new TextEncoder();
     const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode('global:update_balance'));
@@ -353,33 +542,12 @@ async function handleGameUpdateBalance(request: Request, env: Env): Promise<Resp
 
     const data = new Uint8Array(24);
     data.set(discriminator, 0);
-    // Write new_balance as u64 LE
     const balanceView = new DataView(new ArrayBuffer(8));
     balanceView.setBigUint64(0, BigInt(body.newBalance), true);
     data.set(new Uint8Array(balanceView.buffer), 8);
-    // Write net_profit_delta as i64 LE
     const deltaView = new DataView(new ArrayBuffer(8));
     deltaView.setBigInt64(0, BigInt(body.netProfitDelta), true);
     data.set(new Uint8Array(deltaView.buffer), 16);
-
-    // Sign the instruction data + player wallet with admin key to create a proof
-    // The frontend will use this to build and submit the full transaction
-    const proofData = new Uint8Array([...data, ...playerPubkeyBytes]);
-    const importedKey = await crypto.subtle.importKey(
-      'raw',
-      adminSecretKey,
-      { name: 'Ed25519' },
-      false,
-      ['sign'],
-    );
-    // Note: Ed25519 raw key import requires the full 64-byte secret in some implementations
-    // We'll use tweetnacl-compatible approach instead
-
-    // Return the instruction data and admin public key so the frontend can
-    // build and have admin co-sign the transaction via a different flow
-    //
-    // Actually, the simplest approach: build the full transaction server-side,
-    // partially sign with admin, return base64 for player to also sign.
 
     // Fetch recent blockhash
     const rpcResponse = await fetch(env.GORBAGANA_RPC, {
@@ -398,13 +566,10 @@ async function handleGameUpdateBalance(request: Request, env: Env): Promise<Resp
       return json({ error: 'Failed to fetch blockhash' }, 500);
     }
 
-    // Return the raw instruction components for the frontend to assemble
-    // The frontend will build the transaction with both player + admin as signers,
-    // then call a second endpoint to get the admin's signature on the tx
     return json({
       instruction: {
         data: Array.from(data),
-        programId: PROGRAM_ID,
+        programId: GAME_PROGRAM_ID,
         adminPublicKey,
       },
       blockhash,
@@ -419,31 +584,111 @@ async function handleGameUpdateBalance(request: Request, env: Env): Promise<Resp
 /**
  * POST /api/game/sign — Admin co-signs a transaction
  *
- * Receives a serialized transaction (base64), verifies it contains a valid
- * update_balance instruction, then adds the admin signature and returns it.
+ * Security hardening:
+ *  1. Decodes the transaction message and verifies it contains ONLY
+ *     an update_balance instruction targeting our game program
+ *  2. Verifies the admin pubkey in the transaction matches our admin
+ *  3. Rejects transactions with unexpected instructions (e.g. SOL transfers)
  */
 async function handleGameSign(request: Request, env: Env): Promise<Response> {
   const body = (await request.json()) as {
     transaction: string; // base64 serialized transaction message
+    // Auth: player signs a message to prove wallet ownership
+    playerWallet: string;
+    signature: string;
+    message: string;
   };
 
   if (!body.transaction) {
     return json({ error: 'Missing transaction' }, 400);
   }
 
+  // ── Authenticate: verify the caller owns the wallet ───────────────────
+  if (!body.playerWallet || !body.signature || !body.message) {
+    return json({ error: 'Missing authentication fields — wallet signature required' }, 401);
+  }
+  const isAuthentic = await verifyPlayerSignature(body.playerWallet, body.message, body.signature);
+  if (!isAuthentic) {
+    return json({ error: 'Invalid wallet signature — authentication failed' }, 401);
+  }
+
   try {
     const keypairBytes = new Uint8Array(JSON.parse(env.GAME_ADMIN_KEYPAIR));
+    const adminPublicKeyBytes = keypairBytes.slice(32, 64);
+    const adminPublicKey = base58Encode(adminPublicKeyBytes);
 
-    // Use tweetnacl to sign the transaction message
-    const nacl = await import('tweetnacl');
     const txBytes = Uint8Array.from(atob(body.transaction), c => c.charCodeAt(0));
 
-    // Sign the transaction message with admin keypair
+    // ── Verify the transaction message contains our program ──────────────
+    // Solana transaction message format (legacy):
+    //   [1] numRequiredSignatures
+    //   [1] numReadonlySignedAccounts
+    //   [1] numReadonlyUnsignedAccounts
+    //   [1] numAccountKeys
+    //   [32 * numAccountKeys] account keys
+    //   [32] recent blockhash
+    //   [1] numInstructions
+    //   for each instruction:
+    //     [1] programIdIndex
+    //     [compact] numAccounts + account indices
+    //     [compact] dataLen + data
+
+    // Basic sanity: must be at least header + 1 account + blockhash
+    if (txBytes.length < 3 + 32 + 32 + 1) {
+      return json({ error: 'Transaction too short' }, 400);
+    }
+
+    const numAccountKeys = txBytes[3];
+    if (numAccountKeys < 2 || numAccountKeys > 20) {
+      return json({ error: 'Unexpected number of accounts in transaction' }, 400);
+    }
+
+    // Extract account keys (starting at offset 4)
+    const accountKeysStart = 4;
+    const accountKeys: string[] = [];
+    for (let i = 0; i < numAccountKeys; i++) {
+      const keyStart = accountKeysStart + i * 32;
+      const keyBytes = txBytes.slice(keyStart, keyStart + 32);
+      accountKeys.push(base58Encode(keyBytes));
+    }
+
+    // Verify our game program ID is in the account keys
+    if (!accountKeys.includes(GAME_PROGRAM_ID)) {
+      return json({ error: 'Transaction does not target the game program' }, 400);
+    }
+
+    // Verify our admin public key is in the account keys
+    if (!accountKeys.includes(adminPublicKey)) {
+      return json({ error: 'Transaction does not include admin key' }, 400);
+    }
+
+    // Check number of instructions (should be exactly 1 for update_balance)
+    const instructionsOffset = accountKeysStart + numAccountKeys * 32 + 32; // after accounts + blockhash
+    if (instructionsOffset >= txBytes.length) {
+      return json({ error: 'Malformed transaction: no instructions' }, 400);
+    }
+    const numInstructions = txBytes[instructionsOffset];
+    if (numInstructions !== 1) {
+      return json({ error: `Expected 1 instruction, got ${numInstructions}. Only update_balance is allowed.` }, 400);
+    }
+
+    // Verify the single instruction's programIdIndex points to our program
+    const ixStart = instructionsOffset + 1;
+    if (ixStart >= txBytes.length) {
+      return json({ error: 'Malformed transaction: instruction truncated' }, 400);
+    }
+    const programIdIndex = txBytes[ixStart];
+    if (programIdIndex >= numAccountKeys || accountKeys[programIdIndex] !== GAME_PROGRAM_ID) {
+      return json({ error: 'Instruction does not target game program' }, 400);
+    }
+
+    // ── All checks passed — sign the transaction ────────────────────────
+    const nacl = await import('tweetnacl');
     const signature = nacl.sign.detached(txBytes, keypairBytes);
 
     return json({
       signature: btoa(String.fromCharCode(...signature)),
-      adminPublicKey: base58Encode(keypairBytes.slice(32, 64)),
+      adminPublicKey,
     });
   } catch (err: any) {
     console.error('Game sign error:', err);

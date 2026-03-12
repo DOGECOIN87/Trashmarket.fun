@@ -349,7 +349,8 @@ export class JunkPusherClient {
     player: PublicKey,
     newBalance: number,
     netProfitDelta: number,
-    apiBaseUrl: string
+    apiBaseUrl: string,
+    auth?: { message: string; signature: string },
   ): Promise<{ instruction: TransactionInstruction; adminPublicKey: PublicKey }> {
     // Call backend to get instruction data and admin key
     const response = await fetch(`${apiBaseUrl}/api/game/update-balance`, {
@@ -359,6 +360,7 @@ export class JunkPusherClient {
         playerWallet: player.toBase58(),
         newBalance,
         netProfitDelta,
+        ...(auth ? { message: auth.message, signature: auth.signature } : {}),
       }),
     });
 
@@ -392,13 +394,17 @@ export class JunkPusherClient {
    */
   async getAdminSignature(
     transactionMessage: Uint8Array,
-    apiBaseUrl: string
+    apiBaseUrl: string,
+    playerWallet?: string,
+    auth?: { message: string; signature: string },
   ): Promise<{ signature: Uint8Array; adminPublicKey: PublicKey }> {
     const response = await fetch(`${apiBaseUrl}/api/game/sign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         transaction: btoa(String.fromCharCode(...transactionMessage)),
+        ...(playerWallet ? { playerWallet } : {}),
+        ...(auth ? { message: auth.message, signature: auth.signature } : {}),
       }),
     });
 

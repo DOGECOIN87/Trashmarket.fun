@@ -38,7 +38,7 @@ export interface OnChainState {
 }
 
 export function useJunkPusherOnChain() {
-  const { publicKey, signTransaction, connected } = useWallet();
+  const { publicKey, signTransaction, signMessage, connected } = useWallet();
   const { connection } = useConnection();
 
   const [state, setState] = useState<OnChainState>({
@@ -243,22 +243,51 @@ export function useJunkPusherOnChain() {
 
   // ─── Update balance (admin-signed via backend) ──────────────────────
 
+  /**
+   * Create a signed auth payload to prove wallet ownership to the backend.
+   * The player signs a message containing their wallet + timestamp.
+   */
+  const createAuthPayload = useCallback(
+    async (): Promise<{ message: string; signature: string } | null> => {
+      if (!publicKey || !signMessage) return null;
+      const message = `Trashmarket Game Auth\nWallet: ${publicKey.toBase58()}\nTimestamp: ${Date.now()}`;
+      try {
+        const msgBytes = new TextEncoder().encode(message);
+        const sigBytes = await signMessage(msgBytes);
+        const signature = btoa(String.fromCharCode(...sigBytes));
+        return { message, signature };
+      } catch (err) {
+        console.warn('[OnChain] Failed to sign auth message:', err);
+        return null;
+      }
+    },
+    [publicKey, signMessage],
+  );
+
   /** Update game balance via admin-signed backend transaction */
   const updateBalance = useCallback(
     async (newBalance: number, netProfitDelta: number) => {
-      if (!publicKey || !signTransaction || !connection) return null;
+      if (!publicKey || !signTransaction || !signMessage || !connection) return null;
 
       try {
         setState((s) => ({ ...s, txStatus: 'building', txLabel: '', error: null }));
 
+        // Sign an auth message to prove wallet ownership
+        const auth = await createAuthPayload();
+        if (!auth) {
+          setState((s) => ({ ...s, error: 'Failed to sign auth message', txStatus: 'error' }));
+          return null;
+        }
+
         const apiBaseUrl = import.meta.env?.VITE_API_BASE_URL || '';
 
-        // Get the instruction and admin key from backend
+        // Get the instruction and admin key from backend (with auth)
         const { instruction, adminPublicKey } = await client.updateBalanceViaBackend(
           publicKey,
           newBalance,
           netProfitDelta,
-          apiBaseUrl
+          apiBaseUrl,
+          auth,
         );
 
         // Build the transaction
@@ -270,8 +299,13 @@ export function useJunkPusherOnChain() {
         // Serialize the transaction message for admin to sign
         const txMessage = tx.serializeMessage();
 
-        // Get admin signature from backend
-        const { signature: adminSig } = await client.getAdminSignature(txMessage, apiBaseUrl);
+        // Get admin signature from backend (with auth)
+        const { signature: adminSig } = await client.getAdminSignature(
+          txMessage,
+          apiBaseUrl,
+          publicKey.toBase58(),
+          auth,
+        );
 
         // Add admin signature to transaction
         tx.addSignature(adminPublicKey, Buffer.from(adminSig));
@@ -317,7 +351,7 @@ export function useJunkPusherOnChain() {
         return null;
       }
     },
-    [publicKey, signTransaction, connection, refreshBalances],
+    [publicKey, signTransaction, signMessage, connection, refreshBalances, createAuthPayload],
   );
 
   // ─── High scores ─────────────────────────────────────────────────────

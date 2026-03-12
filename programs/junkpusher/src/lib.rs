@@ -11,6 +11,8 @@ const MAX_SCORE: u64 = 999_999_999;
 const DEBRIS_DECIMALS_MULTIPLIER: u64 = 1_000_000_000;
 /// Platform fee in basis points (2.5%)
 const PLATFORM_FEE_BPS: u64 = 250;
+/// Maximum initial balance for new game sessions (free-play cap)
+const MAX_INITIAL_BALANCE: u64 = 100;
 
 #[program]
 pub mod junkpusher {
@@ -28,20 +30,25 @@ pub mod junkpusher {
 
     /// Initialize a new game session for a player.
     /// Creates a PDA-based GameState account tied to the player's wallet.
+    /// Initial balance is capped at MAX_INITIAL_BALANCE (100) to prevent
+    /// players from creating accounts with inflated balances.
     pub fn initialize_game(ctx: Context<InitializeGame>, initial_balance: u64) -> Result<()> {
         let game_state = &mut ctx.accounts.game_state;
         let clock = Clock::get()?;
 
+        // Cap initial balance — this is free-play credit, not deposited tokens
+        let capped_balance = initial_balance.min(MAX_INITIAL_BALANCE);
+
         game_state.player = ctx.accounts.player.key();
         game_state.score = 0;
-        game_state.balance = initial_balance;
+        game_state.balance = capped_balance;
         game_state.net_profit = 0;
         game_state.total_coins_collected = 0;
         game_state.created_at = clock.unix_timestamp;
         game_state.last_updated = clock.unix_timestamp;
         game_state.is_initialized = true;
 
-        msg!("Game initialized for player: {}", game_state.player);
+        msg!("Game initialized for player: {} (balance: {})", game_state.player, capped_balance);
         Ok(())
     }
 
@@ -190,11 +197,14 @@ pub mod junkpusher {
     }
 
     /// Reset the game state (clear score, balance, etc.).
+    /// Requires balance to be 0 first — withdraw or spend balance before resetting
+    /// to prevent accidental loss of deposited funds.
     pub fn reset_game(ctx: Context<UpdateGameState>) -> Result<()> {
         let game_state = &mut ctx.accounts.game_state;
         let clock = Clock::get()?;
 
         require!(game_state.is_initialized, GameError::NotInitialized);
+        require!(game_state.balance == 0, GameError::ResetWithBalance);
 
         game_state.score = 0;
         game_state.balance = 0;
@@ -464,4 +474,6 @@ pub enum GameError {
     InvalidTreasury,
     #[msg("Unauthorized: admin signature required")]
     Unauthorized,
+    #[msg("Cannot reset game with non-zero balance — withdraw first")]
+    ResetWithBalance,
 }
