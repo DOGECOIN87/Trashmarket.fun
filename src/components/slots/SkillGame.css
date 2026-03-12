@@ -170,6 +170,24 @@
   min-width: 0;
 }
 
+/* Animated SVG tiled background (same design as footer) */
+.skill-grid-cell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/assets/enhanced_logo_v6.svg');
+  background-size: 350px 350px;
+  background-repeat: repeat;
+  opacity: 0.30;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.skill-grid-cell .skill-cell-symbol {
+  position: relative;
+  z-index: 1;
+}
+
 .skill-grid-cell:hover {
   border-color: #adff02;
   background: #222;
@@ -475,19 +493,13 @@
 }
 
 .skill-play-level-value {
-  color: #888;
-  text-shadow: none;
-}
-
-.skill-status-value:hover.skill-play-level-value,
-.skill-status-value:hover.skill-points-value {
   color: #adff02;
   text-shadow: 0 0 10px #adff02;
 }
 
 .skill-points-value {
-  color: #888;
-  text-shadow: none;
+  color: #adff02;
+  text-shadow: 0 0 10px #adff02;
 }
 
 .skill-button-bar {
