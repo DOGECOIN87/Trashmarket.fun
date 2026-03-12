@@ -86,6 +86,30 @@ function parseGameState(accountData: Buffer): HighScoreEntry | null {
 }
 
 /**
+ * Read a single player's on-chain game balance from their GameState PDA.
+ * Returns the balance (in DEBRIS integer units) or null if not found.
+ */
+export async function getPlayerGameBalance(
+  connection: Connection,
+  programId: PublicKey,
+  playerPubkey: PublicKey
+): Promise<number | null> {
+  try {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('game_state'), playerPubkey.toBuffer()],
+      programId
+    );
+    const info = await connection.getAccountInfo(pda);
+    if (!info || !info.data) return null;
+    const state = parseGameState(info.data as Buffer);
+    return state ? state.balance : null;
+  } catch (err) {
+    console.error('[getPlayerGameBalance] Error:', err);
+    return null;
+  }
+}
+
+/**
  * Get high scores (top players by score)
  */
 export async function getHighScores(

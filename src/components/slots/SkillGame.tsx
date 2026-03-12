@@ -4,6 +4,8 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { getDebrisBalance } from '../../lib/tokenService';
 import { TOKEN_CONFIG } from '../../lib/tokenConfig';
 import { useJunkPusherOnChain } from '../../lib/useJunkPusherOnChain';
+import { getPlayerGameBalance } from '../../lib/highScoreService';
+import { PROGRAM_ID } from '../../lib/JunkPusherClient';
 import './SkillGame.css';
 
 const SYMBOL_IMAGES = [
@@ -255,6 +257,7 @@ export default function SkillGame() {
   // Refs for interval/timeout cleanup
   const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const balanceRestoredRef = useRef(false);
 
   const isAnimating = spinningCells.some(Boolean);
 
@@ -284,20 +287,39 @@ export default function SkillGame() {
     }
   }, [connected, publicKey, refreshDebrisBalance]);
 
-  // Restore in-game balance from localStorage on wallet connect
+  // Restore in-game balance: try on-chain PDA first, then localStorage fallback
   useEffect(() => {
-    if (!publicKey) return;
-    const key = `slots_balance_${publicKey.toBase58()}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      const parsed = parseFloat(saved);
-      if (!isNaN(parsed) && parsed > 0) setBalance(parsed);
-    }
-  }, [publicKey]);
+    if (!publicKey || !connection) return;
 
-  // Auto-save in-game balance
+    const restore = async () => {
+      // 1. Try reading on-chain game state PDA balance
+      try {
+        const pdaBalance = await getPlayerGameBalance(connection, PROGRAM_ID, publicKey);
+        if (pdaBalance !== null && pdaBalance > 0) {
+          setBalance(pdaBalance);
+          balanceRestoredRef.current = true;
+          return;
+        }
+      } catch (err) {
+        console.warn('[Slots] PDA balance read failed, using localStorage:', err);
+      }
+
+      // 2. Fallback: localStorage
+      const key = `slots_balance_${publicKey.toBase58()}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const parsed = parseFloat(saved);
+        if (!isNaN(parsed) && parsed > 0) setBalance(parsed);
+      }
+      balanceRestoredRef.current = true;
+    };
+
+    restore();
+  }, [publicKey, connection]);
+
+  // Auto-save in-game balance — only after restore has run to prevent clobbering
   useEffect(() => {
-    if (!publicKey) return;
+    if (!publicKey || !balanceRestoredRef.current) return;
     const key = `slots_balance_${publicKey.toBase58()}`;
     localStorage.setItem(key, balance.toString());
   }, [balance, publicKey]);
@@ -401,6 +423,7 @@ export default function SkillGame() {
     setIsPlayDisabled(false);
     setPlayButtonText('Play');
     setPreviewShown(false);
+    lockedGridsRef.current.clear(); // force fresh grids next round
 
     if (won && winAmount > 0) {
       setBalance((prev) => prev + winAmount);
@@ -518,8 +541,16 @@ export default function SkillGame() {
     }, 2000);
   };
 
-  // Preview generates a unique grid per level so switching levels shows a different board
-  const previewGridsRef = useRef<number[][] | null>(null);
+  // Locked grids per denomination — each level gets its own constructed grid.
+  // Prevents re-roll exploit: previewing the same level shows the SAME grid.
+  const lockedGridsRef = useRef<Map<number, number[]>>(new Map());
+
+  const getLockedGrid = (level: number): number[] => {
+    if (!lockedGridsRef.current.has(level)) {
+      lockedGridsRef.current.set(level, constructGameGrid());
+    }
+    return lockedGridsRef.current.get(level)!;
+  };
 
   const handlePreview = () => {
     if (stage !== 'IDLE' || isAnimating) return;
@@ -528,11 +559,8 @@ export default function SkillGame() {
       return;
     }
 
-    // Generate one grid per level
-    const grids = PLAY_LEVELS.map(() => generateGrid());
-    previewGridsRef.current = grids;
-    setGrid(grids[levelIndex]);
-    setStatusMessage('Memorize the board...');
+    setGrid(getLockedGrid(playLevel));
+    setStatusMessage('Previewing...');
 
     // Show for 2 seconds, then hide the symbols
     addTimeout(() => {
@@ -561,13 +589,10 @@ export default function SkillGame() {
     setStatusMessage(null);
     setIsPlayDisabled(true);
 
-    // Construct outcome-controlled grid (patent approach)
-    const baseGrid = constructGameGrid();
-    // Clear any preview state
-    if (previewShown) {
-      previewGridsRef.current = null;
-      setPreviewShown(false);
-    }
+    // Use locked grid for this level (from preview) or construct fresh
+    const baseGrid = lockedGridsRef.current.get(playLevel) ?? constructGameGrid();
+    lockedGridsRef.current.clear();
+    setPreviewShown(false);
 
     setPlayButtonText('Spinning...');
     setStage('PLAYING');
@@ -585,10 +610,10 @@ export default function SkillGame() {
     if (stage !== 'IDLE' || isAnimating) return;
     setLevelIndex(index);
 
-    if (previewShown && previewGridsRef.current) {
-      // Flash the new level's grid for 2 seconds then hide again
-      setGrid(previewGridsRef.current[index]);
-      setStatusMessage('Memorize the board...');
+    if (previewShown && lockedGridsRef.current.size > 0) {
+      // Flash this level's grid for 2 seconds then hide again
+      setGrid(getLockedGrid(PLAY_LEVELS[index]));
+      setStatusMessage('Previewing...');
       setPreviewShown(false);
       setPlayButtonText('Play');
 
