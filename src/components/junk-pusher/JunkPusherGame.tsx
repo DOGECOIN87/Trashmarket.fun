@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useConnection } from '@solana/wallet-adapter-react';
 import { GameEngine } from '../../lib/GameEngine';
 import { Overlay } from './Overlay';
 import AudioPlayer from './AudioPlayer';
 import { GameState } from '../../types/types';
 import { useGameWallet } from './WalletAdapter';
 import { useJunkPusherOnChain } from '../../lib/useJunkPusherOnChain';
+import { getPlayerGameBalance } from '../../lib/highScoreService';
+import { PROGRAM_ID } from '../../lib/JunkPusherClient';
 import { setupAutoSave, loadGameState, clearGameState } from '../../lib/statePersistence';
 import { soundManager } from '../../lib/soundManager';
+import { PublicKey } from '@solana/web3.js';
 
 const JunkPusherGame: React.FC = () => {
     const gameCanvasRef = useRef<HTMLCanvasElement>(null);
     const engineRef = useRef<GameEngine | null>(null);
     const wallet = useGameWallet();
+    const { connection } = useConnection();
 
     // On-chain integration hook
     const onChain = useJunkPusherOnChain();
@@ -38,25 +43,58 @@ const JunkPusherGame: React.FC = () => {
     }, []);
 
     // Silently restore saved state on mount to protect player coins
+    // Priority: 1) On-chain PDA balance  2) localStorage fallback
     const recoveredRef = useRef<{ balance: number; score: number; netProfit: number } | null>(null);
     const hasRestoredRef = useRef(false);
     useEffect(() => {
         if (hasRestoredRef.current) return;
         hasRestoredRef.current = true;
 
-        const recovered = loadGameState(wallet.publicKey);
-        if (recovered) {
-            recoveredRef.current = recovered;
-            setGameState(prev => ({
-                ...prev,
-                balance: recovered.balance,
-                score: recovered.score,
-                netProfit: recovered.netProfit,
-            }));
-            // Sync into engine if already initialized
-            engineRef.current?.restoreState(recovered.balance, recovered.score, recovered.netProfit);
-        }
-    }, [wallet.publicKey]);
+        const restore = async () => {
+            // 1. Try reading on-chain game state PDA balance
+            if (wallet.publicKey && connection) {
+                try {
+                    const playerPubkey = new PublicKey(wallet.publicKey);
+                    const pdaBalance = await getPlayerGameBalance(connection, PROGRAM_ID, playerPubkey);
+                    if (pdaBalance !== null && pdaBalance > 0) {
+                        const recovered = { balance: pdaBalance, score: 0, netProfit: 0 };
+                        // Also pull score/netProfit from localStorage if available
+                        const local = loadGameState(wallet.publicKey);
+                        if (local) {
+                            recovered.score = local.score;
+                            recovered.netProfit = local.netProfit;
+                        }
+                        recoveredRef.current = recovered;
+                        setGameState(prev => ({
+                            ...prev,
+                            balance: recovered.balance,
+                            score: recovered.score,
+                            netProfit: recovered.netProfit,
+                        }));
+                        engineRef.current?.restoreState(recovered.balance, recovered.score, recovered.netProfit);
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('[JunkPusher] PDA balance read failed, using localStorage:', err);
+                }
+            }
+
+            // 2. Fallback: localStorage
+            const recovered = loadGameState(wallet.publicKey);
+            if (recovered) {
+                recoveredRef.current = recovered;
+                setGameState(prev => ({
+                    ...prev,
+                    balance: recovered.balance,
+                    score: recovered.score,
+                    netProfit: recovered.netProfit,
+                }));
+                engineRef.current?.restoreState(recovered.balance, recovered.score, recovered.netProfit);
+            }
+        };
+
+        restore();
+    }, [wallet.publicKey, connection]);
 
     // Initialize sound manager on first user interaction with the game
     useEffect(() => {

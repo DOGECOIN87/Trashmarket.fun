@@ -7,8 +7,15 @@
 
 import { GameState } from '../types/types';
 
-const STORAGE_KEY = 'junk_pusher_game_state';
+const STORAGE_KEY_PREFIX = 'junk_pusher_game_state';
+const STORAGE_KEY_LEGACY = 'junk_pusher_game_state'; // fallback for old saves
 const AUTO_SAVE_INTERVAL = 5000; // Save every 5 seconds
+
+function storageKey(walletAddress: string | null): string {
+  return walletAddress
+    ? `${STORAGE_KEY_PREFIX}_${walletAddress}`
+    : STORAGE_KEY_PREFIX;
+}
 
 export interface PersistedGameState {
   balance: number;
@@ -31,7 +38,7 @@ export function saveGameState(state: GameState, walletAddress: string | null): v
       walletAddress,
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
+    localStorage.setItem(storageKey(walletAddress), JSON.stringify(persistedState));
   } catch (error) {
     console.error('[StatePersistence] Failed to save game state:', error);
   }
@@ -42,21 +49,17 @@ export function saveGameState(state: GameState, walletAddress: string | null): v
  */
 export function loadGameState(walletAddress: string | null): PersistedGameState | null {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    // Try wallet-scoped key first, then legacy key as fallback
+    let stored = localStorage.getItem(storageKey(walletAddress));
+    if (!stored && walletAddress) {
+      stored = localStorage.getItem(STORAGE_KEY_LEGACY);
+    }
     if (!stored) return null;
 
     const persistedState: PersistedGameState = JSON.parse(stored);
 
     // Only restore if it's for the same wallet (or both are null)
     if (persistedState.walletAddress !== walletAddress) {
-      return null;
-    }
-
-    // Check if state is recent (within last 24 hours)
-    const age = Date.now() - persistedState.lastSaved;
-    const MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
-
-    if (age > MAX_AGE) {
       return null;
     }
 
@@ -72,7 +75,15 @@ export function loadGameState(walletAddress: string | null): PersistedGameState 
  */
 export function clearGameState(): void {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    // Clear all possible keys
+    localStorage.removeItem(STORAGE_KEY_LEGACY);
+    // Also try to clear wallet-scoped keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(STORAGE_KEY_PREFIX)) {
+        localStorage.removeItem(key);
+      }
+    }
   } catch (error) {
     console.error('[StatePersistence] Failed to clear game state:', error);
   }
