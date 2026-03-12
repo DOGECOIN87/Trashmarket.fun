@@ -10,6 +10,7 @@ import { getPlayerGameBalance } from '../../lib/highScoreService';
 import { PROGRAM_ID } from '../../lib/JunkPusherClient';
 import { setupAutoSave, loadGameState, clearGameState } from '../../lib/statePersistence';
 import { soundManager } from '../../lib/soundManager';
+import { pushGameEvent } from '../../services/activityService';
 import { PublicKey } from '@solana/web3.js';
 
 const JunkPusherGame: React.FC = () => {
@@ -38,8 +39,17 @@ const JunkPusherGame: React.FC = () => {
     const onChainRef = useRef(onChain);
     onChainRef.current = onChain;
 
+    const lastScoreMilestoneRef = useRef(0);
     const handleUpdate = useCallback((partialState: Partial<GameState>) => {
-        setGameState(prev => ({ ...prev, ...partialState }));
+        setGameState(prev => {
+            const next = { ...prev, ...partialState };
+            // Emit a WIN event every 10 coins collected
+            if (next.score > 0 && Math.floor(next.score / 10) > lastScoreMilestoneRef.current) {
+                lastScoreMilestoneRef.current = Math.floor(next.score / 10);
+                pushGameEvent('WIN', `Player hit ${next.score} coins on Junk Pusher (+${next.netProfit > 0 ? next.netProfit : 0} DEBRIS)`);
+            }
+            return next;
+        });
     }, []);
 
     // Silently restore saved state on mount to protect player coins
@@ -236,6 +246,7 @@ const JunkPusherGame: React.FC = () => {
                 if (sig) {
                     // Credit the engine's internal balance so it stays in sync
                     engineRef.current?.addBalance(amount);
+                    pushGameEvent('DEPOSIT', `Player deposited ${amount} DEBRIS into Junk Pusher`);
                 }
                 return sig;
             } catch (err) {
@@ -244,6 +255,31 @@ const JunkPusherGame: React.FC = () => {
             }
         }
         return null;
+    }, [wallet.isConnected]);
+
+    const handleWithdraw = useCallback(async (amount: number): Promise<string | null> => {
+        const oc = onChainRef.current;
+        const currentBalance = gameStateRef.current.balance;
+        if (!oc.isProgramReady || !wallet.isConnected) return null;
+        if (amount <= 0 || amount > currentBalance) return null;
+
+        try {
+            const intAmount = Math.floor(amount);
+            const sig = await oc.withdrawBalance(intAmount, intAmount, Math.floor(currentBalance));
+            if (sig) {
+                // Deduct from engine balance
+                if (engineRef.current) {
+                    engineRef.current.addBalance(-intAmount);
+                } else {
+                    setGameState(prev => ({ ...prev, balance: prev.balance - intAmount }));
+                }
+                pushGameEvent('WIN', `Player withdrew ${intAmount} DEBRIS from Junk Pusher`);
+            }
+            return sig;
+        } catch (err) {
+            console.error('[JunkPusher] Withdraw failed:', err);
+            return null;
+        }
     }, [wallet.isConnected]);
 
     const handlePauseToggle = () => {
@@ -439,6 +475,7 @@ const JunkPusherGame: React.FC = () => {
                 onBump={handleBump}
                 onReset={handleReset}
                 onDeposit={handleDeposit}
+                onWithdraw={handleWithdraw}
                 onPauseToggle={handlePauseToggle}
                 wallet={wallet}
             />

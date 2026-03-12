@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getMarketMetrics, MarketMetric, getMockTokenMetrics } from '../services/tokenService';
 import { useNetwork } from '../contexts/NetworkContext';
+import { subscribeToActivityFeed, timeAgo, type ActivityItem } from '../services/activityService';
 
 const Marquee = ({ children, reverse = false, className = "" }: { children?: React.ReactNode, reverse?: boolean, className?: string }) => {
   return (
@@ -60,25 +61,36 @@ const PriceTicker: React.FC = () => {
 };
 
 /**
- * Bottom ticker — live activity feed, sits above the Footer
+ * Bottom ticker — live activity feed, sits above the Footer.
+ * Subscribes to real events from Gorid (Trading API) and Gorbagio (Firestore).
+ * Falls back to a "No recent activity" placeholder when the feed is empty.
  */
 export const ActivityTicker: React.FC = () => {
-  const { currency, accentColor } = useNetwork();
+  const { accentColor } = useNetwork();
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  const LIVE_ACTIVITIES = [
-    { type: "SALE", text: `Mad Lads #2912 sold for 145.5 ${currency}`, time: "1s" },
-    { type: "LIST", text: `Tensorian #400 listed for 18.2 ${currency}`, time: "1s" },
-    { type: "SALE", text: `SMB Gen2 #441 sold for 24.5 ${currency}`, time: "2s" },
-    { type: "OFFER", text: `Offer of 45.0 ${currency} on DeGods #3321`, time: "2s" },
-    { type: "SWEEP", text: `Whale swept 5x Claynos (Floor 9.5 ${currency})`, time: "3s" },
-    { type: "SALE", text: `Foxes #551 sold for 4.2 ${currency}`, time: "4s" },
-    { type: "MINT", text: "Galactic Geckos #999 minted", time: "4s" },
-    { type: "SALE", text: `Okay Bears #881 sold for 12.0 ${currency}`, time: "5s" },
-    { type: "LIST", text: `Retardio #12 listed for 5.5 ${currency}`, time: "5s" },
-    { type: "SALE", text: `Sharx #302 sold for 7.8 ${currency}`, time: "6s" },
-    { type: "VOL", text: "Famous Fox Fed vol spike > 500%", time: "6s" },
-    { type: "SALE", text: `Froganas #221 sold for 1.2 ${currency}`, time: "7s" },
-  ];
+  useEffect(() => {
+    unsubRef.current = subscribeToActivityFeed(
+      (items) => setActivities(items),
+      { pollInterval: 30000, maxItems: 30 },
+    );
+    return () => unsubRef.current?.();
+  }, []);
+
+  const dotColor = (type: string) => {
+    if (type === 'SALE') return accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green';
+    if (type === 'LIST') return 'bg-blue-400';
+    if (type === 'DELIST') return 'bg-yellow-400';
+    if (type === 'DEPOSIT') return 'bg-emerald-400';
+    if (type === 'WIN') return 'bg-yellow-300';
+    return 'bg-gray-400';
+  };
+
+  // Show a placeholder when no real events yet
+  const displayItems = activities.length > 0
+    ? activities
+    : [{ id: 'empty', type: 'LIST' as const, text: 'Waiting for live activity...', timestamp: Date.now(), source: 'gorid' as const }];
 
   return (
     <div className="border-t border-white/20 bg-[#050505] overflow-hidden relative py-1 z-30">
@@ -87,12 +99,12 @@ export const ActivityTicker: React.FC = () => {
 
       <div className="bg-black relative z-10">
         <Marquee reverse={false}>
-          {LIVE_ACTIVITIES.map((item, idx) => (
-            <div key={`a-${idx}`} className="flex items-center gap-2 mx-8 py-2 text-xs uppercase tracking-wider font-mono border-r border-white/10 pr-8 whitespace-nowrap">
-              <div className={`w-1.5 h-1.5 ${item.type === 'SALE' ? (accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green') : item.type === 'SWEEP' ? 'bg-magic-pink' : 'bg-blue-400'}`}></div>
+          {displayItems.map((item, idx) => (
+            <div key={item.id || idx} className="flex items-center gap-2 mx-8 py-2 text-xs uppercase tracking-wider font-mono border-r border-white/10 pr-8 whitespace-nowrap">
+              <div className={`w-1.5 h-1.5 ${dotColor(item.type)}`}></div>
               <span className="text-gray-500 font-bold">[{item.type}]</span>
               <span className="text-gray-200">{item.text}</span>
-              <span className="text-gray-700 text-[10px]">{item.time}</span>
+              <span className="text-gray-700 text-[10px]">{timeAgo(item.timestamp)}</span>
             </div>
           ))}
         </Marquee>

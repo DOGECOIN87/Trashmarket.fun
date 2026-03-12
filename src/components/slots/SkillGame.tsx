@@ -6,6 +6,7 @@ import { TOKEN_CONFIG } from '../../lib/tokenConfig';
 import { useJunkPusherOnChain } from '../../lib/useJunkPusherOnChain';
 import { getPlayerGameBalance } from '../../lib/highScoreService';
 import { PROGRAM_ID } from '../../lib/JunkPusherClient';
+import { pushGameEvent } from '../../services/activityService';
 import './SkillGame.css';
 
 const SYMBOL_IMAGES = [
@@ -351,6 +352,7 @@ export default function SkillGame() {
         setBalance((prev) => prev + intAmount);
         setDepositAmount('');
         setTxMessage('Deposit confirmed!');
+        pushGameEvent('DEPOSIT', `Player deposited ${intAmount} DEBRIS into Skill Game`);
         setTimeout(() => refreshDebrisBalance(), 2000);
       } else {
         setTxMessage(onChain.error || 'Deposit failed - check wallet');
@@ -429,6 +431,7 @@ export default function SkillGame() {
       setBalance((prev) => prev + winAmount);
       setCurrentWin(winAmount);
       setStatusMessage('You Win!');
+      pushGameEvent('WIN', `Player won ${winAmount} DEBRIS on Skill Game`);
     } else if (!won) {
       setStatusMessage('Try Again');
     }
