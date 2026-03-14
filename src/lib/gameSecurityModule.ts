@@ -16,11 +16,11 @@ import { TOKEN_CONFIG } from './tokenConfig';
 export function validateDebrisTokenMint(tokenMint: string | PublicKey): boolean {
   const debrisMint = typeof tokenMint === 'string' ? tokenMint : tokenMint.toBase58();
   const authorizedMint = TOKEN_CONFIG.DEBRIS.address;
-  
+
   if (debrisMint !== authorizedMint) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -28,18 +28,18 @@ export function validateDebrisTokenMint(tokenMint: string | PublicKey): boolean 
  * Validates deposit amount is within acceptable range
  */
 export function validateDepositAmount(amount: number): { valid: boolean; error?: string } {
-  if (amount <= 0) {
-    return { valid: false, error: 'Deposit amount must be greater than 0' };
+  if (amount < 0) {
+    return { valid: false, error: 'Deposit amount cannot be negative' };
   }
-  
+
   if (amount > 1_000_000_000) {
     return { valid: false, error: 'Deposit amount exceeds maximum limit' };
   }
-  
+
   if (!Number.isInteger(amount)) {
     return { valid: false, error: 'Deposit amount must be an integer' };
   }
-  
+
   return { valid: true };
 }
 
@@ -55,25 +55,25 @@ export function validateWithdrawalAmount(
   if (requestedAmount <= 0) {
     return { valid: false, error: 'Withdrawal amount must be greater than 0' };
   }
-  
+
   if (requestedAmount > verifiedWinnings) {
     return {
       valid: false,
       error: `Cannot withdraw ${requestedAmount}. Verified winnings: ${verifiedWinnings}`,
     };
   }
-  
+
   if (requestedAmount > currentBalance) {
     return {
       valid: false,
       error: `Cannot withdraw ${requestedAmount}. Current balance: ${currentBalance}`,
     };
   }
-  
+
   if (!Number.isInteger(requestedAmount)) {
     return { valid: false, error: 'Withdrawal amount must be an integer' };
   }
-  
+
   return { valid: true };
 }
 
@@ -99,7 +99,7 @@ export function validateTransactionSignature(signature: string): boolean {
   if (typeof signature !== 'string' || signature.length < 50 || signature.length > 100) {
     return false;
   }
-  
+
   try {
     // Attempt to decode as base58
     const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
@@ -116,15 +116,15 @@ export function validateGameScore(score: number): { valid: boolean; error?: stri
   if (score < 0) {
     return { valid: false, error: 'Score cannot be negative' };
   }
-  
+
   if (!Number.isInteger(score)) {
     return { valid: false, error: 'Score must be an integer' };
   }
-  
+
   if (score > 999_999_999) {
     return { valid: false, error: 'Score exceeds maximum limit' };
   }
-  
+
   return { valid: true };
 }
 
@@ -151,18 +151,18 @@ export function validateTokenTransactionIntegrity(
   if (!validateDebrisTokenMint(tokenMint)) {
     return { valid: false, error: 'Unauthorized token mint' };
   }
-  
+
   // Validate amount
   const amountValidation = validateDepositAmount(amount);
   if (!amountValidation.valid) {
     return amountValidation;
   }
-  
+
   // Validate wallet
   if (!validateWalletAddress(walletAddress)) {
     return { valid: false, error: 'Invalid wallet address' };
   }
-  
+
   return { valid: true };
 }
 
@@ -185,10 +185,10 @@ export function validateNonce(nonce: string, maxAgeMs: number = 300000): boolean
     const [timestamp] = nonce.split('-');
     const nonceTime = parseInt(timestamp, 10);
     const now = Date.now();
-    
+
     if (isNaN(nonceTime)) return false;
     if (now - nonceTime > maxAgeMs) return false;
-    
+
     return true;
   } catch {
     return false;

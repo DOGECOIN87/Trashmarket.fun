@@ -148,15 +148,16 @@ class GorbaganaRPC {
 
   // Confirm transaction
   async confirmTransaction(
-    signature: string,
+    params: string | { signature: string; blockhash: string; lastValidBlockHeight: number },
     timeout: number = 30000
   ): Promise<boolean> {
+    const signature = typeof params === 'string' ? params : params.signature;
     const start = Date.now();
     
     while (Date.now() - start < timeout) {
       try {
         const result = await this.request<{
-          value: { confirmationStatus: string; err: any } | null;
+          value: { confirmationStatus: string; err: any }[] | null;
         }>('getSignatureStatuses', [[signature]]);
 
         if (result.value?.[0]) {
@@ -168,14 +169,16 @@ class GorbaganaRPC {
             return true;
           }
         }
-      } catch (error) {
-        // Continue polling
+      } catch (error: any) {
+        // If it's a "Transaction failed" error, rethrow it
+        if (error.message.includes('Transaction failed')) throw error;
+        // Otherwise continue polling (network error, etc)
       }
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    throw new Error('Transaction confirmation timeout');
+    throw new Error('Transaction confirmation timeout. The transaction may still be processed - please check the explorer in a few minutes.');
   }
 
   // Get current slot

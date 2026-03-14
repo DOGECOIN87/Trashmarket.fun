@@ -11,6 +11,7 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { gorbaganaRPC } from '../utils/gorbaganaRPC';
+import { parseTransactionError } from '../utils/errorMessages';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import IDL from '../idl/vanity_miner.json';
 
@@ -138,7 +139,7 @@ export function useVanityPayment() {
       );
 
       const accountData = await program.account.miningAccount.fetch(miningAccountPDA);
-      
+
       const balanceLamports = (accountData.balance as BN).toNumber();
       const balanceGOR = balanceLamports / LAMPORTS_PER_GOR;
       const totalSpentLamports = (accountData.totalSpent as BN).toNumber();
@@ -196,7 +197,7 @@ export function useVanityPayment() {
       await refreshBalance();
       return true;
     } catch (err: any) {
-      setError(err.message || 'Failed to initialize mining');
+      setError(parseTransactionError(err) || 'Failed to initialize mining');
       return false;
     } finally {
       setIsInitializing(false);
@@ -239,7 +240,7 @@ export function useVanityPayment() {
       // Update local state
       const costGOR = costLamports / LAMPORTS_PER_GOR;
       sessionSpentRef.current += costGOR;
-      
+
       setMiningAccount(prev => {
         if (!prev) return prev;
         return {
@@ -257,7 +258,7 @@ export function useVanityPayment() {
       if (err.message.includes('InsufficientBalance') || err.message.includes('insufficient')) {
         return false; // Signal that balance is insufficient
       }
-      setError(`Payment failed: ${err.message || 'Unknown error'}`);
+      setError(`Payment failed: ${parseTransactionError(err)}`);
       return false;
     }
   }, [connected, publicKey, program, provider]);
@@ -313,7 +314,7 @@ export function useVanityPayment() {
       return true;
     } catch (err: any) {
       console.error('Deposit failed:', err);
-      setError(`Deposit failed: ${err.message || 'Unknown error'}`);
+      setError(`Deposit failed: ${parseTransactionError(err)}`);
       return false;
     } finally {
       txInFlightRef.current = false;
@@ -370,7 +371,7 @@ export function useVanityPayment() {
       return true;
     } catch (err: any) {
       console.error('Withdrawal failed:', err);
-      setError(`Withdrawal failed: ${err.message || 'Unknown error'}`);
+      setError(`Withdrawal failed: ${parseTransactionError(err)}`);
       return false;
     } finally {
       txInFlightRef.current = false;

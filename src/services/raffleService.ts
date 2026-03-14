@@ -55,7 +55,7 @@ export const formatFeeBps = (bps: number): string => {
 };
 
 export interface Raffle {
-  raffleId: number;
+  raffleId: string; // Changed to string for safety
   creator: string;
   nftMint: string;
   ticketPrice: number; // in GGOR (UI amount)
@@ -64,16 +64,16 @@ export interface Raffle {
   endTime: number; // Unix timestamp
   status: 'active' | 'drawing' | 'completed' | 'cancelled' | 'expired_returned';
   winner?: string;
-  randomness?: number;
+  randomness?: string; // Changed to string for safety (u64)
   publicKey: string;
   platformFeeBps: number; // Dynamic fee based on duration
 }
 
 export interface TicketAccount {
-  raffleId: number;
+  raffleId: string;
   buyer: string;
   ticketCount: number;
-  ticketNumbers: number[];
+  ticketNumbers: string[]; // Changed to string[] for safety
 }
 
 export class RaffleService {
@@ -96,7 +96,7 @@ export class RaffleService {
   }
 
   // Get PDA for specific raffle
-  async getRafflePDA(raffleId: number): Promise<[PublicKey, number]> {
+  async getRafflePDA(raffleId: string | number): Promise<[PublicKey, number]> {
     return await PublicKey.findProgramAddress(
       [Buffer.from('raffle'), new BN(raffleId).toArrayLike(Buffer, 'le', 8)],
       RAFFLE_PROGRAM_ID
@@ -104,7 +104,7 @@ export class RaffleService {
   }
 
   // Get PDA for escrow authority
-  async getEscrowAuthorityPDA(raffleId: number): Promise<[PublicKey, number]> {
+  async getEscrowAuthorityPDA(raffleId: string | number): Promise<[PublicKey, number]> {
     return await PublicKey.findProgramAddress(
       [Buffer.from('escrow'), new BN(raffleId).toArrayLike(Buffer, 'le', 8)],
       RAFFLE_PROGRAM_ID
@@ -112,7 +112,7 @@ export class RaffleService {
   }
 
   // Get PDA for escrow NFT account
-  async getEscrowNftPDA(raffleId: number): Promise<[PublicKey, number]> {
+  async getEscrowNftPDA(raffleId: string | number): Promise<[PublicKey, number]> {
     return await PublicKey.findProgramAddress(
       [Buffer.from('escrow_nft'), new BN(raffleId).toArrayLike(Buffer, 'le', 8)],
       RAFFLE_PROGRAM_ID
@@ -120,7 +120,7 @@ export class RaffleService {
   }
 
   // Get PDA for escrow GGOR account
-  async getEscrowGgorPDA(raffleId: number): Promise<[PublicKey, number]> {
+  async getEscrowGgorPDA(raffleId: string | number): Promise<[PublicKey, number]> {
     return await PublicKey.findProgramAddress(
       [Buffer.from('escrow_ggor'), new BN(raffleId).toArrayLike(Buffer, 'le', 8)],
       RAFFLE_PROGRAM_ID
@@ -128,7 +128,7 @@ export class RaffleService {
   }
 
   // Get PDA for ticket account
-  async getTicketAccountPDA(raffleId: number, buyer: PublicKey): Promise<[PublicKey, number]> {
+  async getTicketAccountPDA(raffleId: string | number, buyer: PublicKey): Promise<[PublicKey, number]> {
     return await PublicKey.findProgramAddress(
       [
         Buffer.from('tickets'),
@@ -142,15 +142,24 @@ export class RaffleService {
   // Initialize raffle state (one-time, admin only)
   async initialize(): Promise<string> {
     const [raffleStatePDA] = await this.getRaffleStatePDA();
-    
-    const tx = await this.program.methods
+
+    const transaction = await this.program.methods
       .initialize()
       .accounts({
         raffleState: raffleStatePDA,
         authority: this.provider.wallet.publicKey,
         systemProgram: SystemProgram.programId,
       } as any)
-      .rpc();
+      .transaction();
+
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = this.provider.wallet.publicKey;
+
+    const signed = await this.provider.wallet.signTransaction(transaction);
+    const tx = await this.connection.sendRawTransaction(signed.serialize());
+    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
 
     return tx;
   }
@@ -160,15 +169,30 @@ export class RaffleService {
     nftMint: PublicKey,
     ticketPriceGGOR: number,
     totalTickets: number,
-    durationHours: number
-  ): Promise<{ signature: string; raffleId: number }> {
+    durationHours: number,
+    sourceNftTokenAccount?: PublicKey // Optional: specific account holding the NFT
+  ): Promise<{ signature: string; raffleId: string }> {
     const creator = this.provider.wallet.publicKey;
-    const raffleId = Date.now(); // Use timestamp as unique ID
+    const raffleId = Date.now().toString(); // Use string for large IDs
     const endTime = Math.floor(Date.now() / 1000) + (durationHours * 3600);
     const ticketPrice = toGGOR(ticketPriceGGOR);
 
     // Get user's NFT token account
-    const nftTokenAccount = await getAssociatedTokenAddress(nftMint, creator);
+    let nftTokenAccount = sourceNftTokenAccount;
+    if (!nftTokenAccount) {
+      nftTokenAccount = await getAssociatedTokenAddress(nftMint, creator);
+    }
+
+    // Verify it exists and has the NFT
+    try {
+      const accountInfo = await getAccount(this.connection, nftTokenAccount);
+      if (accountInfo.amount === 0n) {
+        throw new Error(`NFT account ${nftTokenAccount.toString()} has 0 balance.`);
+      }
+    } catch (e: any) {
+      if (e.message?.includes('balance')) throw e;
+      throw new Error(`NFT account not found: ${nftTokenAccount.toString()}. Ensure the NFT is in your wallet.`);
+    }
 
     // Get PDAs
     const [rafflePDA] = await this.getRafflePDA(raffleId);
@@ -237,7 +261,7 @@ export class RaffleService {
 
   // Buy tickets for a raffle
   async buyTickets(
-    raffleId: number,
+    raffleId: string | number,
     quantity: number
   ): Promise<string> {
     const buyer = this.provider.wallet.publicKey;
@@ -334,7 +358,7 @@ export class RaffleService {
   }
 
   // Draw winner for a raffle (Phase 1: determine winner on-chain via remaining_accounts)
-  async drawWinner(raffleId: number): Promise<string> {
+  async drawWinner(raffleId: string | number): Promise<string> {
     const [rafflePDA] = await this.getRafflePDA(raffleId);
 
     // Fetch all ticket accounts for this raffle using memcmp filter
@@ -359,20 +383,29 @@ export class RaffleService {
       isSigner: false,
     }));
 
-    const tx = await this.program.methods
+    const transaction = await this.program.methods
       .drawWinner(new BN(raffleId))
       .accounts({
         raffle: rafflePDA,
         authority: this.provider.wallet.publicKey,
       } as any)
       .remainingAccounts(remainingAccounts)
-      .rpc();
+      .transaction();
+
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = this.provider.wallet.publicKey;
+
+    const signed = await this.provider.wallet.signTransaction(transaction);
+    const tx = await this.connection.sendRawTransaction(signed.serialize());
+    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
 
     return tx;
   }
 
   // Claim prize for a raffle (Phase 2: transfer NFT to winner and GGOR to creator)
-  async claimPrize(raffleId: number, nftMint: PublicKey): Promise<string> {
+  async claimPrize(raffleId: string | number, nftMint: PublicKey): Promise<string> {
     const payer = this.provider.wallet.publicKey;
     const [rafflePDA] = await this.getRafflePDA(raffleId);
     const [raffleStatePDA] = await this.getRaffleStatePDA();
@@ -467,7 +500,7 @@ export class RaffleService {
   }
 
   // Cancel a raffle (creator only, no tickets sold)
-  async cancelRaffle(raffleId: number, nftMint: PublicKey): Promise<string> {
+  async cancelRaffle(raffleId: string | number, nftMint: PublicKey): Promise<string> {
     const payer = this.provider.wallet.publicKey;
     const [rafflePDA] = await this.getRafflePDA(raffleId);
     const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
@@ -514,7 +547,7 @@ export class RaffleService {
   }
 
   // Return unsold NFT to creator (automatic for expired raffles with no sales)
-  async returnUnsoldNFT(raffleId: number, nftMint: PublicKey, creatorAddress: PublicKey): Promise<string> {
+  async returnUnsoldNFT(raffleId: string | number, nftMint: PublicKey, creatorAddress: PublicKey): Promise<string> {
     const payer = this.provider.wallet.publicKey;
     const [rafflePDA] = await this.getRafflePDA(raffleId);
     const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
@@ -569,9 +602,9 @@ export class RaffleService {
   // Fetch all raffles
   async fetchAllRaffles(): Promise<Raffle[]> {
     const raffles = await this.program.account.raffle.all();
-    
+
     return raffles.map((r: any) => ({
-      raffleId: r.account.raffleId.toNumber(),
+      raffleId: r.account.raffleId.toString(),
       creator: r.account.creator.toString(),
       nftMint: r.account.nftMint.toString(),
       ticketPrice: fromGGOR(r.account.ticketPrice),
@@ -580,20 +613,20 @@ export class RaffleService {
       endTime: r.account.endTime.toNumber() * 1000, // Convert to ms
       status: Object.keys(r.account.status)[0] as any,
       winner: r.account.winner?.toString(),
-      randomness: r.account.randomness?.toNumber(),
+      randomness: r.account.randomness?.toString(),
       publicKey: r.publicKey.toString(),
       platformFeeBps: r.account.platformFeeBps || 500, // Default to 5% if not set
     }));
   }
 
   // Fetch specific raffle
-  async fetchRaffle(raffleId: number): Promise<Raffle | null> {
+  async fetchRaffle(raffleId: string | number): Promise<Raffle | null> {
     try {
       const [rafflePDA] = await this.getRafflePDA(raffleId);
       const r = await this.program.account.raffle.fetch(rafflePDA);
-      
+
       return {
-        raffleId: (r as any).raffleId.toNumber(),
+        raffleId: (r as any).raffleId.toString(),
         creator: (r as any).creator.toString(),
         nftMint: (r as any).nftMint.toString(),
         ticketPrice: fromGGOR((r as any).ticketPrice),
@@ -602,7 +635,7 @@ export class RaffleService {
         endTime: (r as any).endTime.toNumber() * 1000,
         status: Object.keys((r as any).status)[0] as any,
         winner: (r as any).winner?.toString(),
-        randomness: (r as any).randomness?.toNumber(),
+        randomness: (r as any).randomness?.toString(),
         publicKey: rafflePDA.toString(),
         platformFeeBps: (r as any).platformFeeBps || 500,
       };
@@ -612,16 +645,16 @@ export class RaffleService {
   }
 
   // Fetch user's tickets for a raffle
-  async fetchUserTickets(raffleId: number, buyer: PublicKey): Promise<TicketAccount | null> {
+  async fetchUserTickets(raffleId: string | number, buyer: PublicKey): Promise<TicketAccount | null> {
     try {
       const [ticketAccountPDA] = await this.getTicketAccountPDA(raffleId, buyer);
       const t = await this.program.account.ticketAccount.fetch(ticketAccountPDA);
-      
+
       return {
-        raffleId: (t as any).raffleId.toNumber(),
+        raffleId: (t as any).raffleId.toString(),
         buyer: (t as any).buyer.toString(),
         ticketCount: (t as any).ticketCount.toNumber(),
-        ticketNumbers: (t as any).ticketNumbers.map((n: any) => n.toNumber()),
+        ticketNumbers: (t as any).ticketNumbers.map((n: any) => n.toString()),
       };
     } catch (e) {
       return null;

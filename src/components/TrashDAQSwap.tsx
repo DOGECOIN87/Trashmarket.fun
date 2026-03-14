@@ -106,10 +106,10 @@ export default function TrashDAQSwap() {
         if (!publicKey || !connected || !connection) return;
 
         try {
-            const sellBalance = state.sellToken 
+            const sellBalance = state.sellToken
                 ? await getTokenBalance(connection, publicKey.toString(), state.sellToken.mint)
                 : 0;
-            
+
             const buyBalance = state.buyToken
                 ? await getTokenBalance(connection, publicKey.toString(), state.buyToken.mint)
                 : 0;
@@ -180,7 +180,7 @@ export default function TrashDAQSwap() {
     const handleSellAmountChange = (value: string) => {
         // Validate input - prevent negative or non-numeric values
         if (!/^\d*\.?\d*$/.test(value)) return;
-        
+
         setState(prev => ({ ...prev, sellAmount: value }));
         if (state.sellToken && state.buyToken) {
             calculateSwap(state.sellToken, state.buyToken, value);
@@ -278,14 +278,14 @@ export default function TrashDAQSwap() {
                     message: `Swap successful! Signature: ${result.signature.slice(0, 20)}...`,
                     signature: result.signature
                 });
-                
+
                 // Reset form and reload balances
                 setState(prev => ({
                     ...prev,
                     sellAmount: '',
                     buyAmount: '0'
                 }));
-                
+
                 setTimeout(() => {
                     loadTokenBalances();
                     setTxStatus({ status: 'idle', message: '' });
@@ -300,7 +300,7 @@ export default function TrashDAQSwap() {
             console.error('Swap error:', error);
             setTxStatus({
                 status: 'error',
-                message: error.message || 'Swap execution failed'
+                message: parseTransactionError(error)
             });
         } finally {
             txInFlightRef.current = false;
@@ -340,20 +340,18 @@ export default function TrashDAQSwap() {
 
             {/* Transaction Status Alert */}
             {txStatus.status !== 'idle' && (
-                <div className={`px-4 py-3 border-b ${
-                    txStatus.status === 'success' ? 'bg-green-900/20 border-green-500/30' :
-                    txStatus.status === 'error' ? 'bg-red-900/20 border-red-500/30' :
-                    'bg-blue-900/20 border-blue-500/30'
-                }`}>
+                <div className={`px-4 py-3 border-b ${txStatus.status === 'success' ? 'bg-green-900/20 border-green-500/30' :
+                        txStatus.status === 'error' ? 'bg-red-900/20 border-red-500/30' :
+                            'bg-blue-900/20 border-blue-500/30'
+                    }`}>
                     <div className="flex items-center gap-2">
                         {txStatus.status === 'success' && <CheckCircle size={16} className="text-green-500" />}
                         {txStatus.status === 'error' && <AlertCircle size={16} className="text-red-500" />}
                         {txStatus.status === 'pending' && <RefreshCw size={16} className="text-blue-500 animate-spin" />}
-                        <span className={`text-sm ${
-                            txStatus.status === 'success' ? 'text-green-400' :
-                            txStatus.status === 'error' ? 'text-red-400' :
-                            'text-blue-400'
-                        }`}>
+                        <span className={`text-sm ${txStatus.status === 'success' ? 'text-green-400' :
+                                txStatus.status === 'error' ? 'text-red-400' :
+                                    'text-blue-400'
+                            }`}>
                             {txStatus.message}
                         </span>
                     </div>

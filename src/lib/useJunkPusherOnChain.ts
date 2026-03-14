@@ -74,7 +74,7 @@ export function useJunkPusherOnChain() {
       setState((s) => ({
         ...s,
         isLoadingBalance: false,
-        error: err.message || 'Failed to fetch balances',
+        error: parseTransactionError(err) || 'Failed to fetch balances',
       }));
     }
   }, [publicKey, connection]);
@@ -161,6 +161,7 @@ export function useJunkPusherOnChain() {
   const initializeGame = useCallback(
     async (initialBalance: number = TOKEN_CONFIG.GAME.INITIAL_BALANCE) => {
       if (!publicKey) return null;
+      console.log(`[OnChain] Initializing game with balance: ${initialBalance}`);
       const ix = await client.initializeGame(publicKey, { initialBalance });
       const tx = new Transaction().add(ix);
       return sendTx(tx, 'Initialize Game');
@@ -170,14 +171,14 @@ export function useJunkPusherOnChain() {
 
   /** Ensure game state PDA is initialized, returns true if already initialized or successfully created */
   const ensureInitialized = useCallback(
-    async (): Promise<boolean> => {
+    async (initialBalance?: number): Promise<boolean> => {
       if (!publicKey || !connection) return false;
       try {
         const [gameStatePDA] = JunkPusherClient.getGameStatePDA(publicKey);
         const acct = await connection.getAccountInfo(gameStatePDA);
         if (acct) return true; // already initialized
         // Initialize it
-        const sig = await initializeGame();
+        const sig = await initializeGame(initialBalance);
         return sig !== null;
       } catch (err) {
         console.warn('[OnChain] ensureInitialized error:', err);
@@ -189,9 +190,9 @@ export function useJunkPusherOnChain() {
 
   /** Record a coin collection (bump) on-chain */
   const recordCoinCollection = useCallback(
-    async (amount: number) => {
+    async (amount: number, initialBalance?: number) => {
       if (!publicKey) return null;
-      await ensureInitialized();
+      await ensureInitialized(initialBalance);
       const ix = await client.recordCoinCollection(publicKey, { amount });
       const tx = new Transaction().add(ix);
       return sendTx(tx, 'Bump');
@@ -201,9 +202,9 @@ export function useJunkPusherOnChain() {
 
   /** Record final score on-chain */
   const recordScore = useCallback(
-    async (score: number) => {
+    async (score: number, initialBalance?: number) => {
       if (!publicKey) return null;
-      await ensureInitialized();
+      await ensureInitialized(initialBalance);
       const ix = await client.recordScore(publicKey, { score });
       const tx = new Transaction().add(ix);
       return sendTx(tx, 'Record Score');
@@ -213,9 +214,9 @@ export function useJunkPusherOnChain() {
 
   /** Deposit DEBRIS tokens into game balance */
   const depositBalance = useCallback(
-    async (amount: number) => {
+    async (amount: number, initialBalance?: number) => {
       if (!publicKey) return null;
-      const initialized = await ensureInitialized();
+      const initialized = await ensureInitialized(initialBalance);
       if (!initialized) {
         setState((s) => ({ ...s, error: 'Failed to initialize game state', txStatus: 'error', txLabel: 'Deposit DEBRIS' }));
         return null;

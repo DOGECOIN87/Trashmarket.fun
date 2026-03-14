@@ -69,7 +69,7 @@
     - Replace err.message with parseTransactionError(err) in catch block
     - _Requirements: 5.3_
 
-- [-] 6. Fix TrashDAQSwap double-click vulnerability
+- [x] 6. Fix TrashDAQSwap double-click vulnerability
   - [x] 6.1 Add txInFlightRef at component level
     - Create useRef<boolean>(false) for tracking in-flight transactions
     - _Requirements: 6.1_
@@ -87,52 +87,52 @@
     - Replace error.message with parseTransactionError(error) in catch block
     - _Requirements: 6.4_
 
-- [ ] 7. Fix useJunkPusherOnChain confirmation API
-  - [ ] 7.1 Update sendTx() confirmTransaction call
+- [x] 7. Fix useJunkPusherOnChain confirmation API
+  - [x] 7.1 Update sendTx() confirmTransaction call
     - Ensure blockhash and lastValidBlockHeight are captured before sending
     - Update confirmTransaction to use { signature, blockhash, lastValidBlockHeight } format
     - _Requirements: 7.1, 7.2_
-  - [ ] 7.2 Verify skipPreflight is false
+  - [x] 7.2 Verify skipPreflight is false
     - Check sendRawTransaction options have skipPreflight: false
     - _Requirements: 7.4_
-  - [ ] 7.3 Verify parseTransactionError usage
+  - [x] 7.3 Verify parseTransactionError usage
     - Confirm all catch blocks use parseTransactionError
     - _Requirements: 7.3_
 
-- [ ] 8. Fix gorbaganaRPC confirmTransaction compatibility
-  - [ ] 8.1 Update confirmTransaction method signature
+- [x] 8. Fix gorbaganaRPC confirmTransaction compatibility
+  - [x] 8.1 Update confirmTransaction method signature
     - Change parameter type to accept string | { signature, blockhash, lastValidBlockHeight }
     - Extract signature from either format
     - Maintain existing polling logic
     - _Requirements: 8.1, 8.2, 8.3_
-  - [ ] 8.2 Add timeout error message
+  - [x] 8.2 Add timeout error message
     - Ensure timeout error is clear and actionable
     - _Requirements: 8.4_
 
-- [ ] 9. Fix NFTCard image error handling
-  - [ ] 9.1 Add onError handler to img element
+- [x] 9. Fix NFTCard image error handling
+  - [x] 9.1 Add onError handler to img element
     - Implement fallback to placeholder image
     - Prevent infinite error loops by checking current src
     - Log error for debugging
     - _Requirements: 9.1, 9.2, 9.3_
-  - [ ] 9.2 Create placeholder image asset
+  - [x] 9.2 Create placeholder image asset
     - Add /assets/nft-placeholder.png if it doesn't exist
     - Use simple SVG or PNG placeholder
     - _Requirements: 9.2_
 
-- [ ] 10. Audit Raffle.tsx error handling
-  - [ ] 10.1 Verify parseTransactionError usage
+- [x] 10. Audit Raffle.tsx error handling
+  - [x] 10.1 Verify parseTransactionError usage
     - Check all catch blocks in Raffle.tsx use parseTransactionError
     - Verify error messages are displayed in inline banners
     - _Requirements: 10.1, 10.4_
-  - [ ] 10.2 Verify confirmTransaction API
+  - [x] 10.2 Verify confirmTransaction API
     - Check all confirmTransaction calls use modern API format
     - _Requirements: 10.1_
-  - [ ] 10.3 Verify ATA creation in createRaffle
+  - [x] 10.3 Verify ATA creation in createRaffle
     - Confirm creator NFT ATA existence check is present
     - Verify ATA creation instruction is added if needed
     - _Requirements: 10.3_
-  - [ ] 10.4 Verify input validation
+  - [x] 10.4 Verify input validation
     - Check all raffle parameters are validated before submission
     - Verify clear error messages for validation failures
     - _Requirements: 10.2_

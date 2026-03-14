@@ -12,7 +12,7 @@ import bs58 from 'bs58';
 import { RPC_ENDPOINTS, EXPLORER_URLS } from '../lib/rpcConfig';
 
 interface UserNFT {
-  id: string;
+  tokenAccount: string;
   mint: string;
   name: string;
   image: string;
@@ -34,12 +34,12 @@ const Raffle: React.FC = () => {
 
   const loadRaffles = async () => {
     if (!wallet.publicKey) return;
-    
+
     try {
       setLoading(true);
       const service = new RaffleService(connection, wallet);
       const allRaffles = await service.fetchAllRaffles();
-      
+
       // Sort by end time (newest first)
       const sorted = allRaffles.sort((a, b) => b.endTime - a.endTime);
       setRaffles(sorted);
@@ -63,17 +63,17 @@ const Raffle: React.FC = () => {
   const getTimeRemaining = (endTime: number) => {
     const now = Date.now();
     const diff = endTime - now;
-    
+
     if (diff <= 0) return 'Ended';
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours > 24) {
       const days = Math.floor(hours / 24);
       return `${days}d ${hours % 24}h`;
     }
-    
+
     return `${hours}h ${minutes}m`;
   };
 
@@ -342,17 +342,17 @@ const RaffleCard: React.FC<{ raffle: RaffleType; onUpdate: () => void; isCompact
   const getTimeRemaining = (endTime: number) => {
     const now = Date.now();
     const diff = endTime - now;
-    
+
     if (diff <= 0) return 'Ended';
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours > 24) {
       const days = Math.floor(hours / 24);
       return `${days}d ${hours % 24}h`;
     }
-    
+
     return `${hours}h ${minutes}m`;
   };
 
@@ -534,6 +534,7 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
     totalTickets: '',
     durationHours: '24'
   });
+  const [error, setError] = useState<string | null>(null);
 
   // Derive Metaplex metadata PDA for a given mint
   const getMetadataPDA = (mint: string): string => {
@@ -591,12 +592,12 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
 
       if (data.result?.value) {
         // Filter for NFTs: amount === "1" and decimals === 0
-        const nftMints = data.result.value
-          .filter((account: any) => {
-            const info = account.account.data.parsed.info;
-            return info.tokenAmount.amount === '1' && info.tokenAmount.decimals === 0;
-          })
-          .map((account: any) => account.account.data.parsed.info.mint);
+        const tokenAccounts = data.result.value.filter((account: any) => {
+          const info = account.account.data.parsed.info;
+          return info.tokenAmount.amount === '1' && info.tokenAmount.decimals === 0;
+        });
+
+        const nftMints = tokenAccounts.map((account: any) => account.account.data.parsed.info.mint);
 
         // Batch fetch metadata PDAs from chain
         const metadataPDAs = nftMints.map((mint: string) => getMetadataPDA(mint));
@@ -639,7 +640,12 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
             } catch { /* skip parse failures */ }
           }
 
-          nfts.push({ id: mint, mint, name, image });
+          nfts.push({
+            tokenAccount: tokenAccounts[i].pubkey,
+            mint,
+            name,
+            image
+          });
         }
 
         setUserNfts(nfts);
@@ -656,7 +662,8 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
   }, [fetchUserNFTs]);
 
   const filteredNfts = userNfts.filter(nft =>
-    nft.name.toLowerCase().includes(nftSearch.toLowerCase())
+    nft.name.toLowerCase().includes(nftSearch.toLowerCase()) ||
+    nft.mint.toLowerCase().includes(nftSearch.toLowerCase())
   );
 
   const handleSelectNft = (nft: UserNFT) => {
@@ -669,22 +676,36 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
     if (!wallet.publicKey || !selectedNft) return;
 
     try {
+      const price = parseFloat(formData.ticketPrice);
+      const tickets = parseInt(formData.totalTickets);
+      setError(null);
+
+      if (isNaN(price) || price <= 0) {
+        setError('Please enter a valid ticket price greater than 0');
+        return;
+      }
+
+      if (isNaN(tickets) || tickets <= 0) {
+        setError('Please enter a valid number of tickets greater than 0');
+        return;
+      }
+
       setLoading(true);
       const service = new RaffleService(connection, wallet);
       await service.createRaffle(
         new PublicKey(selectedNft.mint),
         parseFloat(formData.ticketPrice),
         parseInt(formData.totalTickets),
-        parseInt(formData.durationHours)
+        parseInt(formData.durationHours),
+        new PublicKey(selectedNft.tokenAccount)
       );
       onSuccess();
     } catch (error: any) {
-      const msg = error?.message || error?.toString() || 'Unknown error';
-      const logs = error?.logs?.join('\n') || '';
       console.error('Error creating raffle:', error);
-      console.error('Error message:', msg);
+      const friendlyMsg = parseTransactionError(error);
+      const logs = error?.logs?.join('\n') || '';
       if (logs) console.error('Program logs:', logs);
-      alert(`Failed to create raffle:\n${msg}${logs ? '\n\nLogs:\n' + logs : ''}`);
+      setError(`Failed to create raffle: ${friendlyMsg}`);
     } finally {
       setLoading(false);
     }
@@ -716,6 +737,17 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
 
         {step === 'select-nft' ? (
           <div className="flex flex-col overflow-hidden flex-1">
+            {error && (
+              <div className="p-4 bg-red-500/10 border-b border-red-500/20 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-red-500 text-xs font-mono">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+                <button onClick={() => setError(null)} className="text-red-500/50 hover:text-red-500">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             {/* Search */}
             <div className="p-4 border-b border-white/5 shrink-0">
               <div className="relative">
@@ -748,7 +780,7 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
                 <div className="grid grid-cols-3 gap-3">
                   {filteredNfts.map((nft) => (
                     <button
-                      key={nft.id}
+                      key={nft.tokenAccount}
                       onClick={() => handleSelectNft(nft)}
                       className="group bg-black/40 border border-white/5 hover:border-magic-green/60 transition-all overflow-hidden text-left"
                     >
@@ -789,6 +821,17 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-red-500 text-xs font-mono">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+                <button type="button" onClick={() => setError(null)} className="text-red-500/50 hover:text-red-500">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             {/* Selected NFT preview */}
             {selectedNft && (
               <div className="flex items-center gap-3 bg-black/40 p-3 border border-magic-green/20">
@@ -818,7 +861,7 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
                   className="w-full bg-black border border-white/10 p-3 text-sm font-mono focus:border-magic-green outline-none transition-colors"
                   placeholder="1.0"
                   value={formData.ticketPrice}
-                  onChange={(e) => setFormData({...formData, ticketPrice: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, ticketPrice: e.target.value })}
                 />
               </div>
               <div>
@@ -829,7 +872,7 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
                   className="w-full bg-black border border-white/10 p-3 text-sm font-mono focus:border-magic-green outline-none transition-colors"
                   placeholder="100"
                   value={formData.totalTickets}
-                  onChange={(e) => setFormData({...formData, totalTickets: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, totalTickets: e.target.value })}
                 />
               </div>
             </div>
@@ -838,7 +881,7 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
               <select
                 className="w-full bg-black border border-white/10 p-3 text-sm font-mono focus:border-magic-green outline-none transition-colors"
                 value={formData.durationHours}
-                onChange={(e) => setFormData({...formData, durationHours: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, durationHours: e.target.value })}
               >
                 <option value="6">6 Hours (2.5% Fee)</option>
                 <option value="24">24 Hours (5.0% Fee)</option>
@@ -1056,20 +1099,19 @@ const RaffleDetailView: React.FC<{
                 </div>
               )}
               {/* Status badge */}
-              <div className={`absolute top-4 right-4 px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
-                isDrawingNeedsClaim ? 'bg-blue-500 text-white' :
+              <div className={`absolute top-4 right-4 px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${isDrawingNeedsClaim ? 'bg-blue-500 text-white' :
                 isExpiredWithSales ? 'bg-yellow-500 text-black' :
-                isExpiredNoSales ? 'bg-red-500 text-white' :
-                isNeedsDrawOrSoldOut ? 'bg-yellow-500 text-black' :
-                raffle.status === 'active' ? 'bg-magic-green text-black' :
-                raffle.status === 'completed' ? 'bg-blue-500 text-white' :
-                raffle.status === 'cancelled' ? 'bg-red-500 text-white' :
-                'bg-yellow-500 text-black'
-              }`}>
+                  isExpiredNoSales ? 'bg-red-500 text-white' :
+                    isNeedsDrawOrSoldOut ? 'bg-yellow-500 text-black' :
+                      raffle.status === 'active' ? 'bg-magic-green text-black' :
+                        raffle.status === 'completed' ? 'bg-blue-500 text-white' :
+                          raffle.status === 'cancelled' ? 'bg-red-500 text-white' :
+                            'bg-yellow-500 text-black'
+                }`}>
                 {isDrawingNeedsClaim ? 'WINNER DRAWN - CLAIM' :
-                 isExpiredWithSales ? 'AWAITING DRAW' :
-                 isNeedsDrawOrSoldOut ? 'SOLD OUT - DRAW NOW' :
-                 isExpiredNoSales ? 'EXPIRED' : raffle.status}
+                  isExpiredWithSales ? 'AWAITING DRAW' :
+                    isNeedsDrawOrSoldOut ? 'SOLD OUT - DRAW NOW' :
+                      isExpiredNoSales ? 'EXPIRED' : raffle.status}
               </div>
             </div>
           </div>
@@ -1271,11 +1313,10 @@ const RaffleDetailView: React.FC<{
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 ${
-                  activeTab === tab.id
-                    ? 'text-magic-green border-magic-green'
-                    : 'text-gray-500 border-transparent hover:text-gray-300'
-                }`}
+                className={`flex items-center gap-2 px-6 py-3 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 ${activeTab === tab.id
+                  ? 'text-magic-green border-magic-green'
+                  : 'text-gray-500 border-transparent hover:text-gray-300'
+                  }`}
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}

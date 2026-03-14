@@ -17,6 +17,18 @@ const ANCHOR_ERROR_MAP: Record<number, string> = {
   6006: 'Game session already initialized.',
   6007: 'Unauthorized — you are not the owner of this game session.',
   6008: 'Invalid game configuration.',
+  // Anchor built-in errors (2000+)
+  2000: 'Instruction missing — check program ID.',
+  2001: 'Instruction fallback failed.',
+  2002: 'Instruction did not deserialize correctly.',
+  2003: 'Constraint violation — account not valid for this action.',
+  2004: 'Constraint not mutable — account must be writable.',
+  2005: 'Constraint signer — account must be a signer.',
+  2006: 'Constraint has one — account does not match expected owner.',
+  2007: 'Constraint owner — account owner mismatch.',
+  2008: 'Constraint rent exempt — account not rent exempt.',
+  2009: 'Constraint seeds — PDA seeds mismatch.',
+  2010: 'Constraint executable — account must be executable.',
   // Solana built-in errors
   0: 'Transaction failed — insufficient funds for fees.',
   1: 'Account not found or not initialized.',

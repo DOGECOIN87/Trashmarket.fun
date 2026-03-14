@@ -389,7 +389,9 @@
 /* Level Selector Bar */
 .skill-level-bar {
   display: flex;
-  gap: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
   background: #0a0a0a;
   padding: 6px 20px;
   border-bottom: 1px solid #333;

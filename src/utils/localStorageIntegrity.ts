@@ -71,3 +71,20 @@ export async function getWithIntegrity(key: string): Promise<string | null> {
     return null;
   }
 }
+
+/**
+ * Legacy synchronous wrappers for standard localStorage access.
+ * Use these for non-sensitive values like UI preferences or last-used wallet.
+ */
+export const setItem = (key: string, value: string): void => {
+  localStorage.setItem(key, value);
+};
+
+export const getItem = (key: string): string | null => {
+  return localStorage.getItem(key);
+};
+
+export const removeItem = (key: string): void => {
+  localStorage.removeItem(key);
+};
+

@@ -3,16 +3,10 @@ use anchor_spl::token_interface::{self, TokenInterface, TokenAccount, TransferCh
 
 declare_id!("5gJkp3DsVTtBP6k7WtbiNBjQhAESgGrgu6AJfypMCAwe");
 
-/// Maximum deposit amount (1 billion DEBRIS in human-readable units)
-const MAX_DEPOSIT: u64 = 1_000_000_000;
-/// Maximum game score
-const MAX_SCORE: u64 = 999_999_999;
-/// DEBRIS token decimals (10^9)
-const DEBRIS_DECIMALS_MULTIPLIER: u64 = 1_000_000_000;
-/// Platform fee in basis points (2.5%)
-const PLATFORM_FEE_BPS: u64 = 250;
-/// Maximum initial balance for new game sessions (free-play cap)
-const MAX_INITIAL_BALANCE: u64 = 100;
+/// Maximum deposit amount (increased for higher level play)
+const MAX_DEPOSIT: u64 = 1_000_000_000; // Still 1B - plenty for 9999.
+/// Maximum initial balance for new game sessions (increased to 9999)
+const MAX_INITIAL_BALANCE: u64 = 9999;
 
 #[program]
 pub mod junkpusher {

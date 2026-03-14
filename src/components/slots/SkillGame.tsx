@@ -34,7 +34,7 @@ const GRID_WEIGHTS = [3, 5, 8, 11, 13, 15, 17, 19, 20];
 const GRID_TOTAL_WEIGHT = GRID_WEIGHTS.reduce((a, b) => a + b, 0);
 
 // Fixed play levels (wager amounts) - players pick one of these
-const PLAY_LEVELS = [10, 25, 50, 100, 250];
+const PLAY_LEVELS = [10, 25, 50, 100, 250, 1000, 2500, 5000, 9999];
 
 // ─── Outcome Pool (Patent-inspired controlled grid construction) ──────
 // Pre-determines game outcome, then constructs grid to match.
@@ -43,15 +43,15 @@ const PLAY_LEVELS = [10, 25, 50, 100, 250];
 //     + 0.03×3.0 + 0.02×5.0 + 0.006×10 + 0.002×30 ≈ 0.90
 const OUTCOME_POOL = [
   { tier: -1, weight: 257 }, // 25.7% LOSS
-  { tier: 8,  weight: 300 }, // 30.0% → 0.4x
-  { tier: 7,  weight: 150 }, // 15.0% → 0.7x
-  { tier: 6,  weight: 120 }, // 12.0% → 1.2x
-  { tier: 5,  weight: 65 },  //  6.5% → 1.7x
-  { tier: 4,  weight: 50 },  //  5.0% → 2.2x
-  { tier: 3,  weight: 30 },  //  3.0% → 3.0x
-  { tier: 2,  weight: 20 },  //  2.0% → 5.0x
-  { tier: 1,  weight: 6 },   //  0.6% → 10x
-  { tier: 0,  weight: 2 },   //  0.2% → 30x
+  { tier: 8, weight: 300 }, // 30.0% → 0.4x
+  { tier: 7, weight: 150 }, // 15.0% → 0.7x
+  { tier: 6, weight: 120 }, // 12.0% → 1.2x
+  { tier: 5, weight: 65 },  //  6.5% → 1.7x
+  { tier: 4, weight: 50 },  //  5.0% → 2.2x
+  { tier: 3, weight: 30 },  //  3.0% → 3.0x
+  { tier: 2, weight: 20 },  //  2.0% → 5.0x
+  { tier: 1, weight: 6 },   //  0.6% → 10x
+  { tier: 0, weight: 2 },   //  0.2% → 30x
 ];
 const OUTCOME_TOTAL = OUTCOME_POOL.reduce((s, o) => s + o.weight, 0);
 
@@ -293,21 +293,29 @@ export default function SkillGame() {
   }, [connected, publicKey, refreshDebrisBalance]);
 
   // Restore in-game balance: try on-chain PDA first, then localStorage fallback
+  const refreshGameBalance = useCallback(async () => {
+    if (!publicKey || !connection) return null;
+    try {
+      const pdaBalance = await getPlayerGameBalance(connection, PROGRAM_ID, publicKey);
+      console.log(`[Slots] On-Chain Game Balance: ${pdaBalance}`);
+      if (pdaBalance !== null) {
+        setBalance(pdaBalance);
+        balanceRestoredRef.current = true;
+        return pdaBalance;
+      }
+    } catch (err) {
+      console.warn('[Slots] PDA balance read failed:', err);
+    }
+    return null;
+  }, [publicKey, connection]);
+
   useEffect(() => {
     if (!publicKey || !connection) return;
 
     const restore = async () => {
       // 1. Try reading on-chain game state PDA balance
-      try {
-        const pdaBalance = await getPlayerGameBalance(connection, PROGRAM_ID, publicKey);
-        if (pdaBalance !== null && pdaBalance > 0) {
-          setBalance(pdaBalance);
-          balanceRestoredRef.current = true;
-          return;
-        }
-      } catch (err) {
-        console.warn('[Slots] PDA balance read failed, using localStorage:', err);
-      }
+      const pdaBal = await refreshGameBalance();
+      if (pdaBal !== null) return;
 
       // 2. Fallback: localStorage (with HMAC integrity check)
       const key = `slots_balance_${publicKey.toBase58()}`;
@@ -320,7 +328,7 @@ export default function SkillGame() {
     };
 
     restore();
-  }, [publicKey, connection]);
+  }, [publicKey, connection, refreshGameBalance]);
 
   // Auto-save in-game balance — only after restore has run to prevent clobbering
   useEffect(() => {
@@ -353,13 +361,28 @@ export default function SkillGame() {
     setTxPending(true);
     setTxMessage('Depositing DEBRIS...');
     try {
-      const sig = await onChain.depositBalance(intAmount);
+      const sig = await onChain.depositBalance(intAmount, 0);
       if (sig) {
-        setBalance((prev) => prev + intAmount);
+        const oldBalance = balance;
         setDepositAmount('');
-        setTxMessage('Deposit confirmed!');
+        setTxMessage('Deposit sent! Waiting for confirmation...');
         pushGameEvent('DEPOSIT', `Player deposited ${intAmount} DEBRIS into Skill Game`);
-        setTimeout(() => refreshDebrisBalance(), 2000);
+
+        // Poll for balance change (up to 30 seconds)
+        let attempts = 0;
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          const newBal = await refreshGameBalance();
+          await refreshDebrisBalance();
+
+          if (newBal !== null && newBal !== oldBalance) {
+            setTxMessage('Deposit confirmed!');
+            clearInterval(pollInterval);
+          } else if (attempts >= 15) {
+            setTxMessage('Deposit complete (indexing may take a moment)');
+            clearInterval(pollInterval);
+          }
+        }, 2000);
       } else {
         setTxMessage(onChain.error || 'Deposit failed - check wallet');
       }
@@ -447,7 +470,7 @@ export default function SkillGame() {
 
     // Record spin result on-chain (fire-and-forget)
     if (onChain.isProgramReady && connected) {
-      onChain.recordCoinCollection(won ? winAmount : 0).catch((err) =>
+      onChain.recordCoinCollection(won ? winAmount : 0, 0).catch((err) =>
         console.warn('[Slots] On-chain bet record failed:', err)
       );
     }
@@ -822,9 +845,20 @@ export default function SkillGame() {
           </div>
           <div className="skill-status-group">
             <span className="skill-status-label">DEBRIS</span>
-            <span className="skill-status-value skill-points-value">
-              {balance.toFixed(2)}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="skill-status-value skill-points-value">
+                {balance.toFixed(2)}
+              </span>
+              <button
+                onClick={() => { refreshGameBalance(); refreshDebrisBalance(); }}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors text-adff02"
+                title="Refresh Balance"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -834,7 +868,7 @@ export default function SkillGame() {
               key={level}
               className={`skill-level-btn${index === levelIndex ? ' active' : ''}`}
               onClick={() => handleLevelSelect(index)}
-              disabled={stage !== 'IDLE' || isAnimating || balance < level}
+              disabled={stage !== 'IDLE' || isAnimating}
             >
               {level}
             </button>

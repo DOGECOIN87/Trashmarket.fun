@@ -134,7 +134,7 @@ const GorbagioMarket: React.FC = () => {
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =
-                          'https://via.placeholder.com/300?text=Gorbagio';
+                          '/assets/nft-placeholder.svg';
                       }}
                     />
                   </div>
