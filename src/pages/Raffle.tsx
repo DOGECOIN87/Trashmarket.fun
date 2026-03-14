@@ -4,6 +4,7 @@ import { useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { RaffleService, Raffle as RaffleType, formatGGOR, formatFeeBps, RAFFLE_PROGRAM_ID } from '../services/raffleService';
 import { PublicKey } from '@solana/web3.js';
+import { parseTransactionError } from '../utils/errorMessages';
 import { TicketIcon } from '../components/TicketIcon';
 import { Loader2, AlertCircle, CheckCircle2, X, Search, ChevronLeft, ExternalLink, Copy, Clock, Users, ArrowLeft, Trophy } from 'lucide-react';
 import { BN } from '@coral-xyz/anchor';
@@ -873,6 +874,8 @@ const RaffleDetailView: React.FC<{
   const [activeTab, setActiveTab] = useState<'participants' | 'transactions' | 'terms'>('participants');
   const [countdown, setCountdown] = useState('');
   const [copied, setCopied] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const txInFlightRef = useRef(false);
 
   // Live countdown timer
   useEffect(() => {
@@ -901,17 +904,20 @@ const RaffleDetailView: React.FC<{
   }, [raffle.endTime]);
 
   const handleBuyTicket = async () => {
-    if (!wallet.publicKey) return;
+    if (!wallet.publicKey || txInFlightRef.current) return;
+    txInFlightRef.current = true;
     try {
       setLoading(true);
+      setErrorMsg(null);
       const service = new RaffleService(connection, wallet);
       await service.buyTickets(raffle.raffleId, 1);
       onUpdate();
     } catch (error) {
       console.error('Error buying ticket:', error);
-      alert('Failed to buy ticket. Check console for details.');
+      setErrorMsg(parseTransactionError(error));
     } finally {
       setLoading(false);
+      txInFlightRef.current = false;
     }
   };
 
@@ -938,9 +944,11 @@ const RaffleDetailView: React.FC<{
   // Handle drawing winner for expired or sold-out raffles
   // Handle drawing winner for expired or sold-out raffles (two-phase: draw then claim)
   const handleDrawWinner = async () => {
-    if (!wallet.publicKey) return;
+    if (!wallet.publicKey || txInFlightRef.current) return;
+    txInFlightRef.current = true;
     try {
       setDrawingWinner(true);
+      setErrorMsg(null);
       const service = new RaffleService(connection, wallet);
 
       // Phase 1: Draw winner on-chain (ticket accounts passed as remaining_accounts)
@@ -955,8 +963,8 @@ const RaffleDetailView: React.FC<{
       console.error('Error drawing winner:', error);
       // If draw succeeded but claim failed, the raffle is in "Drawing" state
       // User can retry claim by clicking the button again
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      if (errorMsg.includes('InvalidStatus') || errorMsg.includes('Drawing')) {
+      const rawMsg = error instanceof Error ? error.message : String(error);
+      if (rawMsg.includes('InvalidStatus') || rawMsg.includes('Drawing')) {
         try {
           const service = new RaffleService(connection, wallet);
           await service.claimPrize(raffle.raffleId, new PublicKey(raffle.nftMint));
@@ -964,43 +972,52 @@ const RaffleDetailView: React.FC<{
           return;
         } catch (claimError) {
           console.error('Error claiming prize:', claimError);
+          setErrorMsg(parseTransactionError(claimError));
         }
+      } else {
+        setErrorMsg(parseTransactionError(error));
       }
-      alert('Failed to draw winner. Check console for details.');
     } finally {
       setDrawingWinner(false);
+      txInFlightRef.current = false;
     }
   };
 
   // Handle claiming prize for raffles stuck in "Drawing" state
   const handleClaimPrize = async () => {
-    if (!wallet.publicKey) return;
+    if (!wallet.publicKey || txInFlightRef.current) return;
+    txInFlightRef.current = true;
     try {
       setDrawingWinner(true);
+      setErrorMsg(null);
       const service = new RaffleService(connection, wallet);
       await service.claimPrize(raffle.raffleId, new PublicKey(raffle.nftMint));
       onUpdate();
     } catch (error) {
       console.error('Error claiming prize:', error);
-      alert('Failed to claim prize. Check console for details.');
+      setErrorMsg(parseTransactionError(error));
     } finally {
       setDrawingWinner(false);
+      txInFlightRef.current = false;
     }
   };
 
   // Handle returning NFT to creator for expired raffles with no sales
   const handleReturnNFT = async () => {
-    if (!wallet.publicKey) return;
+    if (!wallet.publicKey || txInFlightRef.current) return;
+    txInFlightRef.current = true;
     try {
       setLoading(true);
+      setErrorMsg(null);
       const service = new RaffleService(connection, wallet);
       await service.cancelRaffle(raffle.raffleId, new PublicKey(raffle.nftMint));
       onUpdate();
     } catch (error) {
       console.error('Error returning NFT:', error);
-      alert('Failed to return NFT. Check console for details.');
+      setErrorMsg(parseTransactionError(error));
     } finally {
       setLoading(false);
+      txInFlightRef.current = false;
     }
   };
 
@@ -1139,6 +1156,17 @@ const RaffleDetailView: React.FC<{
                 </div>
               </div>
             </div>
+
+            {/* Error banner */}
+            {errorMsg && (
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 p-3 text-red-400 text-sm font-mono">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1">{errorMsg}</span>
+                <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-300">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {/* Buy Button / Action Button */}
             {isActive && !isSoldOut && !isExpiredWithSales ? (

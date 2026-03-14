@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Search, Tag, Activity, ShoppingCart, ExternalLink, ArrowRight, Clock, TrendingUp, User, Zap, AlertTriangle, Loader2 } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
+import { parseTransactionError } from '../utils/errorMessages';
 import {
   getListedDomains,
   getRecentSales,
@@ -52,9 +53,10 @@ const Gorid: React.FC = () => {
   const [listingDomain, setListingDomain] = useState<GoridName | null>(null);
   const [listingPrice, setListingPrice] = useState('');
   const [listError, setListError] = useState<string | null>(null);
-  const [isCanceling, setIsCanceling] = useState(false);
+  const [cancelingDomain, setCancelingDomain] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
+  const txInFlightRef = useRef(false);
   const [listedDomainsMap, setListedDomainsMap] = useState<Map<string, GoridListing>>(new Map());
 
   // Stats
@@ -124,6 +126,8 @@ const Gorid: React.FC = () => {
       setBuyError('Please connect your wallet first');
       return;
     }
+    if (txInFlightRef.current) return;
+    txInFlightRef.current = true;
 
     setIsBuying(true);
     setBuyError(null);
@@ -147,7 +151,12 @@ const Gorid: React.FC = () => {
 
       // Send and confirm transaction
       const txSignature = await connection.sendRawTransaction(signedTx.serialize());
-      await connection.confirmTransaction(txSignature, 'confirmed');
+      if (transaction.recentBlockhash && transaction.lastValidBlockHeight) {
+        await connection.confirmTransaction({ signature: txSignature, blockhash: transaction.recentBlockhash, lastValidBlockHeight: transaction.lastValidBlockHeight }, 'confirmed');
+      } else {
+        const latest = await connection.getLatestBlockhash('confirmed');
+        await connection.confirmTransaction({ signature: txSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight }, 'confirmed');
+      }
 
       setBuySuccess(txSignature);
       setSelectedDomain(null);
@@ -166,15 +175,17 @@ const Gorid: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Purchase error:', error);
-      setBuyError(error.message || 'Transaction failed');
+      setBuyError(parseTransactionError(error));
     } finally {
       setIsBuying(false);
+      txInFlightRef.current = false;
     }
   }, [connected, publicKey, signTransaction, connection, address]);
 
   // Handle list domain for sale
   const handleListForSale = useCallback(async () => {
     if (!connected || !address || !publicKey || !signTransaction || !listingDomain || !listingPrice) return;
+    if (txInFlightRef.current) return;
 
     const price = parseFloat(listingPrice);
     if (isNaN(price) || price < TRADING_CONFIG.MIN_PRICE || price > TRADING_CONFIG.MAX_PRICE) {
@@ -182,6 +193,7 @@ const Gorid: React.FC = () => {
       return;
     }
 
+    txInFlightRef.current = true;
     setIsListing(true);
     setListError(null);
 
@@ -196,7 +208,12 @@ const Gorid: React.FC = () => {
       // Sign and send the transaction
       const signedTx = await signTransaction(transaction);
       const txSignature = await connection.sendRawTransaction(signedTx.serialize());
-      await connection.confirmTransaction(txSignature, 'confirmed');
+      if (transaction.recentBlockhash && transaction.lastValidBlockHeight) {
+        await connection.confirmTransaction({ signature: txSignature, blockhash: transaction.recentBlockhash, lastValidBlockHeight: transaction.lastValidBlockHeight }, 'confirmed');
+      } else {
+        const latest = await connection.getLatestBlockhash('confirmed');
+        await connection.confirmTransaction({ signature: txSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight }, 'confirmed');
+      }
 
       // Close modal and refresh
       setListingDomain(null);
@@ -217,9 +234,10 @@ const Gorid: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Listing error:', error);
-      setListError(error.message || 'Failed to create listing');
+      setListError(parseTransactionError(error));
     } finally {
       setIsListing(false);
+      txInFlightRef.current = false;
     }
   }, [connected, address, publicKey, signTransaction, connection, listingDomain, listingPrice]);
 
@@ -233,8 +251,10 @@ const Gorid: React.FC = () => {
   // Handle cancel listing
   const handleCancelListing = useCallback(async (domain: GoridName) => {
     if (!connected || !address || !publicKey || !signTransaction) return;
+    if (txInFlightRef.current) return;
+    txInFlightRef.current = true;
 
-    setIsCanceling(true);
+    setCancelingDomain(domain.domainKey);
     setCancelError(null);
     setCancelSuccess(null);
 
@@ -252,7 +272,12 @@ const Gorid: React.FC = () => {
       // Sign and send the transaction
       const signedTx = await signTransaction(transaction);
       const txSignature = await connection.sendRawTransaction(signedTx.serialize());
-      await connection.confirmTransaction(txSignature, 'confirmed');
+      if (transaction.recentBlockhash && transaction.lastValidBlockHeight) {
+        await connection.confirmTransaction({ signature: txSignature, blockhash: transaction.recentBlockhash, lastValidBlockHeight: transaction.lastValidBlockHeight }, 'confirmed');
+      } else {
+        const latest = await connection.getLatestBlockhash('confirmed');
+        await connection.confirmTransaction({ signature: txSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight }, 'confirmed');
+      }
 
       // After successful on-chain cancellation, refresh data
       invalidateListingsCache();
@@ -271,9 +296,10 @@ const Gorid: React.FC = () => {
       setCancelSuccess(domain.name + ' listing cancelled');
     } catch (error: any) {
       console.error('Cancel listing error:', error);
-      setCancelError(error.message || 'Failed to cancel listing');
+      setCancelError(parseTransactionError(error));
     } finally {
-      setIsCanceling(false);
+      setCancelingDomain(null);
+      txInFlightRef.current = false;
     }
   }, [connected, address, publicKey, signTransaction, connection, listedDomainsMap]);
 
@@ -311,6 +337,38 @@ const Gorid: React.FC = () => {
           <button
             onClick={() => setBuySuccess(null)}
             className="absolute top-2 right-2 text-black/60 hover:text-black"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* Cancel Success Toast */}
+      {cancelSuccess && (
+        <div className="fixed top-20 right-4 z-50 bg-magic-green text-black p-4 border border-magic-green max-w-sm animate-in slide-in-from-right">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            <span className="font-bold uppercase text-sm">{cancelSuccess}</span>
+          </div>
+          <button
+            onClick={() => setCancelSuccess(null)}
+            className="absolute top-2 right-2 text-black/60 hover:text-black"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* Cancel Error Toast */}
+      {cancelError && (
+        <div className="fixed top-20 right-4 z-50 bg-red-500/90 text-white p-4 border border-red-500 max-w-sm animate-in slide-in-from-right">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="font-bold uppercase text-sm">{cancelError}</span>
+          </div>
+          <button
+            onClick={() => setCancelError(null)}
+            className="absolute top-2 right-2 text-white/60 hover:text-white"
           >
             &times;
           </button>
@@ -616,10 +674,10 @@ const Gorid: React.FC = () => {
                             {listedDomainsMap.has(domain.domainKey) ? (
                               <button
                                 onClick={() => handleCancelListing(domain)}
-                                disabled={isCanceling}
+                                disabled={cancelingDomain === domain.domainKey}
                                 className="flex-1 bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-2 text-xs font-bold uppercase hover:bg-red-500/30 transition-colors disabled:opacity-50"
                               >
-                                {isCanceling ? 'Canceling...' : 'Cancel Listing'}
+                                {cancelingDomain === domain.domainKey ? 'Canceling...' : 'Cancel Listing'}
                               </button>
                             ) : (
                               <button

@@ -155,22 +155,20 @@ export class RaffleService {
     return tx;
   }
 
-  // Create a new raffle (two-step: create escrow accounts, then create raffle)
+  // Create a new raffle (atomic: escrow + raffle in a single transaction)
   async createRaffle(
     nftMint: PublicKey,
     ticketPriceGGOR: number,
     totalTickets: number,
     durationHours: number
   ): Promise<{ signature: string; raffleId: number }> {
+    const creator = this.provider.wallet.publicKey;
     const raffleId = Date.now(); // Use timestamp as unique ID
     const endTime = Math.floor(Date.now() / 1000) + (durationHours * 3600);
     const ticketPrice = toGGOR(ticketPriceGGOR);
 
     // Get user's NFT token account
-    const nftTokenAccount = await getAssociatedTokenAddress(
-      nftMint,
-      this.provider.wallet.publicKey
-    );
+    const nftTokenAccount = await getAssociatedTokenAddress(nftMint, creator);
 
     // Get PDAs
     const [rafflePDA] = await this.getRafflePDA(raffleId);
@@ -179,11 +177,14 @@ export class RaffleService {
     const [escrowNftAccount] = await this.getEscrowNftPDA(raffleId);
     const [escrowTokenAccount] = await this.getEscrowGgorPDA(raffleId);
 
-    // Step 1: Create escrow token accounts
-    await this.program.methods
+    // Build both instructions into one atomic transaction
+    const transaction = new Transaction();
+
+    // Instruction 1: Create escrow token accounts
+    const escrowIx = await this.program.methods
       .createEscrow(new BN(raffleId))
       .accounts({
-        creator: this.provider.wallet.publicKey,
+        creator,
         nftMint,
         ggorMint: GGOR_MINT,
         escrowAuthority,
@@ -193,10 +194,12 @@ export class RaffleService {
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
       } as any)
-      .rpc();
+      .instruction();
 
-    // Step 2: Create raffle and transfer NFT
-    const tx = await this.program.methods
+    transaction.add(escrowIx);
+
+    // Instruction 2: Create raffle and transfer NFT
+    const raffleIx = await this.program.methods
       .createRaffle(
         new BN(raffleId),
         ticketPrice,
@@ -206,7 +209,7 @@ export class RaffleService {
       .accounts({
         raffle: rafflePDA,
         raffleState: raffleStatePDA,
-        creator: this.provider.wallet.publicKey,
+        creator,
         nftMint,
         nftTokenAccount,
         escrowNftAccount,
@@ -215,7 +218,19 @@ export class RaffleService {
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
       } as any)
-      .rpc();
+      .instruction();
+
+    transaction.add(raffleIx);
+
+    // Send atomic transaction
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = creator;
+
+    const signed = await this.provider.wallet.signTransaction(transaction);
+    const tx = await this.connection.sendRawTransaction(signed.serialize());
+    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
 
     return { signature: tx, raffleId };
   }
@@ -358,6 +373,7 @@ export class RaffleService {
 
   // Claim prize for a raffle (Phase 2: transfer NFT to winner and GGOR to creator)
   async claimPrize(raffleId: number, nftMint: PublicKey): Promise<string> {
+    const payer = this.provider.wallet.publicKey;
     const [rafflePDA] = await this.getRafflePDA(raffleId);
     const [raffleStatePDA] = await this.getRaffleStatePDA();
     const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
@@ -377,16 +393,43 @@ export class RaffleService {
     const raffleStateData = await this.program.account.raffleState.fetch(raffleStatePDA);
     const platformAuthority = raffleStateData.authority as PublicKey;
 
-    // Get winner's NFT token account
+    // Derive ATAs
     const winnerNftAccount = await getAssociatedTokenAddress(nftMint, winner);
-
-    // Get creator's GGOR token account
     const creatorTokenAccount = await getAssociatedTokenAddress(GGOR_MINT, creator);
-
-    // Get platform's GGOR token account
     const platformTokenAccount = await getAssociatedTokenAddress(GGOR_MINT, platformAuthority);
 
-    const tx = await this.program.methods
+    // Build transaction — create any missing ATAs before the claim instruction
+    const transaction = new Transaction();
+
+    // Check and create winner's NFT ATA if missing
+    try {
+      await getAccount(this.connection, winnerNftAccount);
+    } catch {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(payer, winnerNftAccount, winner, nftMint)
+      );
+    }
+
+    // Check and create creator's GGOR ATA if missing
+    try {
+      await getAccount(this.connection, creatorTokenAccount);
+    } catch {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(payer, creatorTokenAccount, creator, GGOR_MINT)
+      );
+    }
+
+    // Check and create platform's GGOR ATA if missing
+    try {
+      await getAccount(this.connection, platformTokenAccount);
+    } catch {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(payer, platformTokenAccount, platformAuthority, GGOR_MINT)
+      );
+    }
+
+    // Add the claim prize instruction
+    const claimIx = await this.program.methods
       .claimPrize(new BN(raffleId))
       .accounts({
         raffle: rafflePDA,
@@ -404,65 +447,115 @@ export class RaffleService {
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
-        authority: this.provider.wallet.publicKey,
+        authority: payer,
       } as any)
-      .rpc();
+      .instruction();
+
+    transaction.add(claimIx);
+
+    // Send transaction
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = payer;
+
+    const signed = await this.provider.wallet.signTransaction(transaction);
+    const tx = await this.connection.sendRawTransaction(signed.serialize());
+    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
 
     return tx;
   }
 
   // Cancel a raffle (creator only, no tickets sold)
   async cancelRaffle(raffleId: number, nftMint: PublicKey): Promise<string> {
+    const payer = this.provider.wallet.publicKey;
     const [rafflePDA] = await this.getRafflePDA(raffleId);
     const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
     const [escrowNftAccount] = await this.getEscrowNftPDA(raffleId);
 
     // Get creator's NFT token account
-    const creatorNftAccount = await getAssociatedTokenAddress(
-      nftMint,
-      this.provider.wallet.publicKey
-    );
+    const creatorNftAccount = await getAssociatedTokenAddress(nftMint, payer);
 
-    const tx = await this.program.methods
+    const transaction = new Transaction();
+
+    // Ensure creator's NFT ATA exists (may have been closed)
+    try {
+      await getAccount(this.connection, creatorNftAccount);
+    } catch {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(payer, creatorNftAccount, payer, nftMint)
+      );
+    }
+
+    const cancelIx = await this.program.methods
       .cancelRaffle(new BN(raffleId))
       .accounts({
         raffle: rafflePDA,
-        authority: this.provider.wallet.publicKey,
+        authority: payer,
         escrowNftAccount,
         creatorNftAccount,
         escrowAuthority,
         tokenProgram: TOKEN_PROGRAM_ID,
       } as any)
-      .rpc();
+      .instruction();
+
+    transaction.add(cancelIx);
+
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = payer;
+
+    const signed = await this.provider.wallet.signTransaction(transaction);
+    const tx = await this.connection.sendRawTransaction(signed.serialize());
+    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
 
     return tx;
   }
 
   // Return unsold NFT to creator (automatic for expired raffles with no sales)
   async returnUnsoldNFT(raffleId: number, nftMint: PublicKey, creatorAddress: PublicKey): Promise<string> {
+    const payer = this.provider.wallet.publicKey;
     const [rafflePDA] = await this.getRafflePDA(raffleId);
     const [escrowAuthority] = await this.getEscrowAuthorityPDA(raffleId);
     const [escrowNftAccount] = await this.getEscrowNftPDA(raffleId);
 
     // Get creator's NFT token account
-    const creatorNftAccount = await getAssociatedTokenAddress(
-      nftMint,
-      creatorAddress
-    );
+    const creatorNftAccount = await getAssociatedTokenAddress(nftMint, creatorAddress);
 
-    // Use the same cancelRaffle method since the logic is identical:
-    // Transfer NFT from escrow back to creator and close escrow accounts
-    const tx = await this.program.methods
+    const transaction = new Transaction();
+
+    // Ensure creator's NFT ATA exists (may have been closed)
+    try {
+      await getAccount(this.connection, creatorNftAccount);
+    } catch {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(payer, creatorNftAccount, creatorAddress, nftMint)
+      );
+    }
+
+    const cancelIx = await this.program.methods
       .cancelRaffle(new BN(raffleId))
       .accounts({
         raffle: rafflePDA,
-        authority: this.provider.wallet.publicKey,
+        authority: payer,
         escrowNftAccount,
         creatorNftAccount,
         escrowAuthority,
         tokenProgram: TOKEN_PROGRAM_ID,
       } as any)
-      .rpc();
+      .instruction();
+
+    transaction.add(cancelIx);
+
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = payer;
+
+    const signed = await this.provider.wallet.signTransaction(transaction);
+    const tx = await this.connection.sendRawTransaction(signed.serialize());
+    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
 
     return tx;
   }
