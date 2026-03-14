@@ -26,6 +26,7 @@ import {
 } from '@solana/web3.js';
 import { RPC_ENDPOINTS } from '../lib/rpcConfig';
 import type { NetworkType } from '../contexts/NetworkContext';
+import { parseTransactionError } from '../utils/errorMessages';
 import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
@@ -231,12 +232,26 @@ export async function buildBuyTransaction(
   const marketplaceFee = Math.round((priceLamports * MARKETPLACE_FEE_BPS) / 10000);
   const sellerProceeds = priceLamports - marketplaceFee;
 
-  // Verify buyer has enough SOL
+  // Verify buyer has enough SOL (including ATA rent if needed)
   const buyerBalance = await connection.getBalance(buyerWallet);
   const estimatedTxFee = 10000; // ~0.00001 SOL for tx fees
-  if (buyerBalance < priceLamports + estimatedTxFee) {
+  const ataRent = 2039280; // Rent for ATA (~0.002 SOL)
+  
+  // Check if buyer already has ATA to determine if rent is needed
+  const buyerAta = await getAssociatedTokenAddress(mintPubkey, buyerWallet);
+  let needsAtaCreation = false;
+  try {
+    await getAccount(connection, buyerAta);
+  } catch (err) {
+    if (err instanceof TokenAccountNotFoundError) {
+      needsAtaCreation = true;
+    }
+  }
+  
+  const totalRequired = priceLamports + estimatedTxFee + (needsAtaCreation ? ataRent : 0);
+  if (buyerBalance < totalRequired) {
     throw new Error(
-      `Insufficient SOL. You need ${(priceLamports + estimatedTxFee) / LAMPORTS_PER_SOL} SOL but have ${buyerBalance / LAMPORTS_PER_SOL} SOL`,
+      `Insufficient SOL. You need ${totalRequired / LAMPORTS_PER_SOL} SOL but have ${buyerBalance / LAMPORTS_PER_SOL} SOL`,
     );
   }
 
@@ -261,11 +276,7 @@ export async function buildBuyTransaction(
   );
 
   // 3. Ensure buyer has an ATA for the NFT
-  const buyerAta = await getAssociatedTokenAddress(mintPubkey, buyerWallet);
-  try {
-    await getAccount(connection, buyerAta);
-  } catch {
-    // Create ATA if it doesn't exist
+  if (needsAtaCreation) {
     tx.add(
       createAssociatedTokenAccountInstruction(
         buyerWallet, // payer
@@ -345,7 +356,7 @@ export async function executeBuy(
     return { success: true, signature };
   } catch (err: any) {
     console.error('[GorbagioMarketplace] Buy failed:', err);
-    return { success: false, error: err.message || 'Transaction failed' };
+    return { success: false, error: parseTransactionError(err) };
   }
 }
 

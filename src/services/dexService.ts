@@ -1,3 +1,5 @@
+import { parseTransactionError } from '../utils/errorMessages';
+
 const GORAPI_BASE = 'https://gorapi.trashscan.io';
 
 export interface DexToken {
@@ -368,8 +370,12 @@ export const executeSwap = async (
       maxRetries: 3,
     });
 
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
+    // Wait for confirmation with modern API
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    await connection.confirmTransaction(
+      { signature, blockhash, lastValidBlockHeight },
+      'confirmed'
+    );
 
     return { signature, success: true };
   } catch (error: any) {
@@ -377,7 +383,7 @@ export const executeSwap = async (
     return {
       signature: '',
       success: false,
-      error: error.message || 'Swap execution failed',
+      error: parseTransactionError(error),
     };
   }
 };

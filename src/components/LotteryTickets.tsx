@@ -14,6 +14,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import BN from "bn.js";
 import { Loader2, Ticket, AlertCircle, CheckCircle2, RefreshCw, Info, X, Lock } from 'lucide-react';
 import { getDebrisBalance } from '../lib/tokenService';
+import { parseTransactionError } from '../utils/errorMessages';
 
 const RPC = "https://rpc.trashscan.io";
 const PROGRAM_ID = new PublicKey("HStdQm36PAk5KzizXqFmkN6LZ2sW7HgHTxsDDUeJqarw");
@@ -96,7 +97,13 @@ const LotteryTickets: React.FC = () => {
 
     const handleConvert = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!IS_FEATURE_ENABLED) return;
+        
+        // Enforce feature flag
+        if (!IS_FEATURE_ENABLED) {
+            setStatus('error');
+            setMessage('This feature is temporarily disabled');
+            return;
+        }
         
         if (!publicKey || !signTransaction) {
             setStatus('error');
@@ -158,15 +165,21 @@ const LotteryTickets: React.FC = () => {
             });
 
             transaction.feePayer = publicKey;
-            const { blockhash } = await conn.getLatestBlockhash();
+            const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
             transaction.recentBlockhash = blockhash;
 
             setMessage('Please sign the transaction...');
             const signed = await signTransaction(transaction);
             
             setMessage('Confirming transaction...');
-            const signature = await conn.sendRawTransaction(signed.serialize());
-            await conn.confirmTransaction(signature, "confirmed");
+            const signature = await conn.sendRawTransaction(signed.serialize(), {
+                skipPreflight: false,
+                maxRetries: 3,
+            });
+            await conn.confirmTransaction(
+                { signature, blockhash, lastValidBlockHeight },
+                'confirmed'
+            );
 
             setStatus('success');
             setMessage(`Successfully converted ${amount} JUNK!`);
@@ -175,7 +188,7 @@ const LotteryTickets: React.FC = () => {
         } catch (err: any) {
             console.error("Transaction failed:", err);
             setStatus('error');
-            setMessage(err.message || 'Transaction failed');
+            setMessage(parseTransactionError(err));
         }
     };
 

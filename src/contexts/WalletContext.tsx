@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { GORBAGANA_CONFIG } from './NetworkContext';
+import { setItem, getItem, removeItem } from '../utils/localStorageIntegrity';
 
 // Wallet Types
 type WalletType = 'backpack' | 'gorbag' | null;
@@ -147,7 +148,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
 
       // Store last used wallet
-      localStorage.setItem('gorbagana_last_wallet', walletType);
+      setItem('gorbagana_last_wallet', walletType);
       
     } catch (err: any) {
       console.error('Wallet connection error:', err);
@@ -186,13 +187,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       balance: null,
     });
     
-    localStorage.removeItem('gorbagana_last_wallet');
+    removeItem('gorbagana_last_wallet');
     setError(null);
   }, []); // stable — uses ref instead of walletState
 
   // Auto-reconnect on mount if previously connected
   useEffect(() => {
-    const lastWallet = localStorage.getItem('gorbagana_last_wallet') as WalletType;
+    const lastWallet = getItem('gorbagana_last_wallet') as WalletType;
     if (lastWallet && checkWalletInstalled(lastWallet)) {
       // Small delay to ensure wallet extension is loaded
       const timer = setTimeout(() => {

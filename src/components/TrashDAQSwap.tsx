@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronDown, ArrowDownUp, RefreshCw, HelpCircle, Settings, X, AlertCircle, CheckCircle } from 'lucide-react';
 import { getDexTokens, getMarketsForToken, calculateSwapEstimate, formatPrice, getTokenBalance, executeSwap, type DexToken } from '../services/dexService';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
+import { parseTransactionError } from '../utils/errorMessages';
 
 interface SwapState {
     sellToken: DexToken | null;
@@ -60,6 +61,7 @@ export default function TrashDAQSwap() {
     const [showBuySelect, setShowBuySelect] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [txStatus, setTxStatus] = useState<TransactionStatus>({ status: 'idle', message: '' });
+    const txInFlightRef = useRef(false);
 
     // Load tokens on mount
     useEffect(() => {
@@ -241,12 +243,19 @@ export default function TrashDAQSwap() {
             return;
         }
 
+        // Guard against double-click
+        if (txInFlightRef.current) {
+            setTxStatus({ status: 'error', message: 'Transaction already in progress' });
+            return;
+        }
+
         const sellAmount = parseFloat(state.sellAmount);
         if (sellAmount <= 0 || sellAmount > state.sellBalance) {
             setTxStatus({ status: 'error', message: 'Insufficient balance for swap' });
             return;
         }
 
+        txInFlightRef.current = true;
         setTxStatus({ status: 'pending', message: 'Processing swap...' });
 
         try {
@@ -293,6 +302,8 @@ export default function TrashDAQSwap() {
                 status: 'error',
                 message: error.message || 'Swap execution failed'
             });
+        } finally {
+            txInFlightRef.current = false;
         }
     };
 
@@ -567,10 +578,10 @@ export default function TrashDAQSwap() {
                 {/* Swap Button */}
                 <button
                     onClick={handleSwap}
-                    disabled={!state.sellToken || !state.buyToken || !state.sellAmount || parseFloat(state.sellAmount) <= 0 || !connected || txStatus.status === 'pending'}
+                    disabled={!state.sellToken || !state.buyToken || !state.sellAmount || parseFloat(state.sellAmount) <= 0 || !connected || txInFlightRef.current}
                     className="w-full bg-magic-green hover:bg-magic-green/90 disabled:bg-gray-800 disabled:text-gray-600 text-black font-bold py-3 px-4 rounded-lg transition-all uppercase tracking-wider text-sm shadow-lg shadow-magic-green/20 hover:shadow-magic-green/40 disabled:shadow-none"
                 >
-                    {!connected ? 'Connect Wallet' : !state.sellToken || !state.buyToken ? 'Select Tokens' : txStatus.status === 'pending' ? 'Processing...' : 'Swap'}
+                    {!connected ? 'Connect Wallet' : !state.sellToken || !state.buyToken ? 'Select Tokens' : txInFlightRef.current ? 'Processing...' : 'Swap'}
                 </button>
             </div>
 

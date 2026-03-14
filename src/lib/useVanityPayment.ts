@@ -113,6 +113,7 @@ export function useVanityPayment() {
   const sessionSpentRef = useRef(0);
   const sessionMatchesRef = useRef(0);
   const isMiningRef = useRef(false);
+  const txInFlightRef = useRef(false);
 
   const provider = useMemo(() => {
     if (!connection || !publicKey || !signTransaction || !wallet) return null;
@@ -278,6 +279,13 @@ export function useVanityPayment() {
       return false;
     }
 
+    // Guard against double-click
+    if (txInFlightRef.current) {
+      setError('Transaction already in progress');
+      return false;
+    }
+
+    txInFlightRef.current = true;
     setIsDepositing(true);
     setError(null);
 
@@ -308,6 +316,7 @@ export function useVanityPayment() {
       setError(`Deposit failed: ${err.message || 'Unknown error'}`);
       return false;
     } finally {
+      txInFlightRef.current = false;
       setIsDepositing(false);
     }
   }, [connected, publicKey, program, provider, refreshBalance]);
@@ -328,6 +337,13 @@ export function useVanityPayment() {
       return false;
     }
 
+    // Guard against double-click
+    if (txInFlightRef.current) {
+      setError('Transaction already in progress');
+      return false;
+    }
+
+    txInFlightRef.current = true;
     setIsWithdrawing(true);
     setError(null);
 
@@ -357,6 +373,7 @@ export function useVanityPayment() {
       setError(`Withdrawal failed: ${err.message || 'Unknown error'}`);
       return false;
     } finally {
+      txInFlightRef.current = false;
       setIsWithdrawing(false);
     }
   }, [connected, publicKey, program, provider, miningAccount]);
