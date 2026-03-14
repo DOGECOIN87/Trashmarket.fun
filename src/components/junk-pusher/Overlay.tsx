@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GameState } from '../../types/types';
+import { GameState } from '../../lib/types';
 import type { GameEngine } from '../../lib/GameEngine';
 import { HighScoreBoard } from './HighScoreBoard';
 import { SoundControl } from './SoundControl';

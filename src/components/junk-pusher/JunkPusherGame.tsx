@@ -3,7 +3,7 @@ import { useConnection } from '@solana/wallet-adapter-react';
 import { GameEngine } from '../../lib/GameEngine';
 import { Overlay } from './Overlay';
 import AudioPlayer from './AudioPlayer';
-import { GameState } from '../../types/types';
+import { GameState } from '../../lib/types';
 import { useGameWallet } from './WalletAdapter';
 import { useJunkPusherOnChain } from '../../lib/useJunkPusherOnChain';
 import { getPlayerGameBalance } from '../../lib/highScoreService';
@@ -39,6 +39,8 @@ const JunkPusherGame: React.FC = () => {
     const onChainRef = useRef(onChain);
     onChainRef.current = onChain;
 
+    // Guard against double-click on deposit/withdraw
+    const txInFlightRef = useRef(false);
     const lastScoreMilestoneRef = useRef(0);
     const handleUpdate = useCallback((partialState: Partial<GameState>) => {
         setGameState(prev => {
@@ -239,8 +241,10 @@ const JunkPusherGame: React.FC = () => {
     }, [wallet.isConnected]);
 
     const handleDeposit = useCallback(async (amount: number): Promise<string | null> => {
+        if (txInFlightRef.current) return null; // double-click guard
         const oc = onChainRef.current;
         if (oc.isProgramReady && wallet.isConnected) {
+            txInFlightRef.current = true;
             try {
                 const sig = await oc.depositBalance(amount);
                 if (sig) {
@@ -252,20 +256,26 @@ const JunkPusherGame: React.FC = () => {
             } catch (err) {
                 console.error('[JunkPusher] Deposit failed:', err);
                 return null;
+            } finally {
+                txInFlightRef.current = false;
             }
         }
         return null;
     }, [wallet.isConnected]);
 
     const handleWithdraw = useCallback(async (amount: number): Promise<string | null> => {
+        if (txInFlightRef.current) return null; // double-click guard
         const oc = onChainRef.current;
         const currentBalance = gameStateRef.current.balance;
         if (!oc.isProgramReady || !wallet.isConnected) return null;
         if (amount <= 0 || amount > currentBalance) return null;
 
+        txInFlightRef.current = true;
         try {
             const intAmount = Math.floor(amount);
-            const sig = await oc.withdrawBalance(intAmount, intAmount, Math.floor(currentBalance));
+            // verifiedWinnings = netProfit (clamped to 0 minimum — can't withdraw if net negative)
+            const verifiedWinnings = Math.max(0, Math.floor(gameStateRef.current.netProfit));
+            const sig = await oc.withdrawBalance(intAmount, verifiedWinnings, Math.floor(currentBalance));
             if (sig) {
                 // Deduct from engine balance
                 if (engineRef.current) {
@@ -279,6 +289,8 @@ const JunkPusherGame: React.FC = () => {
         } catch (err) {
             console.error('[JunkPusher] Withdraw failed:', err);
             return null;
+        } finally {
+            txInFlightRef.current = false;
         }
     }, [wallet.isConnected]);
 

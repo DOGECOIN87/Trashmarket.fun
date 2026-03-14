@@ -886,6 +886,81 @@
   }
 }
 
+/* Fairness Disclosure Modal */
+.skill-fairness-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 20px;
+}
+
+.skill-fairness-modal {
+  position: relative;
+  max-width: 520px;
+  width: 100%;
+  background: #0a0a0a;
+  border: 2px solid #adff02;
+  box-shadow: 0 0 40px rgba(173, 255, 2, 0.25);
+  padding: 28px 24px 24px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.skill-fairness-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #888;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.15s;
+}
+
+.skill-fairness-close:hover {
+  color: #adff02;
+}
+
+.skill-fairness-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: #adff02;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin: 0 0 16px;
+  text-shadow: 0 0 10px rgba(173, 255, 2, 0.4);
+}
+
+.skill-fairness-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skill-fairness-body p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #bbb;
+  margin: 0;
+}
+
+.skill-fairness-body strong {
+  color: #adff02;
+}
+
+.skill-fairness-body em {
+  font-style: italic;
+  color: #ddd;
+}
+
 /* Responsive - Very small screens */
 @media (max-width: 480px) {
   .skill-game-container {

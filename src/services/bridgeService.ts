@@ -78,7 +78,7 @@ export const useBridgeService = () => {
 
     const signedTx = await wallet.signTransaction(tx);
     const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
-      skipPreflight: true,
+      skipPreflight: false,
       maxRetries: 2,
     });
 
@@ -416,7 +416,7 @@ export const useBridgeService = () => {
 
     const signedTx = await wallet.signTransaction(tx);
     const txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
-      skipPreflight: true,
+      skipPreflight: false,
       maxRetries: 2,
     });
 

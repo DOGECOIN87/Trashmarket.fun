@@ -17,6 +17,7 @@ import { JunkPusherClient, PROGRAM_ID } from './JunkPusherClient';
 import { getDebrisBalance, TokenBalance } from './tokenService';
 import { getHighScores, getPlayerRank, HighScoreEntry } from './highScoreService';
 import { TOKEN_CONFIG } from './tokenConfig';
+import { parseTransactionError } from '../utils/errorMessages';
 
 export type TxLabel = 'Deposit DEBRIS' | 'Withdraw DEBRIS' | 'Initialize Game' | 'Record Score' | 'Bump' | '';
 
@@ -143,7 +144,7 @@ export function useJunkPusherOnChain() {
         setState((s) => ({
           ...s,
           txStatus: 'error',
-          error: err.message || 'Transaction failed',
+          error: parseTransactionError(err),
         }));
         setTimeout(() => {
           setState((s) => ({ ...s, txStatus: 'idle', txLabel: '' }));
@@ -226,19 +227,23 @@ export function useJunkPusherOnChain() {
     [publicKey, sendTx, ensureInitialized],
   );
 
-  /** Withdraw DEBRIS tokens from game balance */
+  /**
+   * Withdraw DEBRIS tokens from game balance.
+   * verifiedWinnings must be the player's tracked net profit (NOT the withdrawal amount).
+   * currentBalance must be the player's actual on-chain game balance.
+   */
   const withdrawBalance = useCallback(
-    async (amount: number, verifiedWinnings?: number, currentBalance?: number) => {
+    async (amount: number, verifiedWinnings: number, currentBalance: number) => {
       if (!publicKey) return null;
       const ix = await client.withdrawBalance(publicKey, {
         amount,
-        verifiedWinnings: verifiedWinnings ?? amount,
-        currentBalance: currentBalance ?? state.debrisBalance,
+        verifiedWinnings,
+        currentBalance,
       });
       const tx = new Transaction().add(ix);
       return sendTx(tx, 'Withdraw DEBRIS');
     },
-    [publicKey, sendTx, state.debrisBalance],
+    [publicKey, sendTx],
   );
 
   // ─── Update balance (admin-signed via backend) ──────────────────────
@@ -343,7 +348,7 @@ export function useJunkPusherOnChain() {
         setState((s) => ({
           ...s,
           txStatus: 'error',
-          error: err.message || 'Update balance failed',
+          error: parseTransactionError(err),
         }));
         setTimeout(() => {
           setState((s) => ({ ...s, txStatus: 'idle', txLabel: '' }));

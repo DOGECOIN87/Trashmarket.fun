@@ -7,6 +7,8 @@ import { useJunkPusherOnChain } from '../../lib/useJunkPusherOnChain';
 import { getPlayerGameBalance } from '../../lib/highScoreService';
 import { PROGRAM_ID } from '../../lib/JunkPusherClient';
 import { pushGameEvent } from '../../services/activityService';
+import { parseTransactionError } from '../../utils/errorMessages';
+import { setWithIntegrity, getWithIntegrity } from '../../utils/localStorageIntegrity';
 import './SkillGame.css';
 
 const SYMBOL_IMAGES = [
@@ -233,6 +235,7 @@ export default function SkillGame() {
   // Core game state
   const [grid, setGrid] = useState<CellValue[]>(Array(9).fill(null));
   const [balance, setBalance] = useState(0);
+  const [netProfit, setNetProfit] = useState(0); // Track cumulative net profit for withdrawal verification
   const [levelIndex, setLevelIndex] = useState(0);
   const playLevel = PLAY_LEVELS[levelIndex];
   const [currentWin, setCurrentWin] = useState(0);
@@ -244,6 +247,7 @@ export default function SkillGame() {
   const [previewShown, setPreviewShown] = useState(false);
   const [playButtonText, setPlayButtonText] = useState('Play');
   const [isPlayDisabled, setIsPlayDisabled] = useState(false);
+  const [showFairness, setShowFairness] = useState(false);
 
   // Spin animation
   const [spinningCells, setSpinningCells] = useState<boolean[]>(
@@ -305,9 +309,9 @@ export default function SkillGame() {
         console.warn('[Slots] PDA balance read failed, using localStorage:', err);
       }
 
-      // 2. Fallback: localStorage
+      // 2. Fallback: localStorage (with HMAC integrity check)
       const key = `slots_balance_${publicKey.toBase58()}`;
-      const saved = localStorage.getItem(key);
+      const saved = await getWithIntegrity(key);
       if (saved) {
         const parsed = parseFloat(saved);
         if (!isNaN(parsed) && parsed > 0) setBalance(parsed);
@@ -322,7 +326,9 @@ export default function SkillGame() {
   useEffect(() => {
     if (!publicKey || !balanceRestoredRef.current) return;
     const key = `slots_balance_${publicKey.toBase58()}`;
-    localStorage.setItem(key, balance.toString());
+    setWithIntegrity(key, balance.toString()).catch((err) =>
+      console.error('[Slots] HMAC save failed:', err)
+    );
   }, [balance, publicKey]);
 
   // ─── Deposit DEBRIS into game ────────────────────────────────────────
@@ -359,7 +365,7 @@ export default function SkillGame() {
       }
     } catch (err: any) {
       console.error('[Slots] Deposit error:', err);
-      setTxMessage(err.message || 'Deposit failed');
+      setTxMessage(parseTransactionError(err));
     } finally {
       setTxPending(false);
       setTimeout(() => setTxMessage(null), 5000);
@@ -387,7 +393,9 @@ export default function SkillGame() {
     setTxPending(true);
     setTxMessage('Withdrawing DEBRIS...');
     try {
-      const sig = await onChain.withdrawBalance(intAmount, intAmount, Math.floor(balance));
+      // verifiedWinnings = netProfit (clamped to 0 — can't withdraw if net negative)
+      const verifiedWinnings = Math.max(0, Math.floor(netProfit));
+      const sig = await onChain.withdrawBalance(intAmount, verifiedWinnings, Math.floor(balance));
       if (sig) {
         setBalance((prev) => prev - intAmount);
         setWithdrawAmount('');
@@ -398,7 +406,7 @@ export default function SkillGame() {
       }
     } catch (err: any) {
       console.error('[Slots] Withdraw error:', err);
-      setTxMessage(err.message || 'Withdrawal failed');
+      setTxMessage(parseTransactionError(err));
     } finally {
       setTxPending(false);
       setTimeout(() => setTxMessage(null), 5000);
@@ -429,11 +437,19 @@ export default function SkillGame() {
 
     if (won && winAmount > 0) {
       setBalance((prev) => prev + winAmount);
+      setNetProfit((prev) => prev + winAmount);
       setCurrentWin(winAmount);
       setStatusMessage('You Win!');
       pushGameEvent('WIN', `Player won ${winAmount} DEBRIS on Skill Game`);
     } else if (!won) {
       setStatusMessage('Try Again');
+    }
+
+    // Record spin result on-chain (fire-and-forget)
+    if (onChain.isProgramReady && connected) {
+      onChain.recordCoinCollection(won ? winAmount : 0).catch((err) =>
+        console.warn('[Slots] On-chain bet record failed:', err)
+      );
     }
 
     addTimeout(() => {
@@ -589,6 +605,7 @@ export default function SkillGame() {
 
     // Deduct wager upfront
     setBalance((prev) => prev - playLevel);
+    setNetProfit((prev) => prev - playLevel);
     setStatusMessage(null);
     setIsPlayDisabled(true);
 
@@ -827,11 +844,7 @@ export default function SkillGame() {
         <div className="skill-button-bar">
           <button
             className="skill-game-btn"
-            onClick={() =>
-              alert(
-                'After the spin, tap a cell to place your WILD symbol. If it completes a 3-in-a-row line, you win! Find the best spot for the highest payout. Only the best single line pays out.'
-              )
-            }
+            onClick={() => setShowFairness(true)}
           >
             Help
           </button>
@@ -857,6 +870,23 @@ export default function SkillGame() {
           <span>SKL 402 83 PEN</span>
         </div>
       </div>
+
+      {/* Fairness Disclosure Modal */}
+      {showFairness && (
+        <div className="skill-fairness-overlay" onClick={() => setShowFairness(false)}>
+          <div className="skill-fairness-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="skill-fairness-close" onClick={() => setShowFairness(false)}>X</button>
+            <h2 className="skill-fairness-title">How It Works</h2>
+            <div className="skill-fairness-body">
+              <p><strong>Gameplay:</strong> After the spin, tap a cell to place your WILD symbol. If it completes a 3-in-a-row line, you win! Find the best spot for the highest payout. Only the best single line pays out.</p>
+              <p><strong>Fairness:</strong> Game outcomes are pre-determined using a weighted random pool before the grid is constructed (patent-inspired method US20070232385A1). The grid is then built to match the outcome. Your skill determines <em>where</em> to place the WILD to maximize winnings.</p>
+              <p><strong>RTP:</strong> Approximately 90% Return-To-Player assuming optimal WILD placement. House edge is ~10%.</p>
+              <p><strong>On-Chain:</strong> All deposits, withdrawals, and spin results are recorded on the Gorbagana blockchain. Balances are verified against your on-chain game state PDA.</p>
+              <p><strong>Currency:</strong> DEBRIS token (9 decimals) on Gorbagana network.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

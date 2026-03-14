@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS, DIMENSIONS, COLORS } from './constants';
-import { GameConfig, GameEventCallback } from '../types/types';
+import { GameConfig, GameEventCallback } from './types';
 import { soundManager } from './soundManager';
 
 export class GameEngine {

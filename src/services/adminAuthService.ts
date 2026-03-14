@@ -12,7 +12,7 @@
  *  5. Token is stored in sessionStorage and sent with admin API calls
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://trashmarket-api.workers.dev';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.trashmarket.fun';
 
 export interface AdminSession {
   token: string;

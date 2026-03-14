@@ -1,13 +1,13 @@
 name = "trashmarket-api"
+account_id = "edb092dd191771c72cc81aebc335ab63"
 main = "src/index.ts"
 compatibility_date = "2024-02-08"
 compatibility_flags = ["nodejs_compat"]
 
 # KV namespace for session tokens and rate limiting
-# Will be created on first deploy or manually via: wrangler kv:namespace create "SESSIONS"
-# [[kv_namespaces]]
-# binding = "SESSIONS"
-# id = "<YOUR_KV_NAMESPACE_ID>"
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "3088eba4991a4180afe5962e16b31e13"
 
 # Environment variables (set via wrangler secret put)
 # ADMIN_WALLETS - comma-separated admin wallet addresses

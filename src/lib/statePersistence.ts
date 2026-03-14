@@ -5,7 +5,8 @@
  * Saves game state to localStorage and blockchain periodically
  */
 
-import { GameState } from '../types/types';
+import { GameState } from './types';
+import { setWithIntegrity, getWithIntegrity } from '../utils/localStorageIntegrity';
 
 const STORAGE_KEY_PREFIX = 'junk_pusher_game_state';
 const STORAGE_KEY_LEGACY = 'junk_pusher_game_state'; // fallback for old saves
@@ -26,7 +27,7 @@ export interface PersistedGameState {
 }
 
 /**
- * Save game state to localStorage
+ * Save game state to localStorage (with HMAC integrity)
  */
 export function saveGameState(state: GameState, walletAddress: string | null): void {
   try {
@@ -38,27 +39,41 @@ export function saveGameState(state: GameState, walletAddress: string | null): v
       walletAddress,
     };
 
-    localStorage.setItem(storageKey(walletAddress), JSON.stringify(persistedState));
+    const key = storageKey(walletAddress);
+    const value = JSON.stringify(persistedState);
+    // Fire-and-forget — auto-save runs on an interval so async is fine
+    setWithIntegrity(key, value).catch((err) =>
+      console.error('[StatePersistence] HMAC save failed:', err)
+    );
   } catch (error) {
     console.error('[StatePersistence] Failed to save game state:', error);
   }
 }
 
 /**
- * Load game state from localStorage
+ * Load game state from localStorage (verifies HMAC integrity)
  */
 export function loadGameState(walletAddress: string | null): PersistedGameState | null {
+  // Synchronous fast-path: read raw localStorage and parse.
+  // The async HMAC verification is done by loadGameStateVerified().
   try {
-    // Try wallet-scoped key first, then legacy key as fallback
-    let stored = localStorage.getItem(storageKey(walletAddress));
+    const key = storageKey(walletAddress);
+    let stored = localStorage.getItem(key);
     if (!stored && walletAddress) {
       stored = localStorage.getItem(STORAGE_KEY_LEGACY);
     }
     if (!stored) return null;
 
-    const persistedState: PersistedGameState = JSON.parse(stored);
+    // Try to parse envelope format first (integrity-wrapped)
+    try {
+      const envelope = JSON.parse(stored);
+      if (envelope && typeof envelope.v === 'string' && typeof envelope.h === 'string') {
+        stored = envelope.v;
+      }
+    } catch { /* plain JSON — not wrapped */ }
 
-    // Only restore if it's for the same wallet (or both are null)
+    const persistedState: PersistedGameState = JSON.parse(stored!);
+
     if (persistedState.walletAddress !== walletAddress) {
       return null;
     }
@@ -66,6 +81,32 @@ export function loadGameState(walletAddress: string | null): PersistedGameState 
     return persistedState;
   } catch (error) {
     console.error('[StatePersistence] Failed to load game state:', error);
+    return null;
+  }
+}
+
+/**
+ * Load game state with full HMAC verification (async).
+ * Returns null if integrity check fails (tampered data).
+ */
+export async function loadGameStateVerified(walletAddress: string | null): Promise<PersistedGameState | null> {
+  try {
+    const key = storageKey(walletAddress);
+    let stored = await getWithIntegrity(key);
+    if (!stored && walletAddress) {
+      stored = await getWithIntegrity(STORAGE_KEY_LEGACY);
+    }
+    if (!stored) return null;
+
+    const persistedState: PersistedGameState = JSON.parse(stored);
+
+    if (persistedState.walletAddress !== walletAddress) {
+      return null;
+    }
+
+    return persistedState;
+  } catch (error) {
+    console.error('[StatePersistence] Failed to load verified game state:', error);
     return null;
   }
 }

@@ -22,8 +22,10 @@ import { TOKEN_CONFIG, GAME_TREASURY_WALLET } from './tokenConfig';
 const DEBRIS_MINT = new PublicKey(TOKEN_CONFIG.DEBRIS.address);
 const TREASURY_WALLET = new PublicKey(GAME_TREASURY_WALLET);
 
-// PDA-controlled treasury token account (holds DEBRIS for player payouts)
-const TREASURY_TOKEN_ACCOUNT = new PublicKey('2FiLdUB55vgDz24Hq12FqHuQpkmwJadeERUJqf32zi9J');
+// Derive treasury token account dynamically (PDA-controlled DEBRIS ATA for player payouts)
+const TREASURY_TOKEN_ACCOUNT = getAssociatedTokenAddressSync(
+  DEBRIS_MINT, TREASURY_WALLET, true, TOKEN_2022_PROGRAM_ID
+);
 
 // Program ID from environment, falls back to placeholder
 function getProgramId(): PublicKey {
