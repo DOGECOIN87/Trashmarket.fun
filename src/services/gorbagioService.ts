@@ -1,7 +1,7 @@
 import { Collection, NFT } from '../types';
 
-// Gorbagio API temporarily disabled - will be re-enabled when NFTs are minted on Gorbagana
-// Currently bridging from Solana, will use live data once minting is complete
+// Gorbagio API endpoint — live data with local JSON fallback
+const GORBAGIO_API_URL = 'https://gorapi.trashscan.io';
 
 interface GorbagioAttribute {
   trait_type: string;
@@ -46,21 +46,44 @@ const normalizeWhitespace = (value?: string): string => {
   return value ? value.replace(/\s+/g, ' ').trim() : '';
 };
 
-// Fetch Gorbagios data from local scraped data or API
+// Track whether we're serving cached/local data so the UI can indicate it
+let _isUsingCachedData = false;
+export const isUsingCachedData = (): boolean => _isUsingCachedData;
+
+// Fetch Gorbagios data — live API first, local JSON fallback
 const fetchGorbagios = async (): Promise<GorbagioApiResponse> => {
+  // Try live API first
   try {
-    // Try fetching from local data first (scraped from Magic Eden)
+    const response = await fetch(`${GORBAGIO_API_URL}/nfts/gorbagios`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      _isUsingCachedData = false;
+      return {
+        success: true,
+        count: data.count ?? data.data?.length ?? 0,
+        total: data.total ?? data.data?.length ?? 0,
+        data: data.data ?? data,
+      };
+    }
+  } catch (err) {
+    console.warn('[GorbagioService] Live API unavailable, falling back to local data:', err);
+  }
+
+  // Fallback: local scraped JSON
+  try {
     const response = await fetch('/data/gorbagios_nfts_full.json');
     if (!response.ok) {
-      throw new Error(`Failed to fetch: ${response.status}`);
+      throw new Error(`Failed to fetch local data: ${response.status}`);
     }
 
     const nfts = await response.json();
+    _isUsingCachedData = true;
 
-    // Transform the scraped data to our API format
     const transformedData: GorbagioApiItem[] = nfts.map((nft: any) => ({
       solana_mint: nft.mintAddress,
-      gorbagana_mint: null, // Not bridged yet
+      gorbagana_mint: null,
       current_owner: nft.owner,
       metadata: {
         mintAddress: nft.mintAddress,
@@ -85,14 +108,9 @@ const fetchGorbagios = async (): Promise<GorbagioApiResponse> => {
       data: transformedData
     };
   } catch (error) {
-    console.error('Error fetching Gorbagios:', error);
-    // Return empty data on error
-    return {
-      success: false,
-      count: 0,
-      total: 0,
-      data: []
-    };
+    console.error('[GorbagioService] Error fetching Gorbagios:', error);
+    _isUsingCachedData = false;
+    return { success: false, count: 0, total: 0, data: [] };
   }
 };
 

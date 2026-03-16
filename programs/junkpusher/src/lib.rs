@@ -7,6 +7,12 @@ declare_id!("5gJkp3DsVTtBP6k7WtbiNBjQhAESgGrgu6AJfypMCAwe");
 const MAX_DEPOSIT: u64 = 1_000_000_000; // Still 1B - plenty for 9999.
 /// Maximum initial balance for new game sessions (increased to 9999)
 const MAX_INITIAL_BALANCE: u64 = 9999;
+/// Maximum game score (999,999,999)
+const MAX_SCORE: u64 = 999_999_999;
+/// DEBRIS token has 9 decimals: 1 token = 1_000_000_000 base units
+const DEBRIS_DECIMALS_MULTIPLIER: u64 = 1_000_000_000;
+/// Platform fee in basis points (250 BPS = 2.5%)
+const PLATFORM_FEE_BPS: u64 = 250;
 
 #[program]
 pub mod junkpusher {

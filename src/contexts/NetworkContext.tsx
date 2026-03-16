@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
 import { RPC_ENDPOINTS, EXPLORER_URLS } from '../lib/rpcConfig';
 
 // Network type
@@ -79,9 +79,46 @@ interface NetworkContextType {
 
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
 
+/**
+ * Check if a Gorbagana RPC endpoint is healthy.
+ * Returns true if the endpoint responds to getHealth within timeout.
+ */
+async function checkRpcHealth(endpoint: string, timeoutMs = 3000): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    return data.result === 'ok';
+  } catch {
+    return false;
+  }
+}
+
 export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Default to Gorbagana for main site experience
   const [currentNetwork, setCurrentNetwork] = useState<NetworkType>('GORBAGANA');
+  const [gorbaganaRpc, setGorbaganaRpc] = useState(RPC_ENDPOINTS.GORBAGANA);
+
+  // On mount, check primary Gorbagana RPC and fall back if needed
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const primaryOk = await checkRpcHealth(RPC_ENDPOINTS.GORBAGANA);
+      if (!cancelled && !primaryOk) {
+        console.warn('Primary Gorbagana RPC unavailable, switching to fallback:', RPC_ENDPOINTS.GORBAGANA_FALLBACK);
+        setGorbaganaRpc(RPC_ENDPOINTS.GORBAGANA_FALLBACK);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Get current config based on selected network — memoized to prevent new object every render
   const config = useMemo(() => {
@@ -101,7 +138,8 @@ export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const networkName = config.networkLabel;
   const tpsLabel = config.tpsLabel;
   const accentColor = currentNetwork === 'GORBAGANA' ? 'text-magic-green' : 'text-purple-400';
-  const rpcEndpoint = config.rpcEndpoint;
+  // Use dynamic Gorbagana RPC (may be fallback), static for other networks
+  const rpcEndpoint = currentNetwork === 'GORBAGANA' ? gorbaganaRpc : config.rpcEndpoint;
   const explorerUrl = config.explorerUrl;
   const programId = config.programId;
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ExternalLink, Loader, AlertCircle } from 'lucide-react';
+import { audioManager } from '../lib/audioManager';
 
 interface Gorbagio {
   id: string;
@@ -10,6 +11,7 @@ interface Gorbagio {
 }
 
 const GorbagioMarket: React.FC = () => {
+  useEffect(() => audioManager.playOnInteraction('page_gorbagio'), []);
   const [nfts, setNfts] = useState<Gorbagio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,23 +76,21 @@ const GorbagioMarket: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 font-heading">GORBAGIO MARKET</h1>
-        <p className="text-gray-400">Trade Gorbagio NFTs on Solana via Tensor</p>
-      </div>
-
-      {/* Search Bar */}
-      <div className="mb-8 max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
+    <div className="min-h-screen bg-black text-white p-4 overflow-x-hidden">
+      {/* Header + Search */}
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 max-w-full">
+        <div>
+          <h1 className="text-2xl font-bold font-heading">GORBAGIO MARKET</h1>
+          <p className="text-gray-400 text-sm">Trade Gorbagio NFTs on Solana via Tensor</p>
+        </div>
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
           <input
             type="text"
             placeholder="Search Gorbagios..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-magic-green/30 rounded text-white placeholder-gray-500 focus:outline-none focus:border-magic-green"
+            className="w-full pl-9 pr-4 py-2 text-sm bg-gray-900 border border-magic-green/30 rounded text-white placeholder-gray-500 focus:outline-none focus:border-magic-green"
           />
         </div>
       </div>
@@ -116,18 +116,21 @@ const GorbagioMarket: React.FC = () => {
       {/* NFT Grid */}
       {!loading && !error && (
         <div>
-          <p className="text-gray-400 mb-6">
-            Found {filteredNFTs.length} Gorbagio{filteredNFTs.length !== 1 ? 's' : ''}
+          <p className="text-gray-400 text-sm mb-3">
+            {filteredNFTs.length} Gorbagio{filteredNFTs.length !== 1 ? 's' : ''}
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 max-w-full">
             {filteredNFTs.length > 0 ? (
               filteredNFTs.map((nft) => (
-                <div
+                <a
                   key={nft.id}
-                  className="bg-gray-900 border border-magic-green/20 rounded-lg overflow-hidden hover:border-magic-green/60 transition-all group"
+                  href={getTensorUrl(nft.mint)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-900 border border-magic-green/20 rounded-lg overflow-hidden hover:border-magic-green/60 transition-all group cursor-pointer"
                 >
                   {/* Image */}
-                  <div className="relative overflow-hidden bg-black h-64">
+                  <div className="relative overflow-hidden bg-black aspect-square">
                     <img
                       src={nft.image}
                       alt={nft.name}
@@ -140,24 +143,13 @@ const GorbagioMarket: React.FC = () => {
                   </div>
 
                   {/* Info */}
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg mb-2 truncate">{nft.name}</h3>
-                    <p className="text-xs text-gray-500 mb-4 truncate">
-                      {nft.owner.slice(0, 8)}...{nft.owner.slice(-4)}
+                  <div className="p-2">
+                    <h3 className="font-bold text-xs truncate">{nft.name}</h3>
+                    <p className="text-[10px] text-gray-500 truncate">
+                      {nft.owner.slice(0, 6)}...{nft.owner.slice(-4)}
                     </p>
-
-                    {/* Buy on Tensor Button */}
-                    <a
-                      href={getTensorUrl(nft.mint)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full bg-magic-green text-black font-bold py-2 rounded flex items-center justify-center gap-2 hover:bg-magic-green/80 transition-colors"
-                    >
-                      <span>Buy on Tensor</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
                   </div>
-                </div>
+                </a>
               ))
             ) : (
               <div className="col-span-full text-center py-12">
@@ -169,9 +161,9 @@ const GorbagioMarket: React.FC = () => {
       )}
 
       {/* Info Section */}
-      <div className="mt-12 bg-gray-900/50 border border-magic-green/20 rounded-lg p-6">
-        <h2 className="font-bold text-lg mb-4 font-heading">HOW IT WORKS</h2>
-        <ul className="space-y-3 text-gray-300 text-sm">
+      <div className="mt-8 bg-gray-900/50 border border-magic-green/20 rounded-lg p-4">
+        <h2 className="font-bold text-sm mb-2 font-heading">HOW IT WORKS</h2>
+        <ul className="space-y-1.5 text-gray-300 text-xs">
           <li className="flex gap-3">
             <span className="text-magic-green font-bold">1.</span>
             <span>Browse all Gorbagio NFTs listed on Solana</span>

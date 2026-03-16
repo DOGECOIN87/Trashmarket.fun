@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { audioManager } from '../lib/audioManager';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
@@ -20,6 +21,7 @@ interface UserNFT {
 }
 
 const Raffle: React.FC = () => {
+  useEffect(() => audioManager.playOnInteraction('page_raffle'), []);
   const { connection } = useConnection();
   const wallet = useWallet();
   const [raffles, setRaffles] = useState<RaffleType[]>([]);
@@ -954,9 +956,11 @@ const RaffleDetailView: React.FC<{
       setErrorMsg(null);
       const service = new RaffleService(connection, wallet);
       await service.buyTickets(raffle.raffleId, 1);
+      audioManager.play('purchase_success');
       onUpdate();
     } catch (error) {
       console.error('Error buying ticket:', error);
+      audioManager.play('error');
       setErrorMsg(parseTransactionError(error));
     } finally {
       setLoading(false);
@@ -981,6 +985,7 @@ const RaffleDetailView: React.FC<{
   const isExpiredWithSales = raffle.status === 'active' && raffle.endTime <= Date.now() && raffle.ticketsSold > 0;
   const isNeedsDrawOrSoldOut = isSoldOut && raffle.status === 'active';
   const isDrawingNeedsClaim = raffle.status === 'drawing' && raffle.winner;
+  const isCreatorOrAdmin = wallet.publicKey?.toString() === raffle.creator;
   const nftName = nftMetadata?.content?.metadata?.name || `Raffle #${raffle.raffleId}`;
   const nftImage = nftMetadata?.content?.links?.image;
 
@@ -1000,6 +1005,10 @@ const RaffleDetailView: React.FC<{
 
       // Phase 2: Claim prize - transfer NFT to winner and GGOR to creator
       await service.claimPrize(raffle.raffleId, new PublicKey(raffle.nftMint));
+
+      // Play win/lose sound based on whether the current user is the winner
+      const isWinner = raffle.winner === wallet.publicKey?.toBase58();
+      audioManager.play(isWinner ? 'raffle_win' : 'raffle_lose');
 
       onUpdate();
     } catch (error) {
@@ -1247,23 +1256,30 @@ const RaffleDetailView: React.FC<{
                 )}
               </button>
             ) : (isExpiredWithSales || isNeedsDrawOrSoldOut) ? (
-              <button
-                onClick={handleDrawWinner}
-                disabled={drawingWinner || !wallet.connected}
-                className="w-full py-5 bg-yellow-500 text-black font-bold uppercase tracking-widest text-lg hover:bg-yellow-400 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
-              >
-                {drawingWinner ? (
-                  <>
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                    DRAWING WINNER...
-                  </>
-                ) : (
-                  <>
-                    <Trophy className="w-6 h-6" />
-                    DRAW WINNER
-                  </>
-                )}
-              </button>
+              isCreatorOrAdmin ? (
+                <button
+                  onClick={handleDrawWinner}
+                  disabled={drawingWinner || !wallet.connected}
+                  className="w-full py-5 bg-yellow-500 text-black font-bold uppercase tracking-widest text-lg hover:bg-yellow-400 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                >
+                  {drawingWinner ? (
+                    <>
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      DRAWING WINNER...
+                    </>
+                  ) : (
+                    <>
+                      <Trophy className="w-6 h-6" />
+                      DRAW WINNER
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="w-full py-5 bg-yellow-500/10 border border-yellow-500/30 text-center">
+                  <div className="text-[10px] text-yellow-400 uppercase tracking-widest mb-1">AWAITING DRAW</div>
+                  <div className="text-yellow-400 font-mono text-sm">Only the raffle creator can draw the winner</div>
+                </div>
+              )
             ) : isExpiredNoSales ? (
               <div className="flex flex-col gap-2">
                 {raffle.status === 'cancelled' ? (
@@ -1627,9 +1643,9 @@ const TermsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
     'Each ticket purchase is final and non-refundable.',
     'One ticket is purchased per transaction at the listed GGOR price.',
     `A platform fee of ${formatFeeBps(raffle.platformFeeBps)} is applied to the total ticket sales and deducted upon raffle completion.`,
-    'The winner is selected randomly on-chain when the raffle ends or all tickets are sold.',
-    'The NFT prize is held in escrow by the smart contract until the winner is drawn.',
-    'If no tickets are sold and the raffle expires, the NFT is automatically returned to the creator.',
+    'The winner is selected randomly on-chain when the raffle creator triggers the draw after the raffle ends or sells out.',
+    'The NFT prize is held in escrow by the smart contract until the winner is drawn and the prize is claimed.',
+    'If no tickets are sold and the raffle expires, the NFT can be returned to the creator by cancelling the raffle.',
     'The winning ticket holder will receive the NFT directly to their wallet.',
     'The raffle creator receives the ticket sale proceeds minus the platform fee.',
     'All transactions are recorded on the Gorbagana blockchain and are publicly verifiable.',

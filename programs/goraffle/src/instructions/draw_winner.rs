@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::AccountDeserialize;
-use crate::state::{Raffle, RaffleStatus, TicketAccount};
+use crate::state::{Raffle, RaffleState, RaffleStatus, TicketAccount};
 use crate::error::RaffleError;
 
 #[derive(Accounts)]
@@ -13,7 +13,16 @@ pub struct DrawWinner<'info> {
     )]
     pub raffle: Box<Account<'info, Raffle>>,
 
-    #[account(mut)]
+    #[account(
+        seeds = [b"raffle_state"],
+        bump
+    )]
+    pub raffle_state: Box<Account<'info, RaffleState>>,
+
+    #[account(
+        mut,
+        constraint = authority.key() == raffle.creator || authority.key() == raffle_state.authority @ RaffleError::Unauthorized
+    )]
     pub authority: Signer<'info>,
     // Remaining accounts: all TicketAccount PDAs for this raffle
     // These are passed by the caller and verified on-chain

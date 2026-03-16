@@ -9,6 +9,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
+import { audioManager } from '../lib/audioManager';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,9 @@ export const useAppStore = create<AppStore>()(
         // ─── UI Slice ─────────────────────────────────────────────────
         notifications: [],
         addNotification: (notification) => {
+          // Play sound based on notification type
+          if (notification.type === 'error') audioManager.play('error');
+
           const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
           const newNotification: Notification = {
             ...notification,

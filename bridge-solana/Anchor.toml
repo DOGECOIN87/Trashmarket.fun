@@ -9,19 +9,17 @@ skip-lint = false
 solana_bridge = "9CGxVdboSmVnQYn8vLwK7mTSo7Qd62DFGFxPjxjQPRez"
 
 [programs.mainnet]
-solana_bridge = "11111111111111111111111111111111"
+solana_bridge = "8FeLhyHHxKtnaKBQ2xZJ8Mwq5R8UqPvfBF9CL1BdH67T"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-
-[hooks]
 
 [test]
 startup_wait = 10000

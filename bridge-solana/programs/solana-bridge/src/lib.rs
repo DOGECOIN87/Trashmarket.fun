@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer as SplTransfer};
 
 // TODO: Replace with actual program ID after `anchor keys list`
-declare_id!("9CGxVdboSmVnQYn8vLwK7mTSo7Qd62DFGFxPjxjQPRez");
+declare_id!("8FeLhyHHxKtnaKBQ2xZJ8Mwq5R8UqPvfBF9CL1BdH67T");
 
 // ── Hardcoded Constants ──────────────────────────────────────────────
 /// sGOR SPL Token mint on Solana Mainnet

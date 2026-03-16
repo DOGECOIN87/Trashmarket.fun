@@ -360,6 +360,7 @@ export class RaffleService {
   // Draw winner for a raffle (Phase 1: determine winner on-chain via remaining_accounts)
   async drawWinner(raffleId: string | number): Promise<string> {
     const [rafflePDA] = await this.getRafflePDA(raffleId);
+    const [raffleStatePDA] = await this.getRaffleStatePDA();
 
     // Fetch all ticket accounts for this raffle using memcmp filter
     const raffleIdBytes = new BN(raffleId).toArrayLike(Buffer, 'le', 8);
@@ -387,6 +388,7 @@ export class RaffleService {
       .drawWinner(new BN(raffleId))
       .accounts({
         raffle: rafflePDA,
+        raffleState: raffleStatePDA,
         authority: this.provider.wallet.publicKey,
       } as any)
       .remainingAccounts(remainingAccounts)

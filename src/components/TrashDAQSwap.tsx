@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronDown, ArrowDownUp, RefreshCw, HelpCircle, Settings, X, AlertCircle, CheckCircle } from 'lucide-react';
 import { getDexTokens, getMarketsForToken, calculateSwapEstimate, formatPrice, getTokenBalance, executeSwap, type DexToken } from '../services/dexService';
+import { fetchAllPools, findRoute } from '../services/ammSwap';
+import { audioManager } from '../lib/audioManager';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { parseTransactionError } from '../utils/errorMessages';
@@ -131,15 +133,16 @@ export default function TrashDAQSwap() {
         }
 
         try {
-            // Fetch markets for the sell token
-            const { markets, gorUsd } = await getMarketsForToken(sellToken.mint);
+            // Try fetching markets from gorapi (with on-chain fallback)
+            const { markets, gorUsd } = await getMarketsForToken(sellToken.mint, connection);
 
             // Find a market that includes our buy token
             const market = markets.find((m: any) =>
                 m.baseToken.mint === buyToken.mint || m.quoteToken.mint === buyToken.mint
             );
 
-            if (market) {
+            if (market && market.baseToken.amount > 0 && market.quoteToken.amount > 0) {
+                // gorapi has reserve data - use constant product estimate
                 const isBuyBase = market.baseToken.mint === buyToken.mint;
                 const inputReserve = isBuyBase ? market.quoteToken.amount : market.baseToken.amount;
                 const outputReserve = isBuyBase ? market.baseToken.amount : market.quoteToken.amount;
@@ -148,34 +151,59 @@ export default function TrashDAQSwap() {
                     parseFloat(amount),
                     inputReserve,
                     outputReserve,
-                    0.2 // 0.2% fee
+                    0.25 // 0.25% fee (Meteora CPAMM default)
                 );
 
+                if (priceImpact > 5) audioManager.play('price_impact_warning');
+
+                const poolType = market.type || 'AMM';
                 setState(prev => ({
                     ...prev,
                     buyAmount: outputAmount.toFixed(6),
                     markets,
                     gorUsd,
                     priceImpact,
-                    route: ['Meteora', sellToken.symbol, buyToken.symbol]
+                    route: [poolType, sellToken.symbol, buyToken.symbol]
                 }));
             } else {
-                // No direct market, estimate via GOR
-                const sellToGor = parseFloat(amount) * sellToken.priceNative;
-                const outputAmount = sellToGor / buyToken.priceNative;
+                // Check on-chain pools for route info
+                let routeLabel = 'AMM';
+                if (connection) {
+                    try {
+                        const pools = await fetchAllPools(connection);
+                        const onChainRoute = findRoute(pools, sellToken.mint, buyToken.mint);
+                        if (onChainRoute) {
+                            routeLabel = onChainRoute.pools[0].poolType;
+                        }
+                    } catch { /* ignore - use price estimate */ }
+                }
 
-                setState(prev => ({
-                    ...prev,
-                    buyAmount: outputAmount.toFixed(6),
-                    gorUsd,
-                    priceImpact: 0,
-                    route: ['Meteora', sellToken.symbol, 'GOR', buyToken.symbol]
-                }));
+                // Estimate via price ratio (less accurate but works without reserve data)
+                if (sellToken.priceNative > 0 && buyToken.priceNative > 0) {
+                    const sellToGor = parseFloat(amount) * sellToken.priceNative;
+                    const outputAmount = sellToGor / buyToken.priceNative;
+
+                    setState(prev => ({
+                        ...prev,
+                        buyAmount: outputAmount.toFixed(6),
+                        gorUsd,
+                        priceImpact: 0,
+                        route: [routeLabel, sellToken.symbol, 'GOR', buyToken.symbol]
+                    }));
+                } else {
+                    setState(prev => ({
+                        ...prev,
+                        buyAmount: '0',
+                        gorUsd,
+                        priceImpact: 0,
+                        route: []
+                    }));
+                }
             }
         } catch (error) {
             console.error('Swap calculation failed:', error);
         }
-    }, []);
+    }, [connection]);
 
     const handleSellAmountChange = (value: string) => {
         // Validate input - prevent negative or non-numeric values
@@ -250,7 +278,13 @@ export default function TrashDAQSwap() {
         }
 
         const sellAmount = parseFloat(state.sellAmount);
-        if (sellAmount <= 0 || sellAmount > state.sellBalance) {
+        if (sellAmount <= 0) {
+            setTxStatus({ status: 'error', message: 'Enter a valid amount' });
+            return;
+        }
+        // Only block if we have a confirmed balance and it's insufficient
+        // If balance is 0 (possibly failed to fetch), let on-chain program reject
+        if (state.sellBalance > 0 && sellAmount > state.sellBalance) {
             setTxStatus({ status: 'error', message: 'Insufficient balance for swap' });
             return;
         }
@@ -269,10 +303,13 @@ export default function TrashDAQSwap() {
                 state.buyToken.mint,
                 sellAmount,
                 slippageBps,
-                expectedOutput
+                expectedOutput,
+                state.sellToken.decimals,
+                state.buyToken.decimals
             );
 
             if (result.success) {
+                audioManager.play('swap_success');
                 setTxStatus({
                     status: 'success',
                     message: `Swap successful! Signature: ${result.signature.slice(0, 20)}...`,
@@ -291,6 +328,8 @@ export default function TrashDAQSwap() {
                     setTxStatus({ status: 'idle', message: '' });
                 }, 3000);
             } else {
+                const isExpired = (result.error || '').toLowerCase().includes('expired');
+                audioManager.play(isExpired ? 'swap_expired' : 'swap_fail');
                 setTxStatus({
                     status: 'error',
                     message: result.error || 'Swap failed'
@@ -298,9 +337,12 @@ export default function TrashDAQSwap() {
             }
         } catch (error: any) {
             console.error('Swap error:', error);
+            const msg = parseTransactionError(error);
+            const isExpired = msg.toLowerCase().includes('expired');
+            audioManager.play(isExpired ? 'swap_expired' : 'swap_fail');
             setTxStatus({
                 status: 'error',
-                message: parseTransactionError(error)
+                message: msg
             });
         } finally {
             txInFlightRef.current = false;

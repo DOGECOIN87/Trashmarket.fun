@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { audioManager } from '../lib/audioManager';
 import { Search, Tag, Activity, ShoppingCart, ExternalLink, ArrowRight, Clock, TrendingUp, User, Zap, AlertTriangle, Loader2 } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
@@ -27,6 +28,7 @@ import {
 import { calculateFeesFromHuman, TRADING_CONFIG } from '../lib/trading-config';
 
 const Gorid: React.FC = () => {
+  useEffect(() => audioManager.playOnInteraction('page_gorid'), []);
   const { currency, accentColor, getExplorerLink } = useNetwork();
   const { connected, publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
@@ -158,6 +160,7 @@ const Gorid: React.FC = () => {
         await connection.confirmTransaction({ signature: txSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight }, 'confirmed');
       }
 
+      audioManager.play('purchase_success');
       setBuySuccess(txSignature);
       setSelectedDomain(null);
       invalidateListingsCache();
@@ -175,6 +178,7 @@ const Gorid: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Purchase error:', error);
+      audioManager.play('error');
       setBuyError(parseTransactionError(error));
     } finally {
       setIsBuying(false);
@@ -216,6 +220,7 @@ const Gorid: React.FC = () => {
       }
 
       // Close modal and refresh
+      audioManager.play('list_success');
       setListingDomain(null);
       setListingPrice('');
       invalidateListingsCache();

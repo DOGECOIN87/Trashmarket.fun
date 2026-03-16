@@ -288,9 +288,35 @@ async function handleHealth(env: Env): Promise<Response> {
   });
 }
 
+// Allowed RPC methods — prevent abuse of the RPC proxy
+const ALLOWED_RPC_METHODS = new Set([
+  'getAccountInfo',
+  'getBalance',
+  'getBlock',
+  'getBlockHeight',
+  'getHealth',
+  'getLatestBlockhash',
+  'getMinimumBalanceForRentExemption',
+  'getProgramAccounts',
+  'getSignatureStatuses',
+  'getSlot',
+  'getTokenAccountBalance',
+  'getTokenAccountsByOwner',
+  'getTransaction',
+  'getVersion',
+  'sendTransaction',
+  'simulateTransaction',
+]);
+
 /** Proxy RPC calls to avoid exposing RPC endpoint directly */
 async function handleRpcProxy(request: Request, env: Env): Promise<Response> {
-  const body = await request.json();
+  const body = await request.json() as any;
+
+  // Validate the RPC method is allowed
+  if (!body.method || !ALLOWED_RPC_METHODS.has(body.method)) {
+    return json({ error: `RPC method not allowed: ${body.method || 'missing'}` }, 403);
+  }
+
   const rpcResponse = await fetch(env.GORBAGANA_RPC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

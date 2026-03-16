@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { GORBAGANA_CONFIG } from './NetworkContext';
 import { setItem, getItem, removeItem } from '../utils/localStorageIntegrity';
+import { audioManager } from '../lib/audioManager';
 
 // Wallet Types
 type WalletType = 'backpack' | 'gorbag' | null;
@@ -146,6 +147,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         walletType,
         balance,
       });
+      audioManager.play('wallet_connect');
 
       // Store last used wallet
       setItem('gorbagana_last_wallet', walletType);
@@ -171,7 +173,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Disconnect wallet
   const disconnect = useCallback(() => {
     const provider = getWalletProvider(walletTypeRef.current);
-    
+
     if (provider?.disconnect) {
       try {
         provider.disconnect();
@@ -180,6 +182,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
+    audioManager.play('wallet_disconnect');
     setWalletState({
       connected: false,
       address: null,

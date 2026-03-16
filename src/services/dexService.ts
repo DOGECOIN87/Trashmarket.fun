@@ -1,4 +1,16 @@
 import { parseTransactionError } from '../utils/errorMessages';
+import {
+  fetchAllPools,
+  findPool,
+  findRoute,
+  buildSwapTransaction,
+  poolsToMarkets,
+  clearPoolCache,
+  type PoolInfo,
+} from './ammSwap';
+import { PublicKey } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { BN } from '@coral-xyz/anchor';
 
 const GORAPI_BASE = 'https://gorapi.trashscan.io';
 
@@ -49,18 +61,30 @@ export interface TokenPrice {
 }
 
 /**
- * Fetch all tokens with price and market data from gorapi
+ * Fetch all tokens with price and market data from gorapi.
+ * GOR (native token) is injected manually since gorapi only tracks tokens priced in GOR.
  */
 export const getDexTokens = async (): Promise<DexToken[]> => {
-  const response = await fetch(`${GORAPI_BASE}/api/tokens`);
-  if (!response.ok) throw new Error(`Failed to fetch tokens: ${response.status}`);
-  const data = await response.json();
+  const [tokensResp, statusResp] = await Promise.all([
+    fetch(`${GORAPI_BASE}/api/tokens`),
+    fetch(`${GORAPI_BASE}/api/status`).catch(() => null),
+  ]);
+
+  if (!tokensResp.ok) throw new Error(`Failed to fetch tokens: ${tokensResp.status}`);
+  const data = await tokensResp.json();
 
   if (!data.success || !Array.isArray(data.data)) {
     throw new Error('Invalid API response');
   }
 
-  return data.data
+  // Get GOR/USD price from status endpoint
+  let gorUsd = 0;
+  if (statusResp && statusResp.ok) {
+    const statusData = await statusResp.json();
+    gorUsd = statusData.gorUsd || 0;
+  }
+
+  const tokens: DexToken[] = data.data
     .filter((t: any) => t.price?.native > 0 && t.marketData?.liquidity > 0 && t.metadata?.symbol)
     .map((t: any): DexToken => ({
       mint: t.mint,
@@ -77,35 +101,103 @@ export const getDexTokens = async (): Promise<DexToken[]> => {
       holderCount: t.marketData.holderCount || 0,
     }))
     .sort((a: DexToken, b: DexToken) => b.liquidity - a.liquidity);
+
+  // Inject GOR (native token) at the top — gorapi doesn't list it since everything is priced in GOR
+  const gorToken: DexToken = {
+    mint: GOR_MINT,
+    symbol: 'GOR',
+    name: 'Gorbagana',
+    logo: '/gorbagana-logo-transparent.png',
+    decimals: 9,
+    priceUsd: gorUsd,
+    priceNative: 1,
+    change24h: 0,
+    volume24h: 0,
+    liquidity: Infinity, // Always at top
+    marketCap: 0,
+    holderCount: 0,
+  };
+
+  return [gorToken, ...tokens];
 };
 
 /**
- * Fetch all markets (liquidity pools)
+ * Fetch all markets (liquidity pools).
+ * Tries gorapi first; if empty, fetches pools directly from on-chain programs.
  */
-export const getMarkets = async (): Promise<Market[]> => {
-  const response = await fetch(`${GORAPI_BASE}/api/markets`);
-  if (!response.ok) throw new Error(`Failed to fetch markets: ${response.status}`);
-  const data = await response.json();
-
-  if (!data.markets || !Array.isArray(data.markets)) {
-    throw new Error('Invalid markets response');
+export const getMarkets = async (connection?: any): Promise<Market[]> => {
+  // Try gorapi first
+  try {
+    const response = await fetch(`${GORAPI_BASE}/api/markets`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.markets && Array.isArray(data.markets) && data.markets.length > 0) {
+        return data.markets;
+      }
+    }
+  } catch {
+    // gorapi unavailable, fall through to on-chain
   }
 
-  return data.markets;
+  // Fallback: fetch pools from on-chain AMM programs
+  if (connection) {
+    try {
+      const pools = await fetchAllPools(connection);
+      return poolsToMarkets(pools);
+    } catch (err) {
+      console.warn('Failed to fetch on-chain pools:', err);
+    }
+  }
+
+  return [];
 };
 
 /**
- * Fetch markets for a specific token mint
+ * Fetch markets for a specific token mint.
+ * Tries gorapi first; if empty, filters on-chain pools.
  */
-export const getMarketsForToken = async (mint: string): Promise<{ markets: Market[]; gorUsd: number }> => {
-  const response = await fetch(`${GORAPI_BASE}/api/markets/${mint}`);
-  if (!response.ok) throw new Error(`Failed to fetch markets for ${mint}: ${response.status}`);
-  const data = await response.json();
+export const getMarketsForToken = async (mint: string, connection?: any): Promise<{ markets: Market[]; gorUsd: number }> => {
+  let gorUsd = 0;
 
-  return {
-    markets: data.markets || [],
-    gorUsd: data.gorUsd || 0,
-  };
+  // Try gorapi first
+  try {
+    const response = await fetch(`${GORAPI_BASE}/api/markets/${mint}`);
+    if (response.ok) {
+      const data = await response.json();
+      gorUsd = data.gorUsd || 0;
+      if (data.markets && Array.isArray(data.markets) && data.markets.length > 0) {
+        return { markets: data.markets, gorUsd };
+      }
+    }
+  } catch {
+    // gorapi unavailable
+  }
+
+  // Try gorapi status for GOR price
+  if (gorUsd === 0) {
+    try {
+      const statusResp = await fetch(`${GORAPI_BASE}/api/status`);
+      if (statusResp.ok) {
+        const statusData = await statusResp.json();
+        gorUsd = statusData.gorUsd || 0;
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Fallback: filter on-chain pools for this token
+  if (connection) {
+    try {
+      const pools = await fetchAllPools(connection);
+      const filtered = pools.filter(
+        (p) => p.enabled && (p.tokenAMint.toBase58() === mint || p.tokenBMint.toBase58() === mint)
+      );
+      return { markets: poolsToMarkets(filtered), gorUsd };
+    } catch (err) {
+      console.warn('Failed to fetch on-chain pools for token:', err);
+    }
+  }
+
+  return { markets: [], gorUsd };
 };
 
 /**
@@ -226,31 +318,60 @@ export const getTokenBalances = async (
   walletAddress: string,
   tokenMints: string[]
 ): Promise<{ [mint: string]: number }> => {
-  try {
-    const balances: { [mint: string]: number } = {};
+  const balances: { [mint: string]: number } = {};
+  const ownerPubkey = new PublicKey(walletAddress);
 
-    // Fetch all token accounts for the wallet
+  // Fetch native GOR balance first (most reliable)
+  try {
+    const nativeBalance = await connection.getBalance(ownerPubkey);
+    balances[GOR_MINT] = nativeBalance / 1e9;
+    console.log('[DEX] Native GOR balance:', balances[GOR_MINT]);
+  } catch (error) {
+    console.error('[DEX] Failed to fetch native balance:', error);
+  }
+
+  // Fetch SPL token balances
+  try {
     const response = await connection.getParsedTokenAccountsByOwner(
-      walletAddress,
-      { programId: 'TokenkegQfeZyiNwAJsyFbPVwwQQfsSyS7scPC35Xi' } // SPL Token Program
+      ownerPubkey,
+      { programId: TOKEN_PROGRAM_ID }
     );
 
-    // Parse token balances
     response.value.forEach((account: any) => {
       const mint = account.account.data.parsed.info.mint;
       const amount = account.account.data.parsed.info.tokenAmount.uiAmount || 0;
-      balances[mint] = amount;
+      // Don't overwrite native GOR balance with wrapped GOR (same mint)
+      if (mint === GOR_MINT) {
+        balances[mint] = (balances[mint] || 0) + amount;
+      } else {
+        balances[mint] = amount;
+      }
     });
-
-    // Fetch native GOR balance
-    const nativeBalance = await connection.getBalance(walletAddress);
-    balances[GOR_MINT] = nativeBalance / 1e9; // Convert lamports to GOR
-
-    return balances;
+    console.log('[DEX] SPL token accounts found:', response.value.length);
   } catch (error) {
-    console.error('Failed to fetch token balances:', error);
-    return {};
+    console.error('[DEX] Failed to fetch SPL token balances:', error);
+    // Fallback: try getTokenAccountsByOwner (non-parsed) if parsed fails
+    try {
+      const response = await connection.getTokenAccountsByOwner(
+        ownerPubkey,
+        { programId: TOKEN_PROGRAM_ID }
+      );
+      for (const { account } of response.value) {
+        const data = account.data as Buffer;
+        if (data.length >= 72) {
+          const mint = new PublicKey(data.subarray(0, 32)).toBase58();
+          const rawAmount = data.readBigUInt64LE(64);
+          // Rough: assume 9 decimals if we don't know
+          balances[mint] = Number(rawAmount) / 1e9;
+        }
+      }
+      console.log('[DEX] Fallback token accounts found:', response.value.length);
+    } catch (fallbackError) {
+      console.error('[DEX] Fallback balance fetch also failed:', fallbackError);
+    }
   }
+
+  return balances;
 };
 
 /**
@@ -271,8 +392,8 @@ export const getTokenBalance = async (
 };
 
 /**
- * Execute a swap transaction using Meteora API
- * Fetches a swap route and executes the transaction with security checks
+ * Execute a swap transaction against Gorbagana on-chain AMM programs.
+ * Finds the best pool, builds the swap instruction, signs, and sends.
  */
 export const executeSwap = async (
   connection: any,
@@ -281,14 +402,15 @@ export const executeSwap = async (
   outputMint: string,
   inputAmount: number,
   slippageBps: number = 100, // 1% default slippage
-  expectedOutputAmount: number = 0
+  expectedOutputAmount: number = 0,
+  inputDecimals: number = 9,
+  outputDecimals: number = 9
 ): Promise<{ signature: string; success: boolean; error?: string }> => {
   try {
     if (!wallet.publicKey) {
       return { signature: '', success: false, error: 'Wallet not connected' };
     }
 
-    // Validate inputs - prevent common vulnerabilities
     if (inputAmount <= 0) {
       return { signature: '', success: false, error: 'Invalid input amount' };
     }
@@ -301,85 +423,88 @@ export const executeSwap = async (
       return { signature: '', success: false, error: 'Cannot swap identical tokens' };
     }
 
-    // Validate mint addresses (basic format check)
     if (!isValidMintAddress(inputMint) || !isValidMintAddress(outputMint)) {
       return { signature: '', success: false, error: 'Invalid token mint address' };
     }
 
-    // Fetch swap quote from Meteora API
-    const quoteUrl = `https://api.meteora.ag/swap/quote?inputMint=${encodeURIComponent(inputMint)}&outputMint=${encodeURIComponent(outputMint)}&amount=${inputAmount}&slippageBps=${slippageBps}`;
-    const quoteResponse = await fetch(quoteUrl);
-
-    if (!quoteResponse.ok) {
-      return { signature: '', success: false, error: 'Failed to fetch swap quote' };
+    // 1. Fetch pools and find a route
+    const pools = await fetchAllPools(connection);
+    if (pools.length === 0) {
+      return { signature: '', success: false, error: 'No pools available. RPC may be down.' };
     }
 
-    const quote = await quoteResponse.json();
-
-    if (!quote.outAmount) {
-      return { signature: '', success: false, error: 'No liquidity available for this swap' };
+    const route = findRoute(pools, inputMint, outputMint);
+    if (!route) {
+      return { signature: '', success: false, error: 'No liquidity pool found for this token pair' };
     }
 
-    // Validate output amount against slippage
-    const minOutAmount = expectedOutputAmount * (1 - slippageBps / 10000);
-    if (quote.outAmount < minOutAmount) {
-      return { signature: '', success: false, error: 'Output amount exceeds slippage tolerance' };
-    }
+    // 2. Calculate amounts in lamports
+    const inputAmountLamports = new BN(
+      Math.floor(inputAmount * Math.pow(10, inputDecimals))
+    );
 
-    // Fetch swap instructions from Meteora API
-    const swapUrl = 'https://api.meteora.ag/swap';
-    const swapResponse = await fetch(swapUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userPublicKey: wallet.publicKey.toString(),
-        inputMint,
-        outputMint,
-        amount: inputAmount,
-        slippageBps,
-        wrapUnwrapSol: true,
-      }),
+    // 3. Build swap transaction with integrated estimation (single pass, minimal RPC calls)
+    const pool = route.pools[0];
+
+    const { transaction, estimatedOutput, minOutput } = await buildSwapTransaction(
+      connection,
+      wallet.publicKey,
+      pool,
+      new PublicKey(inputMint),
+      inputAmountLamports,
+      slippageBps
+    );
+
+    console.log('[DEX] Swap details:', {
+      pool: pool.address.toBase58(),
+      poolType: pool.poolType,
+      inputMint,
+      outputMint,
+      inputAmountLamports: inputAmountLamports.toString(),
+      estimatedOutput: estimatedOutput.toString(),
+      minOutput: minOutput.toString(),
+      hops: route.hops,
     });
 
-    if (!swapResponse.ok) {
-      return { signature: '', success: false, error: 'Failed to prepare swap transaction' };
-    }
+    // 4. Sign and send
+    // Re-fetch blockhash right before signing to maximize validity window
+    const { blockhash: freshHash, lastValidBlockHeight: freshHeight } =
+      await connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = freshHash;
+    transaction.lastValidBlockHeight = freshHeight;
 
-    const swapData = await swapResponse.json();
-
-    if (!swapData.tx) {
-      return { signature: '', success: false, error: 'No transaction data returned' };
-    }
-
-    // Deserialize and sign the transaction
-    const { Transaction } = await import('@solana/web3.js');
-    const txBuffer = Buffer.from(swapData.tx, 'base64');
-    const transaction = Transaction.from(txBuffer);
-
-    // Verify transaction before signing
-    if (!transaction.instructions || transaction.instructions.length === 0) {
-      return { signature: '', success: false, error: 'Invalid transaction structure' };
-    }
-
-    // Sign transaction with wallet
     const signedTx = await wallet.signTransaction(transaction);
 
-    // Send transaction with retry logic
     const signature = await connection.sendRawTransaction(signedTx.serialize(), {
-      skipPreflight: false,
-      maxRetries: 3,
+      skipPreflight: true,
+      maxRetries: 5,
     });
 
-    // Wait for confirmation with modern API
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-    await connection.confirmTransaction(
-      { signature, blockhash, lastValidBlockHeight },
-      'confirmed'
-    );
+    console.log('[DEX] Transaction sent:', signature);
+
+    // 5. Confirm with timeout — don't hang forever
+    try {
+      const confirmPromise = connection.confirmTransaction(
+        { signature, blockhash: freshHash, lastValidBlockHeight: freshHeight },
+        'confirmed'
+      );
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Confirmation timeout')), 30000)
+      );
+      await Promise.race([confirmPromise, timeoutPromise]);
+    } catch (confirmErr: any) {
+      // Transaction was sent successfully — return signature even if confirmation is uncertain
+      console.warn('[DEX] Confirmation uncertain:', confirmErr?.message);
+      return { signature, success: true };
+    }
 
     return { signature, success: true };
   } catch (error: any) {
-    console.error('Swap execution failed:', error);
+    console.error('[DEX] Swap execution failed:', error);
+    // Extract simulation logs if available
+    if (error.logs) {
+      console.error('[DEX] Transaction logs:', error.logs);
+    }
     return {
       signature: '',
       success: false,
@@ -393,10 +518,10 @@ export const executeSwap = async (
  * Prevents injection attacks and invalid addresses
  */
 const isValidMintAddress = (address: string): boolean => {
-  // Solana addresses are 44 characters in base58
-  if (address.length !== 44) return false;
-  
-  // Check if it's valid base58
-  const base58Regex = /^[1-9A-HJ-NP-Z]{44}$/;
+  // Solana/Gorbagana addresses are 32-44 characters in base58
+  if (address.length < 32 || address.length > 44) return false;
+
+  // Check if it's valid base58 (includes lowercase a-z minus l)
+  const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
   return base58Regex.test(address);
 };

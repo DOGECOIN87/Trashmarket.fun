@@ -41,7 +41,7 @@ const ERROR_PATTERNS: [RegExp, string][] = [
   [/insufficient funds/i, 'Insufficient funds for this transaction.'],
   [/Blockhash not found/i, 'Transaction expired. Please try again.'],
   [/block height exceeded/i, 'Transaction expired. Please try again.'],
-  [/Transaction simulation failed/i, 'Transaction simulation failed. Try a smaller amount.'],
+  // Don't swallow simulation errors — let the actual error message through
   [/Account does not exist/i, 'Token account not found. Deposit DEBRIS first.'],
   [/0x1$/, 'Insufficient funds for transaction fees.'],
   [/0x0$/, 'Transaction failed — check your balance.'],

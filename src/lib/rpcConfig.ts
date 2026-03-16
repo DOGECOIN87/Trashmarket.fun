@@ -10,8 +10,11 @@
  */
 
 export const RPC_ENDPOINTS = {
-  /** Gorbagana L2 mainnet RPC */
+  /** Gorbagana L2 mainnet RPC (primary) */
   GORBAGANA: 'https://rpc.trashscan.io',
+
+  /** Gorbagana L2 mainnet RPC (fallback) */
+  GORBAGANA_FALLBACK: 'https://rpc.gorbagana.wtf',
 
   /** Gorbagana WebSocket endpoint */
   GORBAGANA_WS: 'wss://rpc.trashscan.io',

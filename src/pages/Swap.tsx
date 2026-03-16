@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import TrashDAQSwap from '../components/TrashDAQSwap';
+import { audioManager } from '../lib/audioManager';
 
 /**
  * Swap Page
@@ -7,6 +8,10 @@ import TrashDAQSwap from '../components/TrashDAQSwap';
  * Matches the trashmarket.fun aesthetic with proper branding
  */
 export default function SwapPage() {
+    useEffect(() => {
+        return audioManager.playOnInteraction('page_dex');
+    }, []);
+
     return (
         <div className="min-h-[calc(100vh-120px)] flex items-center justify-center p-4">
             {/* Background Video */}

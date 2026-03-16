@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { audioManager } from '../lib/audioManager';
 import {
   Terminal, Cpu, Download, Lock, Unlock, Play, Pause, Square,
   Zap, Trophy, AlertTriangle, Copy, Check, Settings, Sparkles,
@@ -43,6 +44,7 @@ interface StoredMatch extends MatchData {
 }
 
 const VanityGenerator: React.FC = () => {
+  useEffect(() => audioManager.playOnInteraction('page_vanity'), []);
   const { accentColor, currency } = useNetwork();
   const { connected, publicKey } = useWallet();
   const walletAddress = publicKey?.toBase58() ?? null;

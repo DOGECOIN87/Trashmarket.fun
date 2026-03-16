@@ -51,21 +51,42 @@ export const useBridgeService = () => {
     return pda;
   };
 
-  // Create Order (Direction 1: gGOR -> sGOR)
+  // Derive Escrow token account PDA (for direction 0 sGOR escrow)
+  const deriveEscrowPDA = (maker: PublicKey, amount: BN): PublicKey => {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('escrow'),
+        maker.toBuffer(),
+        amount.toArrayLike(Buffer, 'le', 8),
+      ],
+      PROGRAM_ID
+    );
+    return pda;
+  };
+
+  // Helper to check if an account exists on-chain
+  const accountExists = async (pubkey: PublicKey, connection: any): Promise<boolean> => {
+    const info = await connection.getAccountInfo(pubkey);
+    return info !== null;
+  };
+
+  // Create Order (Direction 1: gGOR -> sGOR) — Gorbagana only
+  // Maker deposits gGOR (native lamports) into order PDA, wants sGOR in return
   const createOrderGGOR = async (amount: number, expirationSlot: number) => {
     if (!program || !provider) throw new Error('Wallet not connected');
     const wallet = provider.wallet;
     const amountBN = new BN(amount);
     const orderPDA = deriveOrderPDA(wallet.publicKey, amountBN);
 
+    // Direction 1: gGOR escrow — no SPL token accounts needed (pass null for Optional accounts)
     const tx = await program.methods
       .createOrder(amountBN, 1, new BN(expirationSlot))
       .accounts({
         maker: wallet.publicKey,
         order: orderPDA,
-        escrowTokenAccount: orderPDA, // Placeholder, not used for direction 1
-        makerTokenAccount: wallet.publicKey, // Placeholder, not used for direction 1
-        sgorMint: SGOR_MINT, // Placeholder, not used for direction 1
+        escrowTokenAccount: null,
+        makerTokenAccount: null,
+        sgorMint: null,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -91,8 +112,8 @@ export const useBridgeService = () => {
     return { tx: txid, orderPDA };
   };
 
-  // Create Order (Direction 0: sGOR -> gGOR)
-  // On Solana devnet: Creates order locking sGOR, expecting gGOR on Gorbagana
+  // Create Order (Direction 0: sGOR -> gGOR) — works on both Gorbagana and Solana devnet
+  // Maker deposits sGOR (SPL token) into escrow, wants gGOR (native) in return
   const createOrderSGOR = async (amount: number, expirationSlot: number, gorbaganaRecipient?: PublicKey) => {
     const currentProvider = isDevnet ? (solanaProgram?.provider as any) : provider;
     const currentProgram = isDevnet ? solanaProgram : program;
@@ -102,22 +123,14 @@ export const useBridgeService = () => {
     const wallet = currentProvider.wallet;
     const amountBN = new BN(amount);
     const orderPDA = deriveOrderPDA(wallet.publicKey, amountBN);
-
-    const escrowPDA = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from('escrow'),
-        wallet.publicKey.toBuffer(),
-        amountBN.toArrayLike(Buffer, 'le', 8),
-      ],
-      PROGRAM_ID
-    )[0];
-
+    const escrowPDA = deriveEscrowPDA(wallet.publicKey, amountBN);
     const makerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
 
     // Gorbagana recipient defaults to maker's wallet if not specified
     const gorRecipient = gorbaganaRecipient || wallet.publicKey;
 
     const tx = isDevnet
+      // Solana devnet bridge has different args: (amount, expiration_slot, gorbagana_recipient)
       ? await currentProgram.methods
           .createOrder(amountBN, new BN(expirationSlot), gorRecipient)
           .accounts({
@@ -131,6 +144,7 @@ export const useBridgeService = () => {
             rent: SYSVAR_RENT_PUBKEY,
           })
           .transaction()
+      // Gorbagana bridge: (amount, direction, expiration_slot)
       : await currentProgram.methods
           .createOrder(amountBN, 0, new BN(expirationSlot))
           .accounts({
@@ -164,31 +178,7 @@ export const useBridgeService = () => {
     return { tx: txid, orderPDA, escrowPDA };
   };
 
-  // Helper to check if an account exists on-chain
-  const accountExists = async (pubkey: PublicKey): Promise<boolean> => {
-    if (!provider) return false;
-    const info = await provider.connection.getAccountInfo(pubkey);
-    return info !== null;
-  };
-
-  // Helper to ensure ATA exists by adding instruction to transaction if needed
-  const ensureATA = async (transaction: Transaction, mint: PublicKey, owner: PublicKey) => {
-    if (!provider) return null;
-    const ata = await getAssociatedTokenAddress(mint, owner);
-    if (!(await accountExists(ata))) {
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          provider.wallet.publicKey, // payer
-          ata,
-          owner,
-          mint
-        )
-      );
-    }
-    return ata;
-  };
-
-  // Fill Order
+  // Fill Order — handles both directions with correct accounts
   const fillOrder = async (orderPDA: PublicKey) => {
     if (!program || !provider) throw new Error('Wallet not connected');
     const wallet = provider.wallet;
@@ -203,122 +193,109 @@ export const useBridgeService = () => {
 
     // Check SOL balance for fees
     const solBalance = await provider.connection.getBalance(wallet.publicKey);
-
-    // Require at least 0.01 SOL for fees and rent
     if (solBalance < 0.01 * 1e9) {
       throw new Error('Insufficient SOL balance. You need at least 0.01 SOL for transaction fees and rent.');
     }
 
     const tx = new Transaction();
-    const accounts: any = {
-      taker: wallet.publicKey,
-      maker: order.maker,
-      order: orderPDA,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-      escrowTokenAccount: orderPDA, // Placeholder
-      takerTokenAccount: wallet.publicKey, // Placeholder
-      takerReceiveTokenAccount: wallet.publicKey, // Placeholder
-      makerReceiveTokenAccount: order.maker, // Placeholder
-    };
 
     if (order.direction === 0) {
-      // Direction 0: Maker sold sGOR. Taker sends gGOR (native), receives sGOR (SPL)
-      const escrowPDA = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from('escrow'),
-          order.maker.toBuffer(),
-          order.amount.toArrayLike(Buffer, 'le', 8),
-        ],
-        PROGRAM_ID
-      )[0];
+      // Direction 0: Maker sold sGOR, wants gGOR
+      // Taker sends gGOR (native) → Maker, receives sGOR (SPL) from escrow
+      const escrowPDA = deriveEscrowPDA(order.maker, order.amount);
 
       // Verify escrow exists and has funds
-      const escrowInfo = await provider.connection.getAccountInfo(escrowPDA);
-      if (!escrowInfo) {
+      const escrowExists = await accountExists(escrowPDA, provider.connection);
+      if (!escrowExists) {
         throw new Error('Escrow account does not exist. The order may be invalid.');
       }
 
       // Ensure taker's receive ATA exists (where taker will receive sGOR)
       const takerReceiveATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
-      const takerReceiveExists = await accountExists(takerReceiveATA);
-
-      if (!takerReceiveExists) {
+      if (!(await accountExists(takerReceiveATA, provider.connection))) {
         tx.add(
           createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer
+            wallet.publicKey,
             takerReceiveATA,
-            wallet.publicKey, // owner
+            wallet.publicKey,
             SGOR_MINT
           )
         );
       }
 
-      accounts.escrowTokenAccount = escrowPDA;
-      accounts.takerReceiveTokenAccount = takerReceiveATA;
-
-      // Verify taker has enough gGOR (native SOL) to send
+      // Verify taker has enough gGOR (native) to send
       const requiredGGOR = order.amount.toNumber();
       if (solBalance < requiredGGOR + 0.01 * 1e9) {
         throw new Error(`Insufficient gGOR balance. You need ${requiredGGOR / 1e9} gGOR + 0.01 SOL for fees.`);
       }
 
+      const fillInstruction = await program.methods
+        .fillOrder()
+        .accounts({
+          taker: wallet.publicKey,
+          maker: order.maker,
+          order: orderPDA,
+          escrowTokenAccount: escrowPDA,
+          takerTokenAccount: null,
+          takerReceiveTokenAccount: takerReceiveATA,
+          makerReceiveTokenAccount: null,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction();
+
+      tx.add(fillInstruction);
+
     } else {
-      // Direction 1: Maker sold gGOR. Taker sends sGOR (SPL), receives gGOR (native)
-      // Ensure taker's send ATA exists (where taker sends FROM)
+      // Direction 1: Maker sold gGOR (native in PDA), wants sGOR
+      // Taker sends sGOR (SPL) → Maker, receives gGOR (native) from PDA
       const takerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
-      const takerATAExists = await accountExists(takerATA);
+      const takerATAExists = await accountExists(takerATA, provider.connection);
 
       if (!takerATAExists) {
-        tx.add(
-          createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer
-            takerATA,
-            wallet.publicKey, // owner
-            SGOR_MINT
-          )
-        );
-        // If we just created the ATA, taker won't have sGOR in it yet
         throw new Error('You do not have an sGOR token account. Please create one and fund it with sGOR first.');
-      } else {
-        // Verify taker has enough sGOR tokens
-        const takerTokenBalance = await provider.connection.getTokenAccountBalance(takerATA);
-        const requiredSGOR = order.amount.toNumber();
-        const takerBalance = BigInt(takerTokenBalance.value.amount);
+      }
 
-        if (takerBalance < BigInt(requiredSGOR)) {
-          throw new Error(`Insufficient sGOR balance. You have ${Number(takerBalance) / 1e9} sGOR but need ${requiredSGOR / 1e9} sGOR.`);
-        }
+      // Verify taker has enough sGOR tokens
+      const takerTokenBalance = await provider.connection.getTokenAccountBalance(takerATA);
+      const requiredSGOR = order.amount.toNumber();
+      const takerBalance = BigInt(takerTokenBalance.value.amount);
+      if (takerBalance < BigInt(requiredSGOR)) {
+        throw new Error(`Insufficient sGOR balance. You have ${Number(takerBalance) / 1e9} sGOR but need ${requiredSGOR / 1e9} sGOR.`);
       }
 
       // Ensure maker's receive ATA exists (where maker will receive sGOR)
       const makerATA = await getAssociatedTokenAddress(SGOR_MINT, order.maker);
-      const makerATAExists = await accountExists(makerATA);
-
-      if (!makerATAExists) {
+      if (!(await accountExists(makerATA, provider.connection))) {
         tx.add(
           createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer (taker pays for maker's ATA creation)
+            wallet.publicKey,
             makerATA,
-            order.maker, // owner
+            order.maker,
             SGOR_MINT
           )
         );
       }
 
-      accounts.takerTokenAccount = takerATA;
-      accounts.makerReceiveTokenAccount = makerATA;
+      const fillInstruction = await program.methods
+        .fillOrder()
+        .accounts({
+          taker: wallet.publicKey,
+          maker: order.maker,
+          order: orderPDA,
+          escrowTokenAccount: null,
+          takerTokenAccount: takerATA,
+          takerReceiveTokenAccount: null,
+          makerReceiveTokenAccount: makerATA,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction();
+
+      tx.add(fillInstruction);
     }
 
-    // Add the fill order instruction AFTER all account creation instructions
-    const fillInstruction = await program.methods
-      .fillOrder()
-      .accounts(accounts)
-      .instruction();
-
-    tx.add(fillInstruction);
-
-    // Get latest blockhash specifically from Gorbagana
+    // Get latest blockhash
     const latestBlockhash = await provider.connection.getLatestBlockhash('confirmed');
     tx.recentBlockhash = latestBlockhash.blockhash;
     tx.feePayer = wallet.publicKey;
@@ -335,7 +312,6 @@ export const useBridgeService = () => {
 
     const signedTx = await wallet.signTransaction(tx);
 
-    // Use sendRawTransaction with better error handling
     let txid: string;
     try {
       txid = await provider.connection.sendRawTransaction(signedTx.serialize(), {
@@ -371,44 +347,59 @@ export const useBridgeService = () => {
     return txid;
   };
 
-  // Cancel Order
+  // Cancel Order — returns escrowed funds to maker
   const cancelOrder = async (orderPDA: PublicKey) => {
     if (!program || !provider) throw new Error('Wallet not connected');
     const wallet = provider.wallet;
     const order = await program.account.order.fetch(orderPDA);
     const tx = new Transaction();
 
-    const accounts: any = {
-      maker: wallet.publicKey,
-      order: orderPDA,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-      escrowTokenAccount: orderPDA, // Placeholder
-      makerTokenAccount: wallet.publicKey, // Placeholder
-    };
-
     if (order.direction === 0) {
-      // Direction 0: Maker is selling sGOR. Escrow holds sGOR.
-      const escrowPDA = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from('escrow'),
-          wallet.publicKey.toBuffer(),
-          order.amount.toArrayLike(Buffer, 'le', 8),
-        ],
-        PROGRAM_ID
-      )[0];
-      const makerATA = await ensureATA(tx, SGOR_MINT, wallet.publicKey);
+      // Direction 0: Return sGOR (SPL) from escrow to maker
+      const escrowPDA = deriveEscrowPDA(wallet.publicKey, order.amount);
+      const makerATA = await getAssociatedTokenAddress(SGOR_MINT, wallet.publicKey);
 
-      accounts.escrowTokenAccount = escrowPDA;
-      accounts.makerTokenAccount = makerATA;
+      // Ensure maker ATA exists (should, since they deposited from it)
+      if (!(await accountExists(makerATA, provider.connection))) {
+        tx.add(
+          createAssociatedTokenAccountInstruction(
+            wallet.publicKey,
+            makerATA,
+            wallet.publicKey,
+            SGOR_MINT
+          )
+        );
+      }
+
+      const cancelInstruction = await program.methods
+        .cancelOrder()
+        .accounts({
+          maker: wallet.publicKey,
+          order: orderPDA,
+          escrowTokenAccount: escrowPDA,
+          makerTokenAccount: makerATA,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction();
+
+      tx.add(cancelInstruction);
+    } else {
+      // Direction 1: Return gGOR (native) from PDA — no SPL accounts needed
+      const cancelInstruction = await program.methods
+        .cancelOrder()
+        .accounts({
+          maker: wallet.publicKey,
+          order: orderPDA,
+          escrowTokenAccount: null,
+          makerTokenAccount: null,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction();
+
+      tx.add(cancelInstruction);
     }
-
-    const cancelInstruction = await program.methods
-      .cancelOrder()
-      .accounts(accounts)
-      .instruction();
-    
-    tx.add(cancelInstruction);
 
     const latestBlockhash = await provider.connection.getLatestBlockhash();
     tx.recentBlockhash = latestBlockhash.blockhash;
@@ -434,7 +425,6 @@ export const useBridgeService = () => {
   };
 
   // Fetch all orders from BOTH programs simultaneously so orders are visible regardless of active network.
-  // Gorbagana program holds gGOR orders; Solana program holds sGOR orders.
   const fetchAllOrders = useCallback(async (): Promise<BridgeOrder[]> => {
     const orders: BridgeOrder[] = [];
 

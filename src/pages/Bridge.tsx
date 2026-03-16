@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { audioManager } from '../lib/audioManager';
 import {
   ArrowLeftRight,
   ShieldCheck,
@@ -38,6 +39,7 @@ interface Donor {
 }
 
 const Bridge: React.FC = () => {
+  useEffect(() => audioManager.playOnInteraction('page_bridge'), []);
   const { connected } = useWallet();
   const { fetchAllOrders, createOrderGGOR, createOrderSGOR, fillOrder, cancelOrder } = useBridgeService();
   const { program } = useAnchor();
