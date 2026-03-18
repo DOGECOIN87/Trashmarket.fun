@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
-@import "./styles/debris-animations.css";
 
 body {
   background-color: black;
