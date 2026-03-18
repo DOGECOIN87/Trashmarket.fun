@@ -212,7 +212,7 @@ const Home: React.FC = () => {
                   </div>
 
                   <Link
-                    to={`/collection/gorbagio`}
+                    to="/nft"
                     className={`group relative px-8 py-3 bg-black border ${borderAccent} ${accentColor} hover:${bgAccent} font-bold uppercase tracking-widest text-xs hover:text-black transition-all duration-200`}
                   >
                     <span className="relative z-10 flex items-center gap-2">

@@ -1,7 +1,11 @@
 [workspace]
 members = [
     "programs/gorbagio-migration",
+    "programs/gorbagio-marketplace",
     "programs/goraffle",
     "programs/junkpusher",
 ]
 resolver = "2"
+
+[profile.release]
+overflow-checks = true

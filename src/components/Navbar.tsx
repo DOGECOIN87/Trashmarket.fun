@@ -128,7 +128,7 @@ const Navbar: React.FC = () => {
 
   const navLinks = [
     { name: 'Collections', path: '/' },
-    { name: 'Gorbagio', path: '/collection/gorbagio' },
+    { name: 'NFT', path: '/nft' },
     { name: 'GorID', path: '/gorid' },
     { name: 'Bridge', path: '/bridge' },
     { name: 'DEX', path: '/dex' },

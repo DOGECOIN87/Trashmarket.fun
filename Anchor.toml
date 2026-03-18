@@ -9,6 +9,7 @@ skip-lint = false
 goraffle = "EyanJkk7BV9nA5ZzuBQLqC3FWf25dLdgbURhLiV3Hc31"
 junkpusher = "5gJkp3DsVTtBP6k7WtbiNBjQhAESgGrgu6AJfypMCAwe"
 gorbagio_migration = "3PtknVekKAYAYExL6YQWxf6bycpGWoQQ9tNM566qzKmU"
+gorbagio_marketplace = "DohoM3SvQzfcHVWH1r6BVTWdcNgYQxsxsTqxeZWBmL2E"
 
 [registry]
 url = "https://api.apr.dev"

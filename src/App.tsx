@@ -38,6 +38,7 @@ const App: React.FC = () => {
                 <main className="flex-grow">
                   <Routes>
                     <Route path="/" element={<Home />} />
+                    <Route path="/nft" element={<GorbagioMarket />} />
                     <Route path="/collection/:id" element={<GorbagioMarket />} />
                     <Route path="/gorid" element={<Gorid />} />
                     <Route path="/docs" element={<Docs />} />
