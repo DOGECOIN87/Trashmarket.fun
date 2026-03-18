@@ -3,6 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { ArrowRight, CheckCircle, AlertCircle, Loader, RefreshCw, Shield, Trash2, Wrench } from 'lucide-react';
 import { audioManager } from '../lib/audioManager';
+import MigrateAnimation from '../components/MigrateAnimation';
 import type { LegacyGorbagio, MigratedGorbagioNeedingFix } from '../services/migrationService';
 
 type MigrationStatus = 'idle' | 'loading' | 'migrating' | 'success' | 'error';
@@ -36,6 +37,9 @@ const GorbagioMigration: React.FC = () => {
     message: '',
     signature: '',
   });
+
+  const [showAnimation, setShowAnimation] = useState(false);
+  const [animatedNFT, setAnimatedNFT] = useState<{ name: string; mint: string; image?: string } | null>(null);
 
   const [fixState, setFixState] = useState<CollectionFixState>({
     nfts: [],
@@ -106,6 +110,9 @@ const GorbagioMigration: React.FC = () => {
 
     if (result.success) {
       audioManager.play('purchase_success');
+      // Show migration animation
+      setAnimatedNFT({ name: nft.name, mint: `${nft.mint.slice(0, 8)}...${nft.mint.slice(-4)}`, image: nft.image });
+      setShowAnimation(true);
       setState((s) => ({
         ...s,
         status: 'success',
@@ -161,6 +168,21 @@ const GorbagioMigration: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black text-white p-4 overflow-x-hidden">
+      {/* Migration Animation Overlay */}
+      {showAnimation && animatedNFT && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center backdrop-blur-sm">
+          <div className="w-full max-w-4xl px-4">
+            <MigrateAnimation
+              imageUrl={animatedNFT.image}
+              nftName={animatedNFT.name}
+              nftMint={animatedNFT.mint}
+              onComplete={() => {}}
+              onDismiss={() => setShowAnimation(false)}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8 border border-[#39FF14]/30 bg-black/80 p-6">
@@ -188,7 +210,7 @@ const GorbagioMigration: React.FC = () => {
           </div>
         </div>
 
-        {/* Not Connected */}
+{/* Not Connected */}
         {!connected && (
           <div className="border border-gray-700 bg-gray-900/50 p-12 text-center">
             <Trash2 className="w-12 h-12 text-gray-600 mx-auto mb-4" />
