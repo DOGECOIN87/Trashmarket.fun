@@ -292,21 +292,8 @@ async function fetchOnChainMetadataBatch(
 const imageCache = new Map<string, string>();
 
 /**
- * Rewrite IPFS gateway URLs to use Cloudflare's reliable gateway.
- * Handles: gateway.lighthouse.storage/ipfs/CID, ipfs.io/ipfs/CID, etc.
- */
-function rewriteIpfsGateway(url: string): string {
-  // Extract CID from any IPFS gateway URL
-  const ipfsMatch = url.match(/\/ipfs\/(.+)$/);
-  if (ipfsMatch) {
-    return `https://cf-ipfs.com/ipfs/${ipfsMatch[1]}`;
-  }
-  return url;
-}
-
-/**
  * Resolve the image URL for an NFT by fetching its off-chain JSON metadata.
- * Rewrites IPFS gateway URLs for reliability.
+ * Uses the original IPFS gateway URLs from on-chain metadata.
  */
 async function resolveNftImage(jsonUri: string): Promise<string> {
   if (!jsonUri) return '/assets/nft-placeholder.svg';
@@ -314,14 +301,10 @@ async function resolveNftImage(jsonUri: string): Promise<string> {
   if (cached) return cached;
 
   try {
-    // Rewrite the JSON URI to a reliable gateway before fetching
-    const fetchUri = rewriteIpfsGateway(jsonUri);
-    const response = await fetch(fetchUri);
+    const response = await fetch(jsonUri);
     if (!response.ok) return '/assets/nft-placeholder.svg';
     const json = await response.json();
-    // Rewrite the image URL too
-    const rawImage = json.image || json.image_url || '/assets/nft-placeholder.svg';
-    const image = rawImage.startsWith('/assets/') ? rawImage : rewriteIpfsGateway(rawImage);
+    const image = json.image || json.image_url || '/assets/nft-placeholder.svg';
     imageCache.set(jsonUri, image);
     return image;
   } catch {
