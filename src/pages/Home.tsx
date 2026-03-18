@@ -8,6 +8,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
 
 import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio, Volume2, VolumeX, Users, Coins, TrendingUp, ExternalLink } from 'lucide-react';
+import DebrisShowcase from '../components/DebrisShowcase';
 
 import { useNetwork } from '../contexts/NetworkContext';
 
@@ -261,146 +262,14 @@ const Home: React.FC = () => {
 
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-12">
         {/* ─── DEBRIS Token Showcase ─── */}
-        <div className="mb-12">
-          <div className="flex items-center gap-2 mb-6">
-            <Coins className={`w-5 h-5 ${accentColor}`} />
-            <h2 className="text-xl font-bold text-white uppercase tracking-widest font-mono">DEBRIS_Token</h2>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Token Card */}
-            <div className={`lg:col-span-1 border ${borderAccent}/30 bg-black p-6 relative`}>
-              <div className={`absolute -top-1 -left-1 w-2 h-2 border-t border-l ${borderAccent}`}></div>
-              <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${borderAccent}`}></div>
-
-              <div className="flex items-center gap-4 mb-6">
-                <div className={`w-16 h-16 border-2 ${borderAccent} overflow-hidden bg-black/50 flex-shrink-0`}>
-                  <img src={DEBRIS_LOGO} alt="DEBRIS" className="w-full h-full object-cover" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-white tracking-tight">DEBRIS</h3>
-                  <p className="text-gray-500 text-xs font-mono uppercase">Trashmarket Token</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                  <span className="text-gray-500 text-xs font-mono uppercase">Total Supply</span>
-                  <span className="text-white font-bold font-mono">{debrisSupply > 0 ? debrisSupply.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '---'}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                  <span className="text-gray-500 text-xs font-mono uppercase">Holders</span>
-                  <span className={`${accentColor} font-bold font-mono`}>{debrisHolders.length}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                  <span className="text-gray-500 text-xs font-mono uppercase">Decimals</span>
-                  <span className="text-white font-bold font-mono">{TOKEN_CONFIG.DEBRIS.decimals}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500 text-xs font-mono uppercase">Contract</span>
-                  <a
-                    href={`https://explorer.gorbagana.wtf/token/${DEBRIS_MINT}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`${accentColor} text-xs font-mono hover:underline flex items-center gap-1`}
-                  >
-                    {truncateAddr(DEBRIS_MINT)} <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <Link
-                  to="/junkpusher"
-                  className={`w-full block text-center px-6 py-3 ${bgAccent} text-black font-bold uppercase tracking-widest text-xs hover:opacity-90 transition-opacity`}
-                >
-                  Play Junk Pusher
-                </Link>
-              </div>
-            </div>
-
-            {/* Holders Table */}
-            <div className="lg:col-span-2 border border-white/20 bg-black relative">
-              <div className={`absolute -top-1 -left-1 w-2 h-2 border-t border-l ${borderAccent}`}></div>
-              <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${borderAccent}`}></div>
-
-              <div className="p-4 border-b border-white/10 flex items-center gap-2">
-                <Users className={`w-4 h-4 ${accentColor}`} />
-                <span className="text-sm font-bold text-white uppercase tracking-widest font-mono">Top Holders</span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                  <thead>
-                    <tr className="border-b border-white/10 text-[8px] sm:text-[10px] text-gray-500 uppercase font-mono tracking-widest bg-white/5">
-                      <th className="p-2 sm:p-4 font-bold w-10">#</th>
-                      <th className="p-2 sm:p-4 font-bold">Wallet</th>
-                      <th className="p-2 sm:p-4 font-bold text-right">Balance</th>
-                      <th className="p-2 sm:p-4 font-bold text-right hidden sm:table-cell">% Supply</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {debrisHolders.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="p-8 text-center text-gray-600 font-mono text-xs uppercase">
-                          Loading holders...
-                        </td>
-                      </tr>
-                    ) : (
-                      debrisHolders.map((holder, idx) => {
-                        const pctSupply = debrisSupply > 0 ? (holder.amount / debrisSupply) * 100 : 0;
-                        const isGameTreasury = holder.wallet === TOKEN_CONFIG.TREASURY.address ||
-                                               holder.tokenAccount === TOKEN_CONFIG.TREASURY.tokenAccount;
-                        return (
-                          <tr key={holder.tokenAccount} className="group hover:bg-white/5 transition-colors">
-                            <td className="p-2 sm:p-4 font-mono text-gray-600 group-hover:text-white transition-colors">
-                              {String(idx + 1).padStart(2, '0')}
-                            </td>
-                            <td className="p-2 sm:p-4">
-                              <a
-                                href={`https://explorer.gorbagana.wtf/address/${holder.wallet}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 group/link"
-                              >
-                                <span className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold ${bgAccent} text-black`}>
-                                  {idx === 0 ? '1' : idx + 1}
-                                </span>
-                                <div>
-                                  <div className="font-mono text-gray-300 group-hover/link:text-white transition-colors text-xs sm:text-sm">
-                                    <span className="hidden sm:inline">{holder.wallet}</span>
-                                    <span className="sm:hidden">{truncateAddr(holder.wallet)}</span>
-                                  </div>
-                                  {isGameTreasury && (
-                                    <span className={`text-[10px] ${accentColor} font-bold uppercase`}>Game Treasury</span>
-                                  )}
-                                </div>
-                              </a>
-                            </td>
-                            <td className="p-2 sm:p-4 text-right font-mono font-bold text-white">
-                              {holder.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </td>
-                            <td className="p-2 sm:p-4 text-right font-mono text-gray-500 hidden sm:table-cell">
-                              <div className="flex items-center justify-end gap-2">
-                                <div className="w-16 h-1.5 bg-white/10 overflow-hidden">
-                                  <div
-                                    className={`h-full ${bgAccent} transition-all duration-500`}
-                                    style={{ width: `${Math.min(pctSupply, 100)}%` }}
-                                  />
-                                </div>
-                                <span className="w-14 text-right">{pctSupply.toFixed(1)}%</span>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
+        <DebrisShowcase 
+          debrisSupply={debrisSupply}
+          debrisHolders={debrisHolders}
+          accentColor={accentColor}
+          bgAccent={bgAccent}
+          borderAccent={borderAccent}
+          truncateAddr={truncateAddr}
+        />
 
         {/* ─── Live Token Feed ─── */}
         <div>
