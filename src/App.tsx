@@ -19,6 +19,7 @@ import Swap from './pages/Swap';
 import VanityGenerator from './pages/VanityGenerator';
 import Submit from './pages/Submit';
 import Raffle from './pages/Raffle';
+import GorbagioMigration from './pages/GorbagioMigration';
 import Notifications from './components/Notifications';
 
 const App: React.FC = () => {
@@ -49,6 +50,7 @@ const App: React.FC = () => {
                     <Route path="/vanity" element={<VanityGenerator />} />
                     <Route path="/submit" element={<Submit />} />
                     <Route path="/raffle" element={<Raffle />} />
+                    <Route path="/migrate" element={<GorbagioMigration />} />
                   </Routes>
                 </main>
                 <ActivityTicker />

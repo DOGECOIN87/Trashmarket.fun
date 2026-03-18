@@ -77,8 +77,9 @@ const GorbagioMarket: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black text-white p-4 overflow-x-hidden">
+      <div className="max-w-[1600px] mx-auto">
       {/* Header + Search */}
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 max-w-full">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold font-heading">GORBAGIO MARKET</h1>
           <p className="text-gray-400 text-sm">Trade Gorbagio NFTs on Solana via Tensor</p>
@@ -119,7 +120,7 @@ const GorbagioMarket: React.FC = () => {
           <p className="text-gray-400 text-sm mb-3">
             {filteredNFTs.length} Gorbagio{filteredNFTs.length !== 1 ? 's' : ''}
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 max-w-full">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {filteredNFTs.length > 0 ? (
               filteredNFTs.map((nft) => (
                 <a
@@ -181,6 +182,7 @@ const GorbagioMarket: React.FC = () => {
             <span>Your Gorbagio will be transferred to your wallet</span>
           </li>
         </ul>
+      </div>
       </div>
     </div>
   );

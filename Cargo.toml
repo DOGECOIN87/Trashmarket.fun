@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "programs/gorbagio-migration",
+    "programs/goraffle",
+    "programs/junkpusher",
+]
+resolver = "2"

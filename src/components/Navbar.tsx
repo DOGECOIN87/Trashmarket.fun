@@ -134,6 +134,7 @@ const Navbar: React.FC = () => {
     { name: 'DEX', path: '/dex' },
     { name: 'Vanity', path: '/vanity' },
     { name: 'Raffle', path: '/raffle' },
+    { name: 'Migrate', path: '/migrate' },
   ];
 
   const gameLinks = [

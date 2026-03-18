@@ -38,6 +38,7 @@ config/
 *-keypair.json
 
 # Anchor / Solana build artifacts
+.anchor/test-ledger/
 target/
 programs/**/target/
 programs/**/Cargo.lock
