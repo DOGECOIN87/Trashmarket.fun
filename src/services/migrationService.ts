@@ -34,6 +34,9 @@ const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqC
 // Gorbagio collection update authority on Gorbagana (Token-2022 metadata)
 const GORBAGIO_UPDATE_AUTHORITY = new PublicKey('fair1sCzkkPSvF44QGoD89ThvZdK1e4vP1jBKxW3v7M');
 
+// Gorbagio collection NFT mint on Gorbagana
+const GORBAGIO_COLLECTION_MINT = new PublicKey('FBJ47AgQSzSWVQVzsspoUzcFVeEf8a6xihZKZgmRuno1');
+
 // Anchor discriminator for migrate_gorbagio instruction
 // sha256("global:migrate_gorbagio")[0..8]
 const MIGRATE_DISCRIMINATOR = Buffer.from([
@@ -378,6 +381,8 @@ export async function executeMigration(
     let errorMessage = 'Migration failed';
     if (err?.message?.includes('User rejected')) {
       errorMessage = 'Transaction rejected by user';
+    } else if (err?.message?.includes('block height exceeded') || err?.message?.includes('expired')) {
+      errorMessage = 'Transaction expired — please try again and approve quickly in your wallet';
     } else if (err?.message?.includes('Insufficient')) {
       errorMessage = 'Insufficient GOR for transaction fees';
     } else if (err?.logs) {
@@ -388,5 +393,354 @@ export async function executeMigration(
     }
 
     return { signature: '', newMint: '', success: false, error: errorMessage };
+  }
+}
+
+// ─── Collection Fix for Already-Migrated NFTs ────────────────────────
+
+export interface MigratedGorbagioNeedingFix {
+  mint: string;
+  name: string;
+  symbol: string;
+  uri: string;
+  image: string;
+  metadataAccount: string;
+  updateAuthority: string;
+}
+
+interface ParsedMetaplexMetadata {
+  updateAuthority: PublicKey;
+  mint: PublicKey;
+  name: string;
+  symbol: string;
+  uri: string;
+  sellerFeeBasisPoints: number;
+  hasCreators: boolean;
+  creators: { address: PublicKey; verified: boolean; share: number }[];
+  primarySaleHappened: boolean;
+  isMutable: boolean;
+  hasCollection: boolean;
+  collectionVerified: boolean;
+  collectionKey: PublicKey | null;
+}
+
+/**
+ * Parse a Metaplex Token Metadata account (v1 format, key=4).
+ */
+function parseMetaplexMetadata(data: Buffer): ParsedMetaplexMetadata | null {
+  try {
+    let off = 0;
+    const key = data[off]; off += 1;
+    if (key !== 4) return null; // MetadataV1 = 4
+
+    const updateAuthority = new PublicKey(data.subarray(off, off + 32)); off += 32;
+    const mint = new PublicKey(data.subarray(off, off + 32)); off += 32;
+
+    // name (borsh string)
+    const nameLen = data.readUInt32LE(off); off += 4;
+    const name = data.subarray(off, off + nameLen).toString('utf8').replace(/\0+$/, ''); off += nameLen;
+
+    // symbol
+    const symbolLen = data.readUInt32LE(off); off += 4;
+    const symbol = data.subarray(off, off + symbolLen).toString('utf8').replace(/\0+$/, ''); off += symbolLen;
+
+    // uri
+    const uriLen = data.readUInt32LE(off); off += 4;
+    const uri = data.subarray(off, off + uriLen).toString('utf8').replace(/\0+$/, ''); off += uriLen;
+
+    // seller_fee_basis_points
+    const sellerFeeBasisPoints = data.readUInt16LE(off); off += 2;
+
+    // creators: Option<Vec<Creator>>
+    const hasCreators = data[off] === 1; off += 1;
+    const creators: { address: PublicKey; verified: boolean; share: number }[] = [];
+    if (hasCreators) {
+      const creatorsLen = data.readUInt32LE(off); off += 4;
+      for (let i = 0; i < creatorsLen; i++) {
+        const address = new PublicKey(data.subarray(off, off + 32)); off += 32;
+        const verified = data[off] === 1; off += 1;
+        const share = data[off]; off += 1;
+        creators.push({ address, verified, share });
+      }
+    }
+
+    // primary_sale_happened
+    const primarySaleHappened = data[off] === 1; off += 1;
+
+    // is_mutable
+    const isMutable = data[off] === 1; off += 1;
+
+    // edition_nonce: Option<u8>
+    const hasEditionNonce = data[off] === 1; off += 1;
+    if (hasEditionNonce) off += 1;
+
+    // token_standard: Option<u8>
+    let hasCollection = false;
+    let collectionVerified = false;
+    let collectionKey: PublicKey | null = null;
+
+    if (off < data.length) {
+      const hasTokenStandard = data[off] === 1; off += 1;
+      if (hasTokenStandard) off += 1;
+
+      // collection: Option<Collection>
+      if (off < data.length) {
+        hasCollection = data[off] === 1; off += 1;
+        if (hasCollection) {
+          collectionVerified = data[off] === 1; off += 1;
+          collectionKey = new PublicKey(data.subarray(off, off + 32)); off += 32;
+        }
+      }
+    }
+
+    return {
+      updateAuthority, mint, name, symbol, uri, sellerFeeBasisPoints,
+      hasCreators, creators, primarySaleHappened, isMutable,
+      hasCollection, collectionVerified, collectionKey,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Find migrated Gorbagio NFTs in the user's wallet that are missing the collection field.
+ */
+export async function fetchMigratedGorbagiosNeedingCollectionFix(
+  connection: Connection,
+  walletAddress: PublicKey,
+): Promise<MigratedGorbagioNeedingFix[]> {
+  try {
+    // Get standard SPL Token NFTs (not Token-2022)
+    const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+      walletAddress,
+      { programId: TOKEN_PROGRAM_ID },
+    );
+
+    const nftAccounts = tokenAccounts.value.filter((ta) => {
+      const info = ta.account.data.parsed?.info;
+      return info && info.tokenAmount?.uiAmount === 1 && info.tokenAmount?.decimals === 0;
+    });
+
+    if (nftAccounts.length === 0) return [];
+
+    const results: MigratedGorbagioNeedingFix[] = [];
+
+    // Check each NFT's Metaplex metadata
+    const mintAddresses = nftAccounts.map((ta) => new PublicKey(ta.account.data.parsed.info.mint));
+    const metadataPDAs = mintAddresses.map((mint) =>
+      PublicKey.findProgramAddressSync(
+        [Buffer.from('metadata'), METAPLEX_METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+        METAPLEX_METADATA_PROGRAM_ID,
+      )[0],
+    );
+
+    // Batch fetch metadata accounts
+    const BATCH_SIZE = 100;
+    const metadataInfos: (Awaited<ReturnType<Connection['getAccountInfo']>>)[] = [];
+    for (let i = 0; i < metadataPDAs.length; i += BATCH_SIZE) {
+      const batch = metadataPDAs.slice(i, i + BATCH_SIZE);
+      const fetched = await connection.getMultipleAccountsInfo(batch);
+      metadataInfos.push(...fetched);
+    }
+
+    for (let i = 0; i < metadataInfos.length; i++) {
+      const metadataInfo = metadataInfos[i];
+      if (!metadataInfo) continue;
+
+      const parsed = parseMetaplexMetadata(Buffer.from(metadataInfo.data));
+      if (!parsed) continue;
+
+      // Only Gorbagios
+      if (!parsed.name.startsWith('Gorbagio')) continue;
+
+      // Skip if collection is already correctly set
+      if (parsed.hasCollection && parsed.collectionKey?.equals(GORBAGIO_COLLECTION_MINT)) continue;
+
+      results.push({
+        mint: mintAddresses[i].toBase58(),
+        name: parsed.name,
+        symbol: parsed.symbol,
+        uri: parsed.uri,
+        image: '',
+        metadataAccount: metadataPDAs[i].toBase58(),
+        updateAuthority: parsed.updateAuthority.toBase58(),
+      });
+    }
+
+    // Fetch images
+    await Promise.all(
+      results.map(async (g) => {
+        if (!g.uri) return;
+        const uris = [g.uri];
+        const ipfsMatch = g.uri.match(/\/ipfs\/(.+)$/);
+        if (ipfsMatch) uris.push(`https://ipfs.io/ipfs/${ipfsMatch[1]}`);
+        for (const uri of uris) {
+          try {
+            const resp = await fetch(uri, { signal: AbortSignal.timeout(15000) });
+            const json = await resp.json();
+            if (json.image) { g.image = json.image; return; }
+          } catch { /* try next */ }
+        }
+      }),
+    );
+
+    return results;
+  } catch (err) {
+    console.error('[MigrationService] Error fetching migrated Gorbagios:', err);
+    return [];
+  }
+}
+
+/**
+ * Build an UpdateMetadataAccountV2 transaction to set the collection field
+ * on a migrated Gorbagio NFT. The user (update authority) must sign.
+ */
+export async function buildSetCollectionTransaction(
+  connection: Connection,
+  wallet: PublicKey,
+  mintAddress: PublicKey,
+): Promise<Transaction> {
+  const [metadataPDA] = PublicKey.findProgramAddressSync(
+    [Buffer.from('metadata'), METAPLEX_METADATA_PROGRAM_ID.toBuffer(), mintAddress.toBuffer()],
+    METAPLEX_METADATA_PROGRAM_ID,
+  );
+
+  const metadataInfo = await connection.getAccountInfo(metadataPDA);
+  if (!metadataInfo) throw new Error('Metadata account not found');
+
+  const parsed = parseMetaplexMetadata(Buffer.from(metadataInfo.data));
+  if (!parsed) throw new Error('Failed to parse metadata');
+
+  // Build UpdateMetadataAccountV2 instruction data (discriminator = 15)
+  const parts: Buffer[] = [];
+
+  // Instruction discriminator
+  parts.push(Buffer.from([15]));
+
+  // data: Some(DataV2)
+  parts.push(Buffer.from([1])); // Some
+
+  // DataV2.name
+  const nameBytes = Buffer.from(parsed.name, 'utf8');
+  const nameLenBuf = Buffer.alloc(4);
+  nameLenBuf.writeUInt32LE(nameBytes.length);
+  parts.push(nameLenBuf, nameBytes);
+
+  // DataV2.symbol
+  const symbolBytes = Buffer.from(parsed.symbol, 'utf8');
+  const symbolLenBuf = Buffer.alloc(4);
+  symbolLenBuf.writeUInt32LE(symbolBytes.length);
+  parts.push(symbolLenBuf, symbolBytes);
+
+  // DataV2.uri
+  const uriBytes = Buffer.from(parsed.uri, 'utf8');
+  const uriLenBuf = Buffer.alloc(4);
+  uriLenBuf.writeUInt32LE(uriBytes.length);
+  parts.push(uriLenBuf, uriBytes);
+
+  // DataV2.seller_fee_basis_points
+  const feeBuf = Buffer.alloc(2);
+  feeBuf.writeUInt16LE(parsed.sellerFeeBasisPoints);
+  parts.push(feeBuf);
+
+  // DataV2.creators: preserve existing
+  if (parsed.hasCreators && parsed.creators.length > 0) {
+    parts.push(Buffer.from([1])); // Some
+    const creatorsLenBuf = Buffer.alloc(4);
+    creatorsLenBuf.writeUInt32LE(parsed.creators.length);
+    parts.push(creatorsLenBuf);
+    for (const c of parsed.creators) {
+      parts.push(c.address.toBuffer());
+      parts.push(Buffer.from([c.verified ? 1 : 0]));
+      parts.push(Buffer.from([c.share]));
+    }
+  } else {
+    parts.push(Buffer.from([0])); // None
+  }
+
+  // DataV2.collection: Some(Collection { verified: false, key: GORBAGIO_COLLECTION_MINT })
+  parts.push(Buffer.from([1])); // Some
+  parts.push(Buffer.from([0])); // verified = false (deployer verifies separately)
+  parts.push(GORBAGIO_COLLECTION_MINT.toBuffer());
+
+  // DataV2.uses: None
+  parts.push(Buffer.from([0]));
+
+  // update_authority: None (keep existing)
+  parts.push(Buffer.from([0]));
+
+  // primary_sale_happened: None (keep existing)
+  parts.push(Buffer.from([0]));
+
+  // is_mutable: None (keep existing)
+  parts.push(Buffer.from([0]));
+
+  const instructionData = Buffer.concat(parts);
+
+  const ix = new TransactionInstruction({
+    programId: METAPLEX_METADATA_PROGRAM_ID,
+    keys: [
+      { pubkey: metadataPDA, isSigner: false, isWritable: true },
+      { pubkey: wallet, isSigner: true, isWritable: false },
+    ],
+    data: instructionData,
+  });
+
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+  const tx = new Transaction();
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = wallet;
+  (tx as any).lastValidBlockHeight = lastValidBlockHeight;
+  tx.add(ix);
+
+  return tx;
+}
+
+/**
+ * Execute the collection fix: build tx, sign with wallet, send & confirm.
+ */
+export async function executeSetCollection(
+  connection: Connection,
+  wallet: any, // wallet adapter
+  mintAddress: string,
+): Promise<{ signature: string; success: boolean; error?: string }> {
+  try {
+    const walletPubkey = wallet.publicKey;
+    if (!walletPubkey) throw new Error('Wallet not connected');
+
+    const mintPk = new PublicKey(mintAddress);
+    const transaction = await buildSetCollectionTransaction(connection, walletPubkey, mintPk);
+
+    const signedTx = await wallet.signTransaction(transaction);
+
+    const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
+
+    await connection.confirmTransaction(
+      {
+        signature,
+        blockhash: transaction.recentBlockhash!,
+        lastValidBlockHeight: (transaction as any).lastValidBlockHeight,
+      },
+      'confirmed',
+    );
+
+    return { signature, success: true };
+  } catch (err: any) {
+    console.error('[MigrationService] Set collection failed:', err);
+
+    let errorMessage = 'Failed to set collection';
+    if (err?.message?.includes('User rejected')) {
+      errorMessage = 'Transaction rejected by user';
+    } else if (err?.message?.includes('block height exceeded') || err?.message?.includes('expired')) {
+      errorMessage = 'Transaction expired — please try again and approve quickly in your wallet';
+    } else if (err?.message) {
+      errorMessage = err.message;
+    }
+
+    return { signature: '', success: false, error: errorMessage };
   }
 }

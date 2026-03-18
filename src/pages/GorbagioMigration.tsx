@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { ArrowRight, CheckCircle, AlertCircle, Loader, RefreshCw, Shield, Trash2 } from 'lucide-react';
+import { ArrowRight, CheckCircle, AlertCircle, Loader, RefreshCw, Shield, Trash2, Wrench } from 'lucide-react';
 import { audioManager } from '../lib/audioManager';
-import type { LegacyGorbagio } from '../services/migrationService';
+import type { LegacyGorbagio, MigratedGorbagioNeedingFix } from '../services/migrationService';
 
 type MigrationStatus = 'idle' | 'loading' | 'migrating' | 'success' | 'error';
 
@@ -11,6 +11,14 @@ interface MigrationState {
   nfts: LegacyGorbagio[];
   selected: string | null; // mint address
   status: MigrationStatus;
+  message: string;
+  signature: string;
+}
+
+interface CollectionFixState {
+  nfts: MigratedGorbagioNeedingFix[];
+  fixing: string | null; // mint currently being fixed
+  status: 'idle' | 'loading' | 'fixing' | 'success' | 'error';
   message: string;
   signature: string;
 }
@@ -29,19 +37,39 @@ const GorbagioMigration: React.FC = () => {
     signature: '',
   });
 
+  const [fixState, setFixState] = useState<CollectionFixState>({
+    nfts: [],
+    fixing: null,
+    status: 'idle',
+    message: '',
+    signature: '',
+  });
+
   const loadNFTs = useCallback(async () => {
     if (!connected || !publicKey) return;
 
     setState((s) => ({ ...s, status: 'loading', message: 'Scanning wallet for legacy Gorbagios...' }));
+    setFixState((s) => ({ ...s, status: 'loading', message: 'Checking migrated NFTs...' }));
 
     try {
-      const { fetchUserLegacyGorbagios } = await import('../services/migrationService');
-      const nfts = await fetchUserLegacyGorbagios(connection, publicKey);
+      const { fetchUserLegacyGorbagios, fetchMigratedGorbagiosNeedingCollectionFix } = await import('../services/migrationService');
+
+      const [nfts, needFix] = await Promise.all([
+        fetchUserLegacyGorbagios(connection, publicKey),
+        fetchMigratedGorbagiosNeedingCollectionFix(connection, publicKey),
+      ]);
+
       setState((s) => ({
         ...s,
         nfts,
         status: 'idle',
         message: nfts.length === 0 ? 'No legacy Gorbagios found in your wallet.' : '',
+      }));
+      setFixState((s) => ({
+        ...s,
+        nfts: needFix,
+        status: 'idle',
+        message: '',
       }));
     } catch (err) {
       console.error('[Migration] Error loading NFTs:', err);
@@ -50,6 +78,7 @@ const GorbagioMigration: React.FC = () => {
         status: 'error',
         message: 'Failed to scan wallet. Please try again.',
       }));
+      setFixState((s) => ({ ...s, status: 'idle' }));
     }
   }, [connected, publicKey, connection]);
 
@@ -85,12 +114,45 @@ const GorbagioMigration: React.FC = () => {
         nfts: s.nfts.filter((n) => n.mint !== state.selected),
         selected: null,
       }));
+      // Auto-refresh after 2s to update both lists
+      setTimeout(() => loadNFTs(), 2000);
     } else {
       audioManager.play('error');
       setState((s) => ({
         ...s,
         status: 'error',
         message: result.error || 'Migration failed',
+      }));
+    }
+  };
+
+  const handleFixCollection = async (mintAddress: string) => {
+    if (!wallet?.adapter || !publicKey) return;
+
+    setFixState((s) => ({ ...s, fixing: mintAddress, status: 'fixing', message: 'Setting collection on NFT...' }));
+
+    const { executeSetCollection } = await import('../services/migrationService');
+    const result = await executeSetCollection(connection, wallet.adapter, mintAddress);
+
+    if (result.success) {
+      audioManager.play('purchase_success');
+      setFixState((s) => ({
+        ...s,
+        fixing: null,
+        status: 'success',
+        message: 'Collection set successfully! The deployer will verify it shortly.',
+        signature: result.signature,
+        nfts: s.nfts.filter((n) => n.mint !== mintAddress),
+      }));
+      // Auto-refresh after 2s
+      setTimeout(() => loadNFTs(), 2000);
+    } else {
+      audioManager.play('error');
+      setFixState((s) => ({
+        ...s,
+        fixing: null,
+        status: 'error',
+        message: result.error || 'Failed to set collection',
       }));
     }
   };
@@ -284,6 +346,86 @@ const GorbagioMigration: React.FC = () => {
               <div className="mt-4 border border-red-500/30 bg-red-500/5 p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                 <p className="font-mono text-sm text-red-400">{state.message}</p>
+              </div>
+            )}
+
+            {/* Collection Fix Section */}
+            {fixState.nfts.length > 0 && (
+              <div className="mt-8 border border-yellow-500/30 bg-yellow-500/5 p-6">
+                <h3 className="font-mono text-sm text-yellow-400 mb-2 flex items-center gap-2">
+                  <Wrench className="w-4 h-4" />
+                  FIX COLLECTION ({fixState.nfts.length})
+                </h3>
+                <p className="text-gray-500 text-xs font-mono mb-4">
+                  These migrated Gorbagios are missing their collection tag. Click to fix — your wallet will sign a metadata update.
+                </p>
+
+                <div className="space-y-3">
+                  {fixState.nfts.map((nft) => (
+                    <div
+                      key={nft.mint}
+                      className="flex items-center gap-3 border border-gray-800 bg-gray-900/50 p-3"
+                    >
+                      {nft.image ? (
+                        <img src={nft.image} alt={nft.name} className="w-12 h-12 object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-800 flex items-center justify-center flex-shrink-0">
+                          <Trash2 className="w-5 h-5 text-gray-700" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono text-xs text-white truncate">{nft.name}</p>
+                        <p className="font-mono text-[10px] text-gray-600 truncate">
+                          {nft.mint.slice(0, 8)}...{nft.mint.slice(-4)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleFixCollection(nft.mint)}
+                        disabled={fixState.status === 'fixing'}
+                        className={`px-4 py-2 font-mono text-xs font-bold transition-all flex-shrink-0 ${
+                          fixState.fixing === nft.mint
+                            ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                            : 'bg-yellow-500 text-black hover:bg-yellow-400'
+                        }`}
+                      >
+                        {fixState.fixing === nft.mint ? (
+                          <span className="flex items-center gap-1">
+                            <Loader className="w-3 h-3 animate-spin" /> FIXING...
+                          </span>
+                        ) : (
+                          'FIX COLLECTION'
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Collection Fix Status */}
+            {fixState.status === 'success' && (
+              <div className="mt-4 border border-[#39FF14]/30 bg-[#39FF14]/5 p-4 flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-[#39FF14] flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-mono text-sm text-[#39FF14]">{fixState.message}</p>
+                  {fixState.signature && (
+                    <a
+                      href={`https://trashscan.io/tx/${fixState.signature}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-xs text-gray-400 hover:text-[#39FF14] mt-1 inline-block"
+                    >
+                      View on Trashscan: {fixState.signature.slice(0, 16)}...
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {fixState.status === 'error' && (
+              <div className="mt-4 border border-red-500/30 bg-red-500/5 p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="font-mono text-sm text-red-400">{fixState.message}</p>
               </div>
             )}
           </>
