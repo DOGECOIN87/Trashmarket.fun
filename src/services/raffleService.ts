@@ -1,4 +1,5 @@
 import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from '@solana/web3.js';
+import { confirmTransaction } from '../utils/confirmTx';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import {
   TOKEN_PROGRAM_ID,
@@ -159,7 +160,7 @@ export class RaffleService {
 
     const signed = await this.provider.wallet.signTransaction(transaction);
     const tx = await this.connection.sendRawTransaction(signed.serialize());
-    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
+    await confirmTransaction(this.connection, tx);
 
     return tx;
   }
@@ -254,7 +255,7 @@ export class RaffleService {
 
     const signed = await this.provider.wallet.signTransaction(transaction);
     const tx = await this.connection.sendRawTransaction(signed.serialize());
-    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
+    await confirmTransaction(this.connection, tx);
 
     return { signature: tx, raffleId };
   }
@@ -352,7 +353,7 @@ export class RaffleService {
 
     const signed = await this.provider.wallet.signTransaction(transaction);
     const tx = await this.connection.sendRawTransaction(signed.serialize());
-    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
+    await confirmTransaction(this.connection, tx);
 
     return tx;
   }
@@ -401,7 +402,7 @@ export class RaffleService {
 
     const signed = await this.provider.wallet.signTransaction(transaction);
     const tx = await this.connection.sendRawTransaction(signed.serialize());
-    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
+    await confirmTransaction(this.connection, tx);
 
     return tx;
   }
@@ -496,7 +497,7 @@ export class RaffleService {
 
     const signed = await this.provider.wallet.signTransaction(transaction);
     const tx = await this.connection.sendRawTransaction(signed.serialize());
-    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
+    await confirmTransaction(this.connection, tx);
 
     return tx;
   }
@@ -543,7 +544,7 @@ export class RaffleService {
 
     const signed = await this.provider.wallet.signTransaction(transaction);
     const tx = await this.connection.sendRawTransaction(signed.serialize());
-    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
+    await confirmTransaction(this.connection, tx);
 
     return tx;
   }
@@ -590,7 +591,7 @@ export class RaffleService {
 
     const signed = await this.provider.wallet.signTransaction(transaction);
     const tx = await this.connection.sendRawTransaction(signed.serialize());
-    await this.connection.confirmTransaction({ signature: tx, blockhash, lastValidBlockHeight }, 'confirmed');
+    await confirmTransaction(this.connection, tx);
 
     return tx;
   }

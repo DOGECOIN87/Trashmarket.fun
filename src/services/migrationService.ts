@@ -364,15 +364,10 @@ export async function executeMigration(
       maxRetries: 3,
     });
 
-    // Confirm using the blockhash already embedded in the transaction
-    await connection.confirmTransaction(
-      {
-        signature,
-        blockhash: transaction.recentBlockhash!,
-        lastValidBlockHeight: (transaction as any).lastValidBlockHeight,
-      },
-      'confirmed',
-    );
+    // Poll signature status instead of blockhash-based confirmation
+    // (Gorbagana RPC can be slow, causing block height to expire before confirmation returns)
+    const { confirmTransaction: confirmTx } = await import('../utils/confirmTx');
+    await confirmTx(connection, signature);
 
     return {
       signature,
@@ -723,14 +718,8 @@ export async function executeSetCollection(
       maxRetries: 3,
     });
 
-    await connection.confirmTransaction(
-      {
-        signature,
-        blockhash: transaction.recentBlockhash!,
-        lastValidBlockHeight: (transaction as any).lastValidBlockHeight,
-      },
-      'confirmed',
-    );
+    const { confirmTransaction: confirmTx } = await import('../utils/confirmTx');
+    await confirmTx(connection, signature);
 
     return { signature, success: true };
   } catch (err: any) {

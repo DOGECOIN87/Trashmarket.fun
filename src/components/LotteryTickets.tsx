@@ -176,10 +176,8 @@ const LotteryTickets: React.FC = () => {
                 skipPreflight: false,
                 maxRetries: 3,
             });
-            await conn.confirmTransaction(
-                { signature, blockhash, lastValidBlockHeight },
-                'confirmed'
-            );
+            const { confirmTransaction } = await import('../utils/confirmTx');
+            await confirmTransaction(conn, signature);
 
             setStatus('success');
             setMessage(`Successfully converted ${amount} JUNK!`);

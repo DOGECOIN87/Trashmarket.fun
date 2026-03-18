@@ -335,11 +335,8 @@ export async function executeBuy(
     });
 
     // Confirm
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-    await connection.confirmTransaction(
-      { blockhash, lastValidBlockHeight, signature },
-      'confirmed',
-    );
+    const { confirmTransaction } = await import('../utils/confirmTx');
+    await confirmTransaction(connection, signature);
 
     // Mark listing as sold in Firestore
     await setDoc(

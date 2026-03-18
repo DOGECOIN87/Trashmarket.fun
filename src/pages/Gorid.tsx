@@ -153,12 +153,8 @@ const Gorid: React.FC = () => {
 
       // Send and confirm transaction
       const txSignature = await connection.sendRawTransaction(signedTx.serialize());
-      if (transaction.recentBlockhash && transaction.lastValidBlockHeight) {
-        await connection.confirmTransaction({ signature: txSignature, blockhash: transaction.recentBlockhash, lastValidBlockHeight: transaction.lastValidBlockHeight }, 'confirmed');
-      } else {
-        const latest = await connection.getLatestBlockhash('confirmed');
-        await connection.confirmTransaction({ signature: txSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight }, 'confirmed');
-      }
+      const { confirmTransaction } = await import('../utils/confirmTx');
+      await confirmTransaction(connection, txSignature);
 
       audioManager.play('purchase_success');
       setBuySuccess(txSignature);
@@ -212,12 +208,8 @@ const Gorid: React.FC = () => {
       // Sign and send the transaction
       const signedTx = await signTransaction(transaction);
       const txSignature = await connection.sendRawTransaction(signedTx.serialize());
-      if (transaction.recentBlockhash && transaction.lastValidBlockHeight) {
-        await connection.confirmTransaction({ signature: txSignature, blockhash: transaction.recentBlockhash, lastValidBlockHeight: transaction.lastValidBlockHeight }, 'confirmed');
-      } else {
-        const latest = await connection.getLatestBlockhash('confirmed');
-        await connection.confirmTransaction({ signature: txSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight }, 'confirmed');
-      }
+      const { confirmTransaction } = await import('../utils/confirmTx');
+      await confirmTransaction(connection, txSignature);
 
       // Close modal and refresh
       audioManager.play('list_success');
@@ -277,12 +269,8 @@ const Gorid: React.FC = () => {
       // Sign and send the transaction
       const signedTx = await signTransaction(transaction);
       const txSignature = await connection.sendRawTransaction(signedTx.serialize());
-      if (transaction.recentBlockhash && transaction.lastValidBlockHeight) {
-        await connection.confirmTransaction({ signature: txSignature, blockhash: transaction.recentBlockhash, lastValidBlockHeight: transaction.lastValidBlockHeight }, 'confirmed');
-      } else {
-        const latest = await connection.getLatestBlockhash('confirmed');
-        await connection.confirmTransaction({ signature: txSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight }, 'confirmed');
-      }
+      const { confirmTransaction } = await import('../utils/confirmTx');
+      await confirmTransaction(connection, txSignature);
 
       // After successful on-chain cancellation, refresh data
       invalidateListingsCache();

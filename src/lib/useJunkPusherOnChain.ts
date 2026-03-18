@@ -119,10 +119,8 @@ export function useJunkPusherOnChain() {
           maxRetries: 3,
         });
 
-        await connection.confirmTransaction(
-          { blockhash, lastValidBlockHeight, signature },
-          'confirmed',
-        );
+        const { confirmTransaction } = await import('../utils/confirmTx');
+        await confirmTransaction(connection, signature);
 
         setState((s) => ({
           ...s,
@@ -327,10 +325,8 @@ export function useJunkPusherOnChain() {
           maxRetries: 3,
         });
 
-        await connection.confirmTransaction(
-          { blockhash, lastValidBlockHeight, signature },
-          'confirmed',
-        );
+        const { confirmTransaction } = await import('../utils/confirmTx');
+        await confirmTransaction(connection, signature);
 
         setState((s) => ({
           ...s,

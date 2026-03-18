@@ -103,11 +103,8 @@ export const useBridgeService = () => {
       maxRetries: 2,
     });
 
-    await provider.connection.confirmTransaction({
-      blockhash: latestBlockhash.blockhash,
-      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-      signature: txid,
-    }, 'confirmed');
+    const { confirmTransaction } = await import('../utils/confirmTx');
+    await confirmTransaction(provider.connection, txid);
 
     return { tx: txid, orderPDA };
   };
@@ -169,11 +166,8 @@ export const useBridgeService = () => {
       maxRetries: 2,
     });
 
-    await currentProvider.connection.confirmTransaction({
-      blockhash: latestBlockhash.blockhash,
-      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-      signature: txid,
-    }, 'confirmed');
+    const { confirmTransaction } = await import('../utils/confirmTx');
+    await confirmTransaction(currentProvider.connection, txid);
 
     return { tx: txid, orderPDA, escrowPDA };
   };
@@ -326,23 +320,9 @@ export const useBridgeService = () => {
       throw new Error(`Failed to send transaction: ${sendErr.message || sendErr}`);
     }
 
-    const confirmation = await provider.connection.confirmTransaction({
-      blockhash: latestBlockhash.blockhash,
-      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-      signature: txid,
-    }, 'confirmed');
-
-    if (confirmation.value.err) {
-      const errJson = JSON.stringify(confirmation.value.err);
-      const customMatch = errJson.match(/"Custom":(\d+)/);
-      if (customMatch) {
-        const code = parseInt(customMatch[1], 10);
-        const err = new Error(`Transaction failed with error code ${code}`);
-        (err as any).code = code;
-        throw err;
-      }
-      throw new Error(`Transaction failed: ${errJson}`);
-    }
+    // confirmTransaction from our util already throws on tx error
+    const { confirmTransaction } = await import('../utils/confirmTx');
+    await confirmTransaction(provider.connection, txid);
 
     return txid;
   };
@@ -411,15 +391,8 @@ export const useBridgeService = () => {
       maxRetries: 2,
     });
 
-    const confirmation = await provider.connection.confirmTransaction({
-      blockhash: latestBlockhash.blockhash,
-      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-      signature: txid,
-    }, 'confirmed');
-
-    if (confirmation.value.err) {
-      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
-    }
+    const { confirmTransaction } = await import('../utils/confirmTx');
+    await confirmTransaction(provider.connection, txid);
 
     return txid;
   };

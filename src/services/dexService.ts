@@ -482,16 +482,10 @@ export const executeSwap = async (
 
     console.log('[DEX] Transaction sent:', signature);
 
-    // 5. Confirm with timeout — don't hang forever
+    // 5. Confirm via signature polling (more reliable on Gorbagana)
     try {
-      const confirmPromise = connection.confirmTransaction(
-        { signature, blockhash: freshHash, lastValidBlockHeight: freshHeight },
-        'confirmed'
-      );
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Confirmation timeout')), 30000)
-      );
-      await Promise.race([confirmPromise, timeoutPromise]);
+      const { confirmTransaction } = await import('../utils/confirmTx');
+      await confirmTransaction(connection, signature, 30000);
     } catch (confirmErr: any) {
       // Transaction was sent successfully — return signature even if confirmation is uncertain
       console.warn('[DEX] Confirmation uncertain:', confirmErr?.message);
