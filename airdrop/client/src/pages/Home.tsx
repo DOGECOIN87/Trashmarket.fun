@@ -106,68 +106,29 @@ export default function Home() {
       {/* Content */}
       <div className="relative z-10 flex flex-col flex-1">
         {/* Header */}
-        <header className="border-b border-[#333333] py-6 md:py-8">
-          <div className="container">
-            <div className="flex items-center gap-4">
+        <header className="border-b border-[#333333] py-6">
+          <div className="max-w-4xl mx-auto px-4">
+            <div className="flex items-center justify-center gap-3">
               <img
                 src={ASSETS.LOGO}
                 alt="DEBRIS Logo"
-                className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0"
+                className="w-12 h-12"
               />
-              <div>
-                <h1 className="text-xl md:text-2xl text-glow-green font-bold">{BRAND.NAME}</h1>
-                <p className="text-xs text-[#666666] uppercase tracking-widest mt-1">{BRAND.SUBTITLE}</p>
+              <div className="text-center">
+                <h1 className="text-2xl text-glow-green font-bold">{BRAND.NAME}</h1>
+                <p className="text-xs text-[#666666] uppercase tracking-widest">{BRAND.SUBTITLE}</p>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Hero Section */}
-        <section className="flex-1 py-16 md:py-24 border-b border-[#333333]">
-          <div className="container">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center">
-              {/* Left: Text */}
-              <div className="flex flex-col justify-center">
-                <h2 className="text-5xl md:text-6xl lg:text-7xl mb-8 text-glow-green leading-tight font-bold tracking-tight">
-                  REGISTER FOR<br />THE DEBRIS<br />AIRDROP
-                </h2>
-                <p className="text-[#999999] mb-12 leading-relaxed text-base md:text-lg max-w-lg">
-                  Verify your X.com account and register your Gorbagana wallet to participate in the DEBRIS token airdrop. One registration per account.
-                </p>
-                <div className="space-y-6">
-                  <div className="flex items-start gap-6">
-                    <div className="flex-shrink-0">
-                      <span className="text-[#adff02] font-bold text-2xl">01</span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-white mb-2 text-lg">Authenticate with X.com</h3>
-                      <p className="text-sm text-[#666666]">Verify your identity using your X.com account</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-6">
-                    <div className="flex-shrink-0">
-                      <span className="text-[#adff02] font-bold text-2xl">02</span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-white mb-2 text-lg">Submit Wallet Address</h3>
-                      <p className="text-sm text-[#666666]">Provide your Gorbagana wallet for token distribution</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-6">
-                    <div className="flex-shrink-0">
-                      <span className="text-[#adff02] font-bold text-2xl">03</span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-white mb-2 text-lg">Receive DEBRIS</h3>
-                      <p className="text-sm text-[#666666]">Get your DEBRIS tokens on Gorbagana Chain</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Hero Image */}
-              <div className="relative hidden lg:block">
-                <div className="aspect-square relative">
+        {/* Hero Section - Centered with Image */}
+        <section className="flex-1 py-12 md:py-16 flex items-center justify-center">
+          <div className="max-w-4xl mx-auto px-4 w-full">
+            <div className="flex flex-col items-center text-center">
+              {/* Hero Image - Top */}
+              <div className="mb-12 w-full max-w-md">
+                <div className="relative aspect-square">
                   <img
                     src={ASSETS.HERO}
                     alt="DEBRIS Airdrop"
@@ -176,23 +137,49 @@ export default function Home() {
                   <div className="absolute inset-0 border border-[#adff02] opacity-50 pointer-events-none"></div>
                 </div>
               </div>
-            </div>
-          </div>
-        </section>
 
-        {/* CTA Section */}
-        <section className="py-20 md:py-24 border-b border-[#333333]">
-          <div className="container">
-            <div className="max-w-3xl mx-auto">
-              <div className="text-center">
-                <h3 className="text-4xl md:text-5xl mb-10 text-white font-bold tracking-tight">READY TO REGISTER?</h3>
+              {/* Text Content - Centered Below Image */}
+              <div className="max-w-2xl">
+                <h2 className="text-5xl md:text-6xl mb-6 text-glow-green leading-tight font-bold tracking-tight">
+                  REGISTER FOR<br />THE DEBRIS<br />AIRDROP
+                </h2>
+                <p className="text-[#999999] mb-10 leading-relaxed text-base md:text-lg">
+                  Verify your X.com account and register your Gorbagana wallet to participate in the DEBRIS token airdrop. One registration per account.
+                </p>
+
+                {/* Steps */}
+                <div className="space-y-4 mb-12">
+                  <div className="flex items-start justify-center gap-4">
+                    <span className="text-[#adff02] font-bold text-xl flex-shrink-0">01</span>
+                    <div className="text-left">
+                      <h3 className="font-bold text-white mb-1">Authenticate with X.com</h3>
+                      <p className="text-sm text-[#666666]">Verify your identity using your X.com account</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-center gap-4">
+                    <span className="text-[#adff02] font-bold text-xl flex-shrink-0">02</span>
+                    <div className="text-left">
+                      <h3 className="font-bold text-white mb-1">Submit Wallet Address</h3>
+                      <p className="text-sm text-[#666666]">Provide your Gorbagana wallet for token distribution</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-center gap-4">
+                    <span className="text-[#adff02] font-bold text-xl flex-shrink-0">03</span>
+                    <div className="text-left">
+                      <h3 className="font-bold text-white mb-1">Receive DEBRIS</h3>
+                      <p className="text-sm text-[#666666]">Get your DEBRIS tokens on Gorbagana Chain</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA Button */}
                 <a
                   href={getLoginUrl()}
-                  className="btn-primary inline-block px-16 md:px-20 py-5 text-lg md:text-xl font-bold hover:bg-[#cbf30c] transition-all duration-200 transform hover:scale-105 active:scale-95"
+                  className="btn-primary inline-block px-12 py-4 text-lg font-bold hover:bg-[#cbf30c] transition-all duration-200 transform hover:scale-105 active:scale-95 mb-6"
                 >
                   AUTHENTICATE WITH X.COM
                 </a>
-                <p className="text-[#666666] text-xs md:text-sm mt-8 uppercase tracking-widest font-mono">
+                <p className="text-[#666666] text-xs uppercase tracking-widest">
                   Secure • Verified • On-Chain
                 </p>
               </div>
@@ -201,8 +188,8 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-[#333333] py-8 md:py-10 mt-auto">
-          <div className="container">
+        <footer className="border-t border-[#333333] py-8 mt-auto">
+          <div className="max-w-4xl mx-auto px-4">
             <div className="text-center text-[#666666] text-xs uppercase tracking-widest space-y-2">
               <p>DEBRIS Airdrop Registration • Powered by Trashmarket.fun</p>
               <p>Gorbagana Chain • {new Date().getFullYear()}</p>
