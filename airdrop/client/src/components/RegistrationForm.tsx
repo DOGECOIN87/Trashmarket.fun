@@ -45,7 +45,7 @@ export default function RegistrationForm({ user, onLogout, onShowAdmin }: Regist
   };
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
+    <div className="min-h-screen bg-black relative overflow-hidden flex flex-col">
       {/* Animated SVG background */}
       <div className="absolute inset-0 opacity-5 pointer-events-none">
         <img
@@ -56,58 +56,60 @@ export default function RegistrationForm({ user, onLogout, onShowAdmin }: Regist
       </div>
 
       {/* Content */}
-      <div className="relative z-10">
+      <div className="relative z-10 flex flex-col flex-1">
         {/* Header */}
-        <header className="border-b border-[#333333] py-6">
-          <div className="container flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img
-                src={ASSETS.LOGO}
-                alt="DEBRIS Logo"
-                className="w-12 h-12"
-              />
-              <div>
-                <h1 className="text-2xl text-glow-green">{BRAND.NAME}</h1>
-                <p className="text-xs text-[#666666] uppercase tracking-widest">{BRAND.SUBTITLE}</p>
+        <header className="border-b border-[#333333] py-6 md:py-8">
+          <div className="container">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <img
+                  src={ASSETS.LOGO}
+                  alt="DEBRIS Logo"
+                  className="w-14 h-14 md:w-16 md:h-16 flex-shrink-0"
+                />
+                <div>
+                  <h1 className="text-xl md:text-2xl text-glow-green font-bold">{BRAND.NAME}</h1>
+                  <p className="text-xs text-[#666666] uppercase tracking-widest mt-1">{BRAND.SUBTITLE}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {user?.role === 'admin' && onShowAdmin && (
+              <div className="flex items-center gap-3 md:gap-4">
+                {user?.role === 'admin' && onShowAdmin && (
+                  <button
+                    onClick={onShowAdmin}
+                    className="btn-secondary text-xs md:text-sm px-4 md:px-6 py-2 md:py-3"
+                  >
+                    ADMIN
+                  </button>
+                )}
                 <button
-                  onClick={onShowAdmin}
-                  className="btn-secondary text-sm"
+                  onClick={onLogout}
+                  className="btn-secondary text-xs md:text-sm px-4 md:px-6 py-2 md:py-3"
                 >
-                  ADMIN
+                  LOGOUT
                 </button>
-              )}
-              <button
-                onClick={onLogout}
-                className="btn-secondary text-sm"
-              >
-                LOGOUT
-              </button>
+              </div>
             </div>
           </div>
         </header>
 
         {/* Main Content */}
-        <section className="py-16">
+        <section className="flex-1 py-16 md:py-24">
           <div className="container">
             <div className="max-w-2xl mx-auto">
               {/* Welcome */}
-              <div className="mb-12 text-center">
-                <h2 className="text-4xl mb-4 text-glow-green">WELCOME, {user?.name?.toUpperCase() || 'USER'}</h2>
-                <p className="text-[#999999]">
+              <div className="mb-16 text-center">
+                <h2 className="text-4xl md:text-5xl mb-6 text-glow-green font-bold tracking-tight">WELCOME, {user?.name?.toUpperCase() || 'USER'}</h2>
+                <p className="text-[#999999] text-base md:text-lg leading-relaxed">
                   Your X.com account has been verified. Now submit your Gorbagana wallet address to complete registration.
                 </p>
               </div>
 
               {/* Form */}
-              <div className="card mb-8">
-                <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="card mb-12 p-8 md:p-12">
+                <form onSubmit={handleSubmit} className="space-y-8">
                   {/* Wallet Address Input */}
                   <div>
-                    <label className="block text-sm font-bold text-[#adff02] uppercase tracking-widest mb-3">
+                    <label className="block text-sm font-bold text-[#adff02] uppercase tracking-widest mb-4">
                       Gorbagana Wallet Address
                     </label>
                     <input
@@ -115,26 +117,26 @@ export default function RegistrationForm({ user, onLogout, onShowAdmin }: Regist
                       value={wallet}
                       onChange={(e) => setWallet(e.target.value)}
                       placeholder="Enter your Gorbagana wallet address (32-44 characters)"
-                      className="input-field w-full"
+                      className="input-field w-full px-4 py-3 md:py-4 text-base"
                       disabled={isSubmitting}
                     />
-                    <p className="text-xs text-[#666666] mt-2 uppercase tracking-widest">
+                    <p className="text-xs text-[#666666] mt-3 uppercase tracking-widest">
                       Format: Base58 encoded address (e.g., 1A1z7agoat2Ld7hkQnLzktDG2sKqKN62Iy)
                     </p>
                   </div>
 
                   {/* Error Message */}
                   {error && (
-                    <div className="bg-[#1a0000] border border-[#ff2222] p-4 text-[#ff2222] text-sm">
-                      <p className="font-bold uppercase">ERROR</p>
+                    <div className="bg-[#1a0000] border border-[#ff2222] p-5 text-[#ff2222] text-sm">
+                      <p className="font-bold uppercase mb-2">ERROR</p>
                       <p>{error}</p>
                     </div>
                   )}
 
                   {/* Info Box */}
-                  <div className="bg-[#000800] border border-[#333333] p-4 text-[#999999] text-sm">
-                    <p className="font-bold text-[#adff02] uppercase mb-2">Important</p>
-                    <ul className="space-y-1 list-disc list-inside">
+                  <div className="bg-[#000800] border border-[#333333] p-5 text-[#999999] text-sm">
+                    <p className="font-bold text-[#adff02] uppercase mb-3">Important</p>
+                    <ul className="space-y-2 list-disc list-inside">
                       <li>Only register with a wallet you control</li>
                       <li>One wallet per X.com account</li>
                       <li>DEBRIS tokens will be distributed to this address</li>
@@ -146,7 +148,7 @@ export default function RegistrationForm({ user, onLogout, onShowAdmin }: Regist
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="btn-primary w-full py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-primary w-full py-4 md:py-5 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#cbf30c] transition-all duration-200"
                   >
                     {isSubmitting ? 'REGISTERING...' : 'REGISTER WALLET'}
                   </button>
