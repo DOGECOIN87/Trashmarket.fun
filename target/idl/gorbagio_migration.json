@@ -1,0 +1,115 @@
+{
+  "address": "3PtknVekKAYAYExL6YQWxf6bycpGWoQQ9tNM566qzKmU",
+  "metadata": {
+    "name": "gorbagio_migration",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Gorbagio NFT Migration Program"
+  },
+  "instructions": [
+    {
+      "name": "migrate_gorbagio",
+      "discriminator": [
+        78,
+        210,
+        30,
+        12,
+        115,
+        55,
+        116,
+        150
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "legacy_mint",
+          "writable": true
+        },
+        {
+          "name": "user_legacy_token_account",
+          "writable": true
+        },
+        {
+          "name": "legacy_token_program"
+        },
+        {
+          "name": "new_mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_new_token_account",
+          "writable": true
+        },
+        {
+          "name": "metadata_account",
+          "writable": true
+        },
+        {
+          "name": "master_edition_account",
+          "writable": true
+        },
+        {
+          "name": "metadata_program"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "address": "77hDeRmTFa7WVPqTvDtD9qg9D73DdqU3WeaHTxUnQ8wb"
+        },
+        {
+          "name": "associated_token_program"
+        },
+        {
+          "name": "system_program"
+        },
+        {
+          "name": "rent"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidMint",
+      "msg": "The provided mint does not match the legacy token account."
+    },
+    {
+      "code": 6001,
+      "name": "InvalidOwner",
+      "msg": "The user does not own the legacy token account."
+    },
+    {
+      "code": 6002,
+      "name": "InvalidAmount",
+      "msg": "The legacy token account must contain exactly 1 token."
+    },
+    {
+      "code": 6003,
+      "name": "NotAGorbagio",
+      "msg": "This NFT is not a Gorbagio. Only legacy Gorbagio NFTs can be migrated."
+    }
+  ]
+}

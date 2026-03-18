@@ -37,6 +37,9 @@ const GORBAGIO_UPDATE_AUTHORITY = new PublicKey('fair1sCzkkPSvF44QGoD89ThvZdK1e4
 // Gorbagio collection NFT mint on Gorbagana
 const GORBAGIO_COLLECTION_MINT = new PublicKey('FBJ47AgQSzSWVQVzsspoUzcFVeEf8a6xihZKZgmRuno1');
 
+// Treasury wallet that receives migration fees
+const TREASURY_WALLET = new PublicKey('77hDeRmTFa7WVPqTvDtD9qg9D73DdqU3WeaHTxUnQ8wb');
+
 // Anchor discriminator for migrate_gorbagio instruction
 // sha256("global:migrate_gorbagio")[0..8]
 const MIGRATE_DISCRIMINATOR = Buffer.from([
@@ -303,6 +306,7 @@ export async function buildMigrationTransaction(
       { pubkey: masterEditionAccount, isSigner: false, isWritable: true }, // master_edition_account
       { pubkey: METAPLEX_METADATA_PROGRAM_ID, isSigner: false, isWritable: false }, // metadata_program
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },  // token_program
+      { pubkey: TREASURY_WALLET, isSigner: false, isWritable: true },    // treasury
       { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // associated_token_program
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
       { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // rent

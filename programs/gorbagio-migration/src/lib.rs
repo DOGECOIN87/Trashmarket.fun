@@ -8,6 +8,7 @@
 //! If any step fails, the entire transaction rolls back — no NFTs can be lost.
 
 use anchor_lang::prelude::*;
+use anchor_lang::system_program;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount};
 use anchor_spl::token_interface::{
@@ -30,6 +31,12 @@ const GORBAGIO_UPDATE_AUTHORITY: Pubkey =
 /// Gorbagio collection NFT mint on Gorbagana.
 const GORBAGIO_COLLECTION_MINT: Pubkey =
     pubkey!("FBJ47AgQSzSWVQVzsspoUzcFVeEf8a6xihZKZgmRuno1");
+
+/// Treasury wallet that receives migration fees.
+const TREASURY: Pubkey = pubkey!("77hDeRmTFa7WVPqTvDtD9qg9D73DdqU3WeaHTxUnQ8wb");
+
+/// Migration fee: 1000 GOR (9 decimals).
+const MIGRATION_FEE: u64 = 1_000_000_000_000;
 
 #[program]
 pub mod gorbagio_migration {
@@ -62,7 +69,18 @@ pub mod gorbagio_migration {
         );
         drop(data);
 
-        // --- Step 2: Burn the legacy token via Token-2022 ---
+        // --- Step 2: Collect migration fee (1000 GOR → treasury) ---
+        let transfer_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.user.to_account_info(),
+                to: ctx.accounts.treasury.to_account_info(),
+            },
+        );
+        system_program::transfer(transfer_ctx, MIGRATION_FEE)?;
+
+        // --- Step 3: Burn the legacy token via Token-2022 ---
+        // (was Step 2 before fee was added)
         let burn_accounts = token_interface::Burn {
             mint: ctx.accounts.legacy_mint.to_account_info(),
             from: ctx.accounts.user_legacy_token_account.to_account_info(),
@@ -256,6 +274,10 @@ pub struct MigrateGorbagio<'info> {
 
     /// Standard SPL Token program (for new mint + mint_to).
     pub token_program: Program<'info, Token>,
+
+    /// CHECK: Treasury wallet validated by address constraint.
+    #[account(mut, address = TREASURY)]
+    pub treasury: UncheckedAccount<'info>,
 
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,

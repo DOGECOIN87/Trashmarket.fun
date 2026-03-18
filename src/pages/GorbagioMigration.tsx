@@ -301,6 +301,10 @@ const GorbagioMigration: React.FC = () => {
                   <p>URI: <span className="text-gray-300 break-all">{selectedNFT.uri}</span></p>
                 </div>
 
+                <div className="text-xs font-mono text-yellow-400 mb-3 p-2 border border-yellow-500/20 bg-yellow-500/5">
+                  Migration fee: 1,000 GOR (+ transaction fees)
+                </div>
+
                 <button
                   onClick={handleMigrate}
                   disabled={state.status === 'migrating'}
@@ -316,7 +320,7 @@ const GorbagioMigration: React.FC = () => {
                       MIGRATING...
                     </span>
                   ) : (
-                    'MIGRATE TO METAPLEX'
+                    'MIGRATE TO METAPLEX — 1,000 GOR'
                   )}
                 </button>
               </div>
