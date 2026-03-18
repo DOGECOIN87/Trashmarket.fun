@@ -16,7 +16,8 @@ import { Loader2, Ticket, AlertCircle, CheckCircle2, RefreshCw, Info, X, Lock } 
 import { getDebrisBalance } from '../lib/tokenService';
 import { parseTransactionError } from '../utils/errorMessages';
 
-const RPC = "https://rpc.trashscan.io";
+import { RPC_ENDPOINTS } from '../lib/rpcConfig';
+const RPC = RPC_ENDPOINTS.GORBAGANA;
 const PROGRAM_ID = new PublicKey("HStdQm36PAk5KzizXqFmkN6LZ2sW7HgHTxsDDUeJqarw");
 const MINT = new PublicKey("BgvprjyRDq1erzQocRTmLPBzMuEmcARg64LE9eGX9XRF");
 

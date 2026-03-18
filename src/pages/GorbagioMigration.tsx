@@ -334,7 +334,7 @@ const GorbagioMigration: React.FC = () => {
                   <p className="font-mono text-sm text-[#39FF14]">{state.message}</p>
                   {state.signature && (
                     <a
-                      href={`https://trashscan.io/tx/${state.signature}`}
+                      href={`https://explorer.gorbagana.wtf/tx/${state.signature}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-mono text-xs text-gray-400 hover:text-[#39FF14] mt-1 inline-block"
@@ -414,7 +414,7 @@ const GorbagioMigration: React.FC = () => {
                   <p className="font-mono text-sm text-[#39FF14]">{fixState.message}</p>
                   {fixState.signature && (
                     <a
-                      href={`https://trashscan.io/tx/${fixState.signature}`}
+                      href={`https://explorer.gorbagana.wtf/tx/${fixState.signature}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-mono text-xs text-gray-400 hover:text-[#39FF14] mt-1 inline-block"

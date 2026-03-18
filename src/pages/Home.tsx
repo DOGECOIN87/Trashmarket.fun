@@ -299,7 +299,7 @@ const Home: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500 text-xs font-mono uppercase">Contract</span>
                   <a
-                    href={`https://trashscan.io/token/${DEBRIS_MINT}`}
+                    href={`https://explorer.gorbagana.wtf/token/${DEBRIS_MINT}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={`${accentColor} text-xs font-mono hover:underline flex items-center gap-1`}
@@ -358,7 +358,7 @@ const Home: React.FC = () => {
                             </td>
                             <td className="p-2 sm:p-4">
                               <a
-                                href={`https://trashscan.io/address/${holder.wallet}`}
+                                href={`https://explorer.gorbagana.wtf/address/${holder.wallet}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-2 group/link"

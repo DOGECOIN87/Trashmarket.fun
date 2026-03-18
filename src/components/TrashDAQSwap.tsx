@@ -629,7 +629,7 @@ export default function TrashDAQSwap() {
             <div className="bg-black/80 border-t border-magic-green/10 px-4 py-3 flex items-center justify-center gap-2">
                 <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Powered by</span>
                 <a
-                    href="https://trashscan.io"
+                    href="https://explorer.gorbagana.wtf"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 group"

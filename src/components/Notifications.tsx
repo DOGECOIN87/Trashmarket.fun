@@ -46,7 +46,7 @@ const Notifications: React.FC = () => {
               </p>
               {notification.txSignature && (
                 <a
-                  href={`https://trashscan.io/tx/${notification.txSignature}`}
+                  href={`https://explorer.gorbagana.wtf/tx/${notification.txSignature}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-magic-green text-[10px] font-mono mt-1 hover:underline block"

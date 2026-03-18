@@ -4,20 +4,20 @@
  * Single source of truth for all RPC endpoints used across the dApp.
  * Import from here instead of hardcoding RPC URLs anywhere else.
  *
- * Gorbagana RPC: rpc.trashscan.io (preferred by the project)
+ * Gorbagana RPC: rpc.gorbagana.wtf (primary), rpc.trashscan.io (fallback)
  * Solana Mainnet: api.mainnet-beta.solana.com
  * Solana Devnet: api.devnet.solana.com
  */
 
 export const RPC_ENDPOINTS = {
   /** Gorbagana L2 mainnet RPC (primary) */
-  GORBAGANA: 'https://rpc.trashscan.io',
+  GORBAGANA: 'https://rpc.gorbagana.wtf',
 
   /** Gorbagana L2 mainnet RPC (fallback) */
-  GORBAGANA_FALLBACK: 'https://rpc.gorbagana.wtf',
+  GORBAGANA_FALLBACK: 'https://rpc.trashscan.io',
 
   /** Gorbagana WebSocket endpoint */
-  GORBAGANA_WS: 'wss://rpc.trashscan.io',
+  GORBAGANA_WS: 'wss://rpc.gorbagana.wtf',
 
   /** Gorbagana REST API */
   GORBAGANA_API: 'https://gorapi.trashscan.io',
@@ -31,7 +31,7 @@ export const RPC_ENDPOINTS = {
 
 /** Gorbagana block explorer */
 export const EXPLORER_URLS = {
-  GORBAGANA: 'https://trashscan.io',
+  GORBAGANA: 'https://explorer.gorbagana.wtf',
   SOLANA_MAINNET: 'https://explorer.solana.com',
   SOLANA_DEVNET: 'https://explorer.solana.com',
 } as const;
