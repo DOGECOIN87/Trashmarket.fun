@@ -39,8 +39,11 @@ const TREASURY = new PublicKey('77hDeRmTFa7WVPqTvDtD9qg9D73DdqU3WeaHTxUnQ8wb');
 /** Metaplex Token Metadata program */
 const METAPLEX_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
-/** DAS API endpoint */
-const DAS_API_URL = `${RPC_ENDPOINTS.GORBAGANA_API}/das`;
+/** DAS API endpoint (root, not /das — that path returns HTML) */
+const DAS_API_URL = RPC_ENDPOINTS.GORBAGANA_API;
+
+/** Allowed NFT symbols for the marketplace */
+const ALLOWED_SYMBOLS = ['GORBAGIO', 'GORI'];
 
 // ─── Connection Singleton ───────────────────────────────────────────────────
 
@@ -159,7 +162,7 @@ async function computeAccountDiscriminator(name: string): Promise<Uint8Array> {
   return new Uint8Array(hash).slice(0, 8);
 }
 
-// ─── Price Conversion (Native GOR, 6 decimals) ─────────────────────────────
+// ─── Price Conversion (Native GOR, 9 decimals) ─────────────────────────────
 
 export function gorToLamports(gor: number): bigint {
   return BigInt(Math.round(gor * GOR_DIVISOR));
@@ -232,66 +235,14 @@ export async function fetchAllListings(conn?: Connection): Promise<NftListingInf
   }
 }
 
-// ─── Read: Fetch Wallet NFTs (DAS API) ──────────────────────────────────────
+// ─── Read: Fetch Wallet NFTs (RPC + DAS) ────────────────────────────────────
 
 /**
- * Fetch Gorbagio NFTs owned by a wallet via the DAS API.
- * Filters to the Gorbagio collection mint.
+ * Fetch a single DAS asset by mint. Returns name, symbol, and json_uri.
  */
-export async function fetchWalletNFTs(
-  ownerAddress: string,
-  conn?: Connection,
-): Promise<WalletNft[]> {
-  try {
-    const response = await fetch(DAS_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getAssetsByOwner',
-        params: {
-          ownerAddress,
-          page: 1,
-          limit: 1000,
-        },
-      }),
-    });
-
-    const data = await response.json();
-    if (!data.result?.items) return [];
-
-    return data.result.items
-      .filter((asset: any) => {
-        // Filter to Gorbagio collection NFTs
-        const grouping = asset.grouping || [];
-        return grouping.some(
-          (g: any) =>
-            g.group_key === 'collection' &&
-            g.group_value === GORBAGIO_COLLECTION_MINT.toBase58(),
-        );
-      })
-      .map((asset: any) => ({
-        mint: asset.id,
-        name: asset.content?.metadata?.name || `Gorbagio #${asset.id.slice(-4)}`,
-        image:
-          asset.content?.links?.image ||
-          asset.content?.files?.[0]?.uri ||
-          '/assets/nft-placeholder.svg',
-        owner: asset.ownership?.owner || ownerAddress,
-      }));
-  } catch (error) {
-    console.error('[NFT Marketplace] Error fetching wallet NFTs:', error);
-    return [];
-  }
-}
-
-/**
- * Fetch metadata (name + image) for a single NFT mint via DAS API.
- */
-export async function fetchNftMetadata(
+async function fetchDasAsset(
   mintAddress: string,
-): Promise<{ name: string; image: string } | null> {
+): Promise<{ name: string; symbol: string; jsonUri: string } | null> {
   try {
     const response = await fetch(DAS_API_URL, {
       method: 'POST',
@@ -303,21 +254,119 @@ export async function fetchNftMetadata(
         params: { id: mintAddress },
       }),
     });
-
     const data = await response.json();
     const asset = data.result;
     if (!asset) return null;
-
     return {
-      name: asset.content?.metadata?.name || `Gorbagio #${mintAddress.slice(-4)}`,
-      image:
-        asset.content?.links?.image ||
-        asset.content?.files?.[0]?.uri ||
-        '/assets/nft-placeholder.svg',
+      name: asset.content?.metadata?.name || '',
+      symbol: asset.content?.metadata?.symbol || '',
+      jsonUri: asset.content?.json_uri || '',
     };
   } catch {
     return null;
   }
+}
+
+/** In-memory image cache to avoid re-fetching IPFS JSON */
+const imageCache = new Map<string, string>();
+
+/**
+ * Resolve the image URL for an NFT by fetching its off-chain JSON metadata.
+ * Handles IPFS gateway URIs.
+ */
+async function resolveNftImage(jsonUri: string): Promise<string> {
+  if (!jsonUri) return '/assets/nft-placeholder.svg';
+  const cached = imageCache.get(jsonUri);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(jsonUri);
+    if (!response.ok) return '/assets/nft-placeholder.svg';
+    const json = await response.json();
+    const image = json.image || json.image_url || '/assets/nft-placeholder.svg';
+    imageCache.set(jsonUri, image);
+    return image;
+  } catch {
+    return '/assets/nft-placeholder.svg';
+  }
+}
+
+/**
+ * Fetch Gorbagio/Gorigin NFTs owned by a wallet.
+ *
+ * Uses RPC getTokenAccountsByOwner to find NFT mints (decimals=0, amount=1),
+ * then DAS getAsset to get metadata, filtering by allowed symbols.
+ */
+export async function fetchWalletNFTs(
+  ownerAddress: string,
+  conn?: Connection,
+): Promise<WalletNft[]> {
+  const c = conn || getConnection();
+  try {
+    // Step 1: Get all token accounts for the wallet
+    const tokenAccounts = await c.getParsedTokenAccountsByOwner(
+      new PublicKey(ownerAddress),
+      { programId: TOKEN_PROGRAM_ID },
+    );
+
+    // Step 2: Filter to NFTs (decimals=0, amount=1)
+    const nftMints = tokenAccounts.value
+      .filter((ta) => {
+        const info = ta.account.data.parsed.info;
+        return (
+          info.tokenAmount.decimals === 0 &&
+          parseInt(info.tokenAmount.amount) === 1
+        );
+      })
+      .map((ta) => ta.account.data.parsed.info.mint as string);
+
+    if (nftMints.length === 0) return [];
+
+    // Step 3: Fetch DAS metadata for each mint in parallel (batched)
+    const BATCH_SIZE = 10;
+    const results: WalletNft[] = [];
+
+    for (let i = 0; i < nftMints.length; i += BATCH_SIZE) {
+      const batch = nftMints.slice(i, i + BATCH_SIZE);
+      const assets = await Promise.all(batch.map((mint) => fetchDasAsset(mint)));
+
+      for (let j = 0; j < batch.length; j++) {
+        const asset = assets[j];
+        if (!asset) continue;
+        if (!ALLOWED_SYMBOLS.includes(asset.symbol)) continue;
+
+        const image = await resolveNftImage(asset.jsonUri);
+
+        results.push({
+          mint: batch[j],
+          name: asset.name || `NFT #${batch[j].slice(-4)}`,
+          image,
+          owner: ownerAddress,
+        });
+      }
+    }
+
+    return results;
+  } catch (error) {
+    console.error('[NFT Marketplace] Error fetching wallet NFTs:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch metadata (name + image) for a single NFT mint via DAS API + off-chain JSON.
+ */
+export async function fetchNftMetadata(
+  mintAddress: string,
+): Promise<{ name: string; image: string } | null> {
+  const asset = await fetchDasAsset(mintAddress);
+  if (!asset) return null;
+
+  const image = await resolveNftImage(asset.jsonUri);
+  return {
+    name: asset.name || `NFT #${mintAddress.slice(-4)}`,
+    image,
+  };
 }
 
 // ─── Write: Transaction Builders ────────────────────────────────────────────
