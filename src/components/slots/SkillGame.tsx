@@ -456,7 +456,8 @@ export default function SkillGame() {
     setIsPlayDisabled(false);
     setPlayButtonText('Play');
     setPreviewShown(false);
-    lockedGridsRef.current.clear(); // force fresh grids next round
+    setLevelLocked(false);
+    lockedGridRef.current = null; // force fresh grid next round
 
     if (won && winAmount > 0) {
       setBalance((prev) => prev + winAmount);
@@ -583,16 +584,10 @@ export default function SkillGame() {
     }, 2000);
   };
 
-  // Locked grids per denomination — each level gets its own constructed grid.
-  // Prevents re-roll exploit: previewing the same level shows the SAME grid.
-  const lockedGridsRef = useRef<Map<number, number[]>>(new Map());
-
-  const getLockedGrid = (level: number): number[] => {
-    if (!lockedGridsRef.current.has(level)) {
-      lockedGridsRef.current.set(level, constructGameGrid());
-    }
-    return lockedGridsRef.current.get(level)!;
-  };
+  // Locked grid for the current play session — ONE grid per preview cycle.
+  // Only the previewed level gets a grid; switching levels is blocked after preview.
+  const lockedGridRef = useRef<{ level: number; grid: number[] } | null>(null);
+  const [levelLocked, setLevelLocked] = useState(false);
 
   const handlePreview = () => {
     if (stage !== 'IDLE' || isAnimating) return;
@@ -601,15 +596,21 @@ export default function SkillGame() {
       return;
     }
 
-    setGrid(getLockedGrid(playLevel));
+    // Generate a single grid for the current level and lock it
+    if (!lockedGridRef.current || lockedGridRef.current.level !== playLevel) {
+      lockedGridRef.current = { level: playLevel, grid: constructGameGrid() };
+    }
+
+    setGrid(lockedGridRef.current.grid);
     setStatusMessage('Previewing...');
+    setLevelLocked(true); // Lock level selector after preview
 
     // Show for 2 seconds, then hide the symbols
     addTimeout(() => {
       setGrid(Array(9).fill(null));
       setPreviewShown(true);
       setPlayButtonText('Confirm');
-      setStatusMessage('Select level & Press Play');
+      setStatusMessage('Press Play or change level to re-roll');
     }, 2000);
   };
 
@@ -633,9 +634,12 @@ export default function SkillGame() {
     setIsPlayDisabled(true);
 
     // Use locked grid for this level (from preview) or construct fresh
-    const baseGrid = lockedGridsRef.current.get(playLevel) ?? constructGameGrid();
-    lockedGridsRef.current.clear();
+    const baseGrid = (lockedGridRef.current?.level === playLevel)
+      ? lockedGridRef.current.grid
+      : constructGameGrid();
+    lockedGridRef.current = null;
     setPreviewShown(false);
+    setLevelLocked(false);
 
     setPlayButtonText('Spinning...');
     setStage('PLAYING');
@@ -648,24 +652,19 @@ export default function SkillGame() {
     });
   };
 
-  // Level selection - during preview, switching levels briefly flashes that level's grid
+  // Level selection — changing levels discards any previewed grid (prevents scanning exploit)
   const handleLevelSelect = (index: number) => {
     if (stage !== 'IDLE' || isAnimating) return;
     setLevelIndex(index);
 
-    if (previewShown && lockedGridsRef.current.size > 0) {
-      // Flash this level's grid for 2 seconds then hide again
-      setGrid(getLockedGrid(PLAY_LEVELS[index]));
-      setStatusMessage('Previewing...');
+    // Discard previewed grid when switching levels — player must preview again
+    if (lockedGridRef.current) {
+      lockedGridRef.current = null;
       setPreviewShown(false);
+      setLevelLocked(false);
       setPlayButtonText('Play');
-
-      addTimeout(() => {
-        setGrid(Array(9).fill(null));
-        setPreviewShown(true);
-        setPlayButtonText('Confirm');
-        setStatusMessage('Select level & Press Play');
-      }, 2000);
+      setGrid(Array(9).fill(null));
+      setStatusMessage("Adjust 'Play Level'");
     }
   };
 
@@ -850,9 +849,9 @@ export default function SkillGame() {
                 {balance.toFixed(2)}
               </span>
               <button
-                onClick={() => { refreshGameBalance(); refreshDebrisBalance(); }}
+                onClick={() => { refreshDebrisBalance(); }}
                 className="p-2 hover:bg-white/10 rounded-full transition-colors text-adff02"
-                title="Refresh Balance"
+                title="Refresh Wallet Balance"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -868,7 +867,7 @@ export default function SkillGame() {
               key={level}
               className={`skill-level-btn${index === levelIndex ? ' active' : ''}`}
               onClick={() => handleLevelSelect(index)}
-              disabled={stage !== 'IDLE' || isAnimating}
+              disabled={stage !== 'IDLE' || isAnimating || levelLocked}
             >
               {level}
             </button>

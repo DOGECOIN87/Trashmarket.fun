@@ -17,15 +17,9 @@ import {
   validateGameScore,
   validateWalletAddress,
 } from './gameSecurityModule';
-import { TOKEN_CONFIG, GAME_TREASURY_WALLET } from './tokenConfig';
+import { TOKEN_CONFIG } from './tokenConfig';
 
 const DEBRIS_MINT = new PublicKey(TOKEN_CONFIG.DEBRIS.address);
-const TREASURY_WALLET = new PublicKey(GAME_TREASURY_WALLET);
-
-// Derive treasury token account dynamically (PDA-controlled DEBRIS ATA for player payouts)
-const TREASURY_TOKEN_ACCOUNT = getAssociatedTokenAddressSync(
-  DEBRIS_MINT, TREASURY_WALLET, true, TOKEN_2022_PROGRAM_ID
-);
 
 // Program ID from environment, falls back to placeholder
 function getProgramId(): PublicKey {
@@ -277,12 +271,17 @@ export class JunkPusherClient {
 
     const [treasuryAuthority] = JunkPusherClient.getTreasuryAuthorityPDA(this.programId);
 
+    // Treasury token account = ATA of the treasury_authority PDA (not the EOA wallet)
+    const treasuryTokenAccount = getAssociatedTokenAddressSync(
+      DEBRIS_MINT, treasuryAuthority, true, TOKEN_2022_PROGRAM_ID
+    );
+
     return new TransactionInstruction({
       keys: [
         { pubkey: gameStatePDA, isSigner: false, isWritable: true },
         { pubkey: player, isSigner: true, isWritable: true },
         { pubkey: playerTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: TREASURY_TOKEN_ACCOUNT, isSigner: false, isWritable: true },
+        { pubkey: treasuryTokenAccount, isSigner: false, isWritable: true },
         { pubkey: DEBRIS_MINT, isSigner: false, isWritable: false },
         { pubkey: treasuryAuthority, isSigner: false, isWritable: false },
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
@@ -323,6 +322,11 @@ export class JunkPusherClient {
     );
     const [treasuryAuthority] = JunkPusherClient.getTreasuryAuthorityPDA(this.programId);
 
+    // Treasury token account = ATA of the treasury_authority PDA
+    const treasuryTokenAccount = getAssociatedTokenAddressSync(
+      DEBRIS_MINT, treasuryAuthority, true, TOKEN_2022_PROGRAM_ID
+    );
+
     const discriminator = await this.getDiscriminator('withdraw_balance');
     const data = Buffer.alloc(16);
     discriminator.copy(data, 0);
@@ -333,7 +337,7 @@ export class JunkPusherClient {
         { pubkey: gameStatePDA, isSigner: false, isWritable: true },
         { pubkey: player, isSigner: true, isWritable: true },
         { pubkey: playerTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: TREASURY_TOKEN_ACCOUNT, isSigner: false, isWritable: true },
+        { pubkey: treasuryTokenAccount, isSigner: false, isWritable: true },
         { pubkey: DEBRIS_MINT, isSigner: false, isWritable: false },
         { pubkey: treasuryAuthority, isSigner: false, isWritable: false },
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
