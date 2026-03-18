@@ -235,36 +235,57 @@ export async function fetchAllListings(conn?: Connection): Promise<NftListingInf
   }
 }
 
-// ─── Read: Fetch Wallet NFTs (RPC + DAS) ────────────────────────────────────
+// ─── Read: Fetch Wallet NFTs (RPC on-chain metadata) ────────────────────────
 
 /**
- * Fetch a single DAS asset by mint. Returns name, symbol, and json_uri.
+ * Parse on-chain Metaplex metadata account to extract name, symbol, and URI.
+ * Layout: key(1) + update_authority(32) + mint(32) + name(4+32) + symbol(4+10) + uri(4+200) + ...
  */
-async function fetchDasAsset(
-  mintAddress: string,
-): Promise<{ name: string; symbol: string; jsonUri: string } | null> {
+function parseMetaplexMetadata(
+  data: Buffer,
+): { name: string; symbol: string; uri: string } | null {
   try {
-    const response = await fetch(DAS_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getAsset',
-        params: { id: mintAddress },
-      }),
-    });
-    const data = await response.json();
-    const asset = data.result;
-    if (!asset) return null;
-    return {
-      name: asset.content?.metadata?.name || '',
-      symbol: asset.content?.metadata?.symbol || '',
-      jsonUri: asset.content?.json_uri || '',
-    };
+    let offset = 1 + 32 + 32; // skip key, update_authority, mint
+    const nameLen = data.readUInt32LE(offset);
+    offset += 4;
+    const name = data.subarray(offset, offset + nameLen).toString('utf-8').replace(/\0+$/, '');
+    offset += nameLen;
+    const symLen = data.readUInt32LE(offset);
+    offset += 4;
+    const symbol = data.subarray(offset, offset + symLen).toString('utf-8').replace(/\0+$/, '');
+    offset += symLen;
+    const uriLen = data.readUInt32LE(offset);
+    offset += 4;
+    const uri = data.subarray(offset, offset + uriLen).toString('utf-8').replace(/\0+$/, '');
+    return { name, symbol, uri };
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetch on-chain Metaplex metadata for multiple NFT mints in a single RPC call.
+ */
+async function fetchOnChainMetadataBatch(
+  mints: string[],
+  conn: Connection,
+): Promise<Map<string, { name: string; symbol: string; uri: string }>> {
+  const results = new Map<string, { name: string; symbol: string; uri: string }>();
+  if (mints.length === 0) return results;
+
+  const metadataPDAs = mints.map((mint) => getMetadataPDA(new PublicKey(mint)));
+  const accounts = await conn.getMultipleAccountsInfo(metadataPDAs);
+
+  for (let i = 0; i < mints.length; i++) {
+    const account = accounts[i];
+    if (!account?.data) continue;
+    const parsed = parseMetaplexMetadata(account.data as Buffer);
+    if (parsed) {
+      results.set(mints[i], parsed);
+    }
+  }
+
+  return results;
 }
 
 /** In-memory image cache to avoid re-fetching IPFS JSON */
@@ -272,7 +293,6 @@ const imageCache = new Map<string, string>();
 
 /**
  * Resolve the image URL for an NFT by fetching its off-chain JSON metadata.
- * Handles IPFS gateway URIs.
  */
 async function resolveNftImage(jsonUri: string): Promise<string> {
   if (!jsonUri) return '/assets/nft-placeholder.svg';
@@ -295,7 +315,8 @@ async function resolveNftImage(jsonUri: string): Promise<string> {
  * Fetch Gorbagio/Gorigin NFTs owned by a wallet.
  *
  * Uses RPC getTokenAccountsByOwner to find NFT mints (decimals=0, amount=1),
- * then DAS getAsset to get metadata, filtering by allowed symbols.
+ * then on-chain Metaplex metadata for name/symbol/uri, filtering by allowed symbols.
+ * Images resolved from off-chain JSON (IPFS).
  */
 export async function fetchWalletNFTs(
   ownerAddress: string,
@@ -322,31 +343,32 @@ export async function fetchWalletNFTs(
 
     if (nftMints.length === 0) return [];
 
-    // Step 3: Fetch DAS metadata for each mint in parallel (batched)
-    const BATCH_SIZE = 10;
-    const results: WalletNft[] = [];
+    // Step 3: Fetch on-chain metadata in batches of 100 (getMultipleAccountsInfo limit)
+    const BATCH_SIZE = 100;
+    const allMetadata = new Map<string, { name: string; symbol: string; uri: string }>();
 
     for (let i = 0; i < nftMints.length; i += BATCH_SIZE) {
       const batch = nftMints.slice(i, i + BATCH_SIZE);
-      const assets = await Promise.all(batch.map((mint) => fetchDasAsset(mint)));
-
-      for (let j = 0; j < batch.length; j++) {
-        const asset = assets[j];
-        if (!asset) continue;
-        if (!ALLOWED_SYMBOLS.includes(asset.symbol)) continue;
-
-        const image = await resolveNftImage(asset.jsonUri);
-
-        results.push({
-          mint: batch[j],
-          name: asset.name || `NFT #${batch[j].slice(-4)}`,
-          image,
-          owner: ownerAddress,
-        });
-      }
+      const batchMeta = await fetchOnChainMetadataBatch(batch, c);
+      batchMeta.forEach((v, k) => allMetadata.set(k, v));
     }
 
-    return results;
+    // Step 4: Filter by allowed symbols and resolve images
+    const filtered = Array.from(allMetadata.entries()).filter(
+      ([, meta]) => ALLOWED_SYMBOLS.includes(meta.symbol),
+    );
+
+    // Resolve images in parallel
+    const imageResults = await Promise.all(
+      filtered.map(([, meta]) => resolveNftImage(meta.uri)),
+    );
+
+    return filtered.map(([mint, meta], idx) => ({
+      mint,
+      name: meta.name || `NFT #${mint.slice(-4)}`,
+      image: imageResults[idx],
+      owner: ownerAddress,
+    }));
   } catch (error) {
     console.error('[NFT Marketplace] Error fetching wallet NFTs:', error);
     return [];
@@ -354,17 +376,20 @@ export async function fetchWalletNFTs(
 }
 
 /**
- * Fetch metadata (name + image) for a single NFT mint via DAS API + off-chain JSON.
+ * Fetch metadata (name + image) for a single NFT mint via on-chain metadata + off-chain JSON.
  */
 export async function fetchNftMetadata(
   mintAddress: string,
+  conn?: Connection,
 ): Promise<{ name: string; image: string } | null> {
-  const asset = await fetchDasAsset(mintAddress);
-  if (!asset) return null;
+  const c = conn || getConnection();
+  const metadataMap = await fetchOnChainMetadataBatch([mintAddress], c);
+  const meta = metadataMap.get(mintAddress);
+  if (!meta) return null;
 
-  const image = await resolveNftImage(asset.jsonUri);
+  const image = await resolveNftImage(meta.uri);
   return {
-    name: asset.name || `NFT #${mintAddress.slice(-4)}`,
+    name: meta.name || `NFT #${mintAddress.slice(-4)}`,
     image,
   };
 }
