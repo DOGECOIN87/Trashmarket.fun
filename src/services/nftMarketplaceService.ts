@@ -43,7 +43,7 @@ const METAPLEX_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt
 const DAS_API_URL = RPC_ENDPOINTS.GORBAGANA_API;
 
 /** Allowed NFT symbols for the marketplace */
-const ALLOWED_SYMBOLS = ['GORBAGIO', 'GORI'];
+const ALLOWED_SYMBOLS = ['GORBAGIO'];
 
 // ─── Connection Singleton ───────────────────────────────────────────────────
 
