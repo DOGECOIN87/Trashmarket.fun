@@ -18,7 +18,7 @@ use mpl_token_metadata::instructions::{
     CreateMasterEditionV3, CreateMasterEditionV3InstructionArgs, CreateMetadataAccountV3,
     CreateMetadataAccountV3InstructionArgs,
 };
-use mpl_token_metadata::types::DataV2;
+use mpl_token_metadata::types::{Collection, DataV2};
 use solana_program::program::invoke;
 
 declare_id!("3PtknVekKAYAYExL6YQWxf6bycpGWoQQ9tNM566qzKmU");
@@ -26,6 +26,10 @@ declare_id!("3PtknVekKAYAYExL6YQWxf6bycpGWoQQ9tNM566qzKmU");
 /// Known update authority for the Gorbagio collection on Gorbagana.
 const GORBAGIO_UPDATE_AUTHORITY: Pubkey =
     pubkey!("fair1sCzkkPSvF44QGoD89ThvZdK1e4vP1jBKxW3v7M");
+
+/// Gorbagio collection NFT mint on Gorbagana.
+const GORBAGIO_COLLECTION_MINT: Pubkey =
+    pubkey!("FBJ47AgQSzSWVQVzsspoUzcFVeEf8a6xihZKZgmRuno1");
 
 #[program]
 pub mod gorbagio_migration {
@@ -111,7 +115,10 @@ pub mod gorbagio_migration {
                 uri,
                 seller_fee_basis_points: 0,
                 creators: None,
-                collection: None,
+                collection: Some(Collection {
+                    verified: false,
+                    key: GORBAGIO_COLLECTION_MINT,
+                }),
                 uses: None,
             },
             is_mutable: true,
