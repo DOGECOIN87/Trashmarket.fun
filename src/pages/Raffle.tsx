@@ -11,7 +11,7 @@ import { Loader2, AlertCircle, CheckCircle2, X, Search, ChevronLeft, ExternalLin
 import { BN } from '@coral-xyz/anchor';
 import bs58 from 'bs58';
 import { RPC_ENDPOINTS, EXPLORER_URLS } from '../lib/rpcConfig';
-import { resolveNftImageDirect, loadGoriginImageMap } from '../services/nftMarketplaceService';
+import { resolveNftImageDirect, loadGoriginImageMap, fetchNftMetadata, fetchWalletNFTs } from '../services/nftMarketplaceService';
 
 interface UserNFT {
   tokenAccount: string;
@@ -216,7 +216,7 @@ const Raffle: React.FC = () => {
 };
 
 // Infinite Carousel Component
-const RaffleCarousel: React.FC<{ raffles: RaffleType[]; onUpdate: () => void }> = ({ raffles, onUpdate }) => {
+function RaffleCarousel({ raffles, onUpdate }: { key?: string | number; raffles: RaffleType[]; onUpdate: () => void | Promise<void> }) {
   const [isPaused, setIsPaused] = useState(false);
 
   // Fixed card width for consistent sizing
@@ -262,7 +262,7 @@ const RaffleCarousel: React.FC<{ raffles: RaffleType[]; onUpdate: () => void }> 
 };
 
 // Compact Raffle Card Component
-const RaffleCard: React.FC<{ raffle: RaffleType; onUpdate: () => void; isCompact?: boolean }> = ({ raffle, onUpdate, isCompact = false }) => {
+function RaffleCard({ raffle, onUpdate, isCompact = false }: { key?: string | number; raffle: RaffleType; onUpdate: () => void | Promise<void>; isCompact?: boolean }) {
   const { connection } = useConnection();
   const wallet = useWallet();
   const [showDetail, setShowDetail] = useState(false);
@@ -274,54 +274,15 @@ const RaffleCard: React.FC<{ raffle: RaffleType; onUpdate: () => void; isCompact
 
   const loadNFTMetadata = async () => {
     try {
-      // Derive Metaplex metadata PDA
-      const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
-      const [pda] = PublicKey.findProgramAddressSync(
-        [Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), new PublicKey(raffle.nftMint).toBuffer()],
-        METADATA_PROGRAM_ID
-      );
-
-      const response = await fetch(RPC_ENDPOINTS.GORBAGANA, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0', id: 1,
-          method: 'getAccountInfo',
-          params: [pda.toString(), { encoding: 'base64', commitment: 'confirmed' }],
-        }),
-      });
-      const data = await response.json();
-      const accountData = data.result?.value?.data?.[0];
-      if (!accountData) return;
-
-      const buf = Buffer.from(accountData, 'base64');
-      // Parse name + symbol + uri from Metaplex metadata
-      let offset = 1 + 32 + 32;
-      const nameLen = buf.readUInt32LE(offset); offset += 4;
-      const name = buf.slice(offset, offset + nameLen).toString('utf8').replace(/\0/g, '').trim();
-      offset += nameLen;
-      const symbolLen = buf.readUInt32LE(offset); offset += 4;
-      const symbol = buf.slice(offset, offset + symbolLen).toString('utf8').replace(/\0/g, '').trim();
-      offset += symbolLen;
-      const uriLen = buf.readUInt32LE(offset); offset += 4;
-      const uri = buf.slice(offset, offset + uriLen).toString('utf8').replace(/\0/g, '').trim();
-
-      // Load Gorigin image map and try direct resolution first
-      await loadGoriginImageMap();
-      let image = resolveNftImageDirect(name, symbol);
-
-      // Fallback to off-chain JSON if direct resolution failed
-      if (image === '/assets/nft-placeholder.svg' && uri && uri.startsWith('http')) {
-        try {
-          const jsonRes = await fetch(uri);
-          if (jsonRes.ok) {
-            const jsonMeta = await jsonRes.json();
-            image = jsonMeta.image || jsonMeta.icon || '';
+      const metadata = await fetchNftMetadata(raffle.nftMint, connection);
+      if (metadata) {
+        setNftMetadata({
+          content: {
+            metadata: { name: metadata.name },
+            links: { image: metadata.image }
           }
-        } catch { /* skip */ }
+        });
       }
-
-      setNftMetadata({ content: { metadata: { name }, links: { image } } });
     } catch (error) {
       console.error('Error loading NFT metadata:', error);
     }
@@ -528,7 +489,7 @@ const RaffleCard: React.FC<{ raffle: RaffleType; onUpdate: () => void; isCompact
 };
 
 // Create Raffle Modal
-const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({ onClose, onSuccess }) => {
+function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onClose: () => void; onSuccess: () => void | Promise<void> }) {
   const { connection } = useConnection();
   const wallet = useWallet();
   const [loading, setLoading] = useState(false);
@@ -581,8 +542,15 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
 
     try {
       setNftsLoading(true);
+      const nfts = await fetchWalletNFTs(wallet.publicKey.toString(), connection);
 
-      // Fetch all token accounts owned by the wallet via Gorbagana RPC
+      setUserNfts(nfts.map(nft => ({
+        tokenAccount: '',
+        mint: nft.mint,
+        name: nft.name,
+        image: nft.image
+      })));
+
       const response = await fetch(RPC_ENDPOINTS.GORBAGANA, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -599,79 +567,23 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
       });
 
       const data = await response.json();
-
       if (data.result?.value) {
-        // Filter for NFTs: amount === "1" and decimals === 0
-        const tokenAccounts = data.result.value.filter((account: any) => {
-          const info = account.account.data.parsed.info;
-          return info.tokenAmount.amount === '1' && info.tokenAmount.decimals === 0;
+        const tokenAccountsMap = new Map();
+        data.result.value.forEach((account: any) => {
+          tokenAccountsMap.set(account.account.data.parsed.info.mint, account.pubkey);
         });
 
-        const nftMints = tokenAccounts.map((account: any) => account.account.data.parsed.info.mint);
-
-        // Batch fetch metadata PDAs from chain
-        const metadataPDAs = nftMints.map((mint: string) => getMetadataPDA(mint));
-        const metaResponse = await fetch(RPC_ENDPOINTS.GORBAGANA, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 2,
-            method: 'getMultipleAccounts',
-            params: [metadataPDAs, { encoding: 'base64', commitment: 'confirmed' }],
-          }),
-        });
-        const metaData = await metaResponse.json();
-        const metaAccounts = metaData.result?.value || [];
-
-        // Load Gorigin image map for direct resolution
-        await loadGoriginImageMap();
-
-        const nfts: UserNFT[] = [];
-        for (let i = 0; i < nftMints.length; i++) {
-          const mint = nftMints[i];
-          const account = metaAccounts[i];
-          let name = `NFT ${mint.slice(0, 6)}...`;
-          let image = '';
-
-          if (account?.data?.[0]) {
-            try {
-              const buf = Buffer.from(account.data[0], 'base64');
-              const parsed = parseMetaplexMetadata(buf);
-              name = parsed.name || name;
-
-              // Try direct image resolution first (fast, reliable)
-              image = resolveNftImageDirect(parsed.name, parsed.symbol);
-
-              // Fallback to off-chain JSON metadata if direct resolution failed
-              if (image === '/assets/nft-placeholder.svg' && parsed.uri && parsed.uri.startsWith('http')) {
-                try {
-                  const jsonRes = await fetch(parsed.uri);
-                  if (jsonRes.ok) {
-                    const jsonMeta = await jsonRes.json();
-                    image = jsonMeta.image || jsonMeta.icon || '';
-                  }
-                } catch { /* skip image fetch failures */ }
-              }
-            } catch { /* skip parse failures */ }
-          }
-
-          nfts.push({
-            tokenAccount: tokenAccounts[i].pubkey,
-            mint,
-            name,
-            image
-          });
-        }
-
-        setUserNfts(nfts);
+        setUserNfts(prev => prev.map(nft => ({
+          ...nft,
+          tokenAccount: tokenAccountsMap.get(nft.mint) || ''
+        })));
       }
     } catch (error) {
       console.error('Error fetching user NFTs:', error);
     } finally {
       setNftsLoading(false);
     }
-  }, [wallet.publicKey]);
+  }, [wallet.publicKey, connection]);
 
   useEffect(() => {
     fetchUserNFTs();
@@ -921,12 +833,13 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
 };
 
 // Raffle Detail View (full-page overlay)
-const RaffleDetailView: React.FC<{
+function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
+  key?: string | number;
   raffle: RaffleType;
   nftMetadata: any;
   onClose: () => void;
-  onUpdate: () => void;
-}> = ({ raffle, nftMetadata, onClose, onUpdate }) => {
+  onUpdate: () => void | Promise<void>;
+}) {
   const { connection } = useConnection();
   const wallet = useWallet();
   const [loading, setLoading] = useState(false);
@@ -1373,7 +1286,7 @@ const RaffleDetailView: React.FC<{
 };
 
 // Participants Tab
-const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
+function ParticipantsTab({ raffle }: { raffle: RaffleType }) {
   const { connection } = useConnection();
   const wallet = useWallet();
   const [participants, setParticipants] = useState<{ buyer: string; ticketCount: number }[]>([]);
@@ -1471,7 +1384,7 @@ const ParticipantsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
 };
 
 // Transactions Tab
-const TransactionsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
+function TransactionsTab({ raffle }: { raffle: RaffleType }) {
   const { connection } = useConnection();
   const wallet = useWallet();
   const [transactions, setTransactions] = useState<{
@@ -1652,7 +1565,7 @@ const TransactionsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
 };
 
 // Terms & Conditions Tab
-const TermsTab: React.FC<{ raffle: RaffleType }> = ({ raffle }) => {
+function TermsTab({ raffle }: { raffle: RaffleType }) {
   const terms = [
     'Each ticket purchase is final and non-refundable.',
     'One ticket is purchased per transaction at the listed GGOR price.',

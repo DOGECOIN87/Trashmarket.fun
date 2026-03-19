@@ -313,7 +313,7 @@ export async function loadGoriginImageMap(): Promise<void> {
 
   goriginMapLoading = (async () => {
     try {
-      const resp = await fetch('/data/gorigin-images.json');
+      const resp = await fetch('data/gorigin-images.json');
       if (resp.ok) {
         goriginImageMap = await resp.json();
       } else {
