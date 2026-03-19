@@ -279,6 +279,10 @@ const GorbagioMarket: React.FC = () => {
   const NftImage = ({ src, alt }: { src: string; alt: string }) => {
     const [imgSrc, setImgSrc] = useState(src);
     const triedRef = useRef(new Set<string>());
+    useEffect(() => {
+      setImgSrc(src);
+      triedRef.current = new Set<string>();
+    }, [src]);
     const handleError = () => {
       // Try alternative IPFS gateways before falling back to placeholder
       const ipfsMatch = imgSrc.match(/\/ipfs\/(.+)$/);
