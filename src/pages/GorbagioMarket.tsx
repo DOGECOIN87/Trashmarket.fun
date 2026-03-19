@@ -73,7 +73,7 @@ const GorbagioMarket: React.FC = () => {
       // Enrich with metadata
       const enriched = await Promise.all(
         allListings.map(async (listing) => {
-          const meta = await fetchNftMetadata(listing.nftMint);
+          const meta = await fetchNftMetadata(listing.nftMint, connection);
           return {
             ...listing,
             name: meta?.name || `Gorbagio #${listing.nftMint.slice(-4)}`,

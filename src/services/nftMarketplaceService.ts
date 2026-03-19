@@ -279,7 +279,9 @@ async function fetchOnChainMetadataBatch(
   for (let i = 0; i < mints.length; i++) {
     const account = accounts[i];
     if (!account?.data) continue;
-    const parsed = parseMetaplexMetadata(account.data as Buffer);
+    // Ensure data is a Buffer (getMultipleAccountsInfo may return Uint8Array)
+    const buf = Buffer.isBuffer(account.data) ? account.data : Buffer.from(account.data);
+    const parsed = parseMetaplexMetadata(buf);
     if (parsed) {
       results.set(mints[i], parsed);
     }
