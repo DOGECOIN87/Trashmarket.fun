@@ -232,13 +232,12 @@ const GorbagioMarket: React.FC = () => {
   const TxStatusBanner = () => {
     if (txStatus === 'idle') return null;
     return (
-      <div className={`p-3 mb-4 border ${
-        txStatus === 'success'
+      <div className={`p-3 mb-4 border ${txStatus === 'success'
           ? 'border-magic-green/50 bg-magic-green/10'
           : txStatus === 'error'
-          ? 'border-red-500/50 bg-red-900/20'
-          : 'border-yellow-500/50 bg-yellow-900/20'
-      }`}>
+            ? 'border-red-500/50 bg-red-900/20'
+            : 'border-yellow-500/50 bg-yellow-900/20'
+        }`}>
         <div className="flex items-center gap-2 text-sm">
           {txStatus === 'signing' && (
             <>
@@ -289,7 +288,7 @@ const GorbagioMarket: React.FC = () => {
       if (ipfsMatch) {
         const cid = ipfsMatch[1];
         const gateways = [
-          `https://gateway.pinata.cloud/ipfs/${cid}`,
+          `https://plum-far-bobcat-940.mypinata.cloud/ipfs/${cid}`,
           `https://cloudflare-ipfs.com/ipfs/${cid}`,
           `https://4everland.io/ipfs/${cid}`,
         ];
@@ -355,11 +354,10 @@ const GorbagioMarket: React.FC = () => {
             <button
               key={tab}
               onClick={() => setActiveTab(tab as Tab)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === tab
                   ? 'border-magic-green text-magic-green'
                   : 'border-transparent text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
               <Icon className="w-4 h-4" />
               {label}
@@ -602,10 +600,10 @@ const GorbagioMarket: React.FC = () => {
                     {!connected
                       ? 'CONNECT WALLET'
                       : txStatus === 'signing'
-                      ? 'SIGNING...'
-                      : txStatus === 'confirming'
-                      ? 'CONFIRMING...'
-                      : `BUY FOR ${selectedListing.price.toFixed(2)} GOR`}
+                        ? 'SIGNING...'
+                        : txStatus === 'confirming'
+                          ? 'CONFIRMING...'
+                          : `BUY FOR ${selectedListing.price.toFixed(2)} GOR`}
                   </button>
                 )}
               </div>
@@ -681,8 +679,8 @@ const GorbagioMarket: React.FC = () => {
                     {txStatus === 'signing'
                       ? 'SIGNING...'
                       : txStatus === 'confirming'
-                      ? 'CONFIRMING...'
-                      : 'LIST NFT'}
+                        ? 'CONFIRMING...'
+                        : 'LIST NFT'}
                   </button>
                 )}
               </div>
@@ -734,8 +732,8 @@ const GorbagioMarket: React.FC = () => {
                     {txStatus === 'signing'
                       ? 'SIGNING...'
                       : txStatus === 'confirming'
-                      ? 'CONFIRMING...'
-                      : 'UPDATE PRICE'}
+                        ? 'CONFIRMING...'
+                        : 'UPDATE PRICE'}
                   </button>
                 )}
               </div>

@@ -146,11 +146,11 @@ export async function fetchUserLegacyGorbagios(
             if (json.image) {
               let imageUrl = json.image;
               if (imageUrl.startsWith('ipfs://')) {
-                imageUrl = imageUrl.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                imageUrl = imageUrl.replace('ipfs://', 'https://plum-far-bobcat-940.mypinata.cloud/ipfs/');
               } else {
                 const imgIpfsMatch = imageUrl.match(/\/ipfs\/(.+)$/);
                 if (imgIpfsMatch) {
-                  imageUrl = `https://gateway.pinata.cloud/ipfs/${imgIpfsMatch[1]}`;
+                  imageUrl = `https://plum-far-bobcat-940.mypinata.cloud/ipfs/${imgIpfsMatch[1]}`;
                 }
               }
               g.image = imageUrl;
@@ -590,11 +590,11 @@ export async function fetchMigratedGorbagiosNeedingCollectionFix(
             if (json.image) {
               let imageUrl = json.image;
               if (imageUrl.startsWith('ipfs://')) {
-                imageUrl = imageUrl.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                imageUrl = imageUrl.replace('ipfs://', 'https://plum-far-bobcat-940.mypinata.cloud/ipfs/');
               } else {
                 const imgIpfsMatch = imageUrl.match(/\/ipfs\/(.+)$/);
                 if (imgIpfsMatch) {
-                  imageUrl = `https://gateway.pinata.cloud/ipfs/${imgIpfsMatch[1]}`;
+                  imageUrl = `https://plum-far-bobcat-940.mypinata.cloud/ipfs/${imgIpfsMatch[1]}`;
                 }
               }
               g.image = imageUrl;

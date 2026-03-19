@@ -345,7 +345,7 @@ export function resolveNftImageDirect(name: string, symbol: string): string {
   if (symbol === 'GORI' && goriginImageMap) {
     const cid = goriginImageMap[num];
     if (cid) {
-      return `https://gateway.pinata.cloud/ipfs/${cid}`;
+      return `https://plum-far-bobcat-940.mypinata.cloud/ipfs/${cid}`;
     }
   }
 
