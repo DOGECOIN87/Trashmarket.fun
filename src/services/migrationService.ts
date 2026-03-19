@@ -144,7 +144,16 @@ export async function fetchUserLegacyGorbagios(
             const resp = await fetch(uri, { signal: AbortSignal.timeout(15000) });
             const json = await resp.json();
             if (json.image) {
-              g.image = json.image;
+              let imageUrl = json.image;
+              if (imageUrl.startsWith('ipfs://')) {
+                imageUrl = imageUrl.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+              } else {
+                const imgIpfsMatch = imageUrl.match(/\/ipfs\/(.+)$/);
+                if (imgIpfsMatch) {
+                  imageUrl = `https://gateway.pinata.cloud/ipfs/${imgIpfsMatch[1]}`;
+                }
+              }
+              g.image = imageUrl;
               return;
             }
           } catch {
@@ -578,7 +587,19 @@ export async function fetchMigratedGorbagiosNeedingCollectionFix(
           try {
             const resp = await fetch(uri, { signal: AbortSignal.timeout(15000) });
             const json = await resp.json();
-            if (json.image) { g.image = json.image; return; }
+            if (json.image) {
+              let imageUrl = json.image;
+              if (imageUrl.startsWith('ipfs://')) {
+                imageUrl = imageUrl.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+              } else {
+                const imgIpfsMatch = imageUrl.match(/\/ipfs\/(.+)$/);
+                if (imgIpfsMatch) {
+                  imageUrl = `https://gateway.pinata.cloud/ipfs/${imgIpfsMatch[1]}`;
+                }
+              }
+              g.image = imageUrl;
+              return;
+            }
           } catch { /* try next */ }
         }
       }),
