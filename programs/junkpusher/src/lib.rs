@@ -139,7 +139,7 @@ pub mod junkpusher {
     }
 
     /// Withdraw DEBRIS tokens from the treasury to the player.
-    /// Only allows withdrawal up to verified winnings (net_profit).
+    /// Allows withdrawal up to the player's current game balance.
     /// Uses PDA authority to sign the transfer from treasury.
     pub fn withdraw_balance(ctx: Context<WithdrawBalance>, amount: u64) -> Result<()> {
         let game_state = &mut ctx.accounts.game_state;
@@ -147,17 +147,6 @@ pub mod junkpusher {
 
         require!(game_state.is_initialized, GameError::NotInitialized);
         require!(amount > 0, GameError::InvalidAmount);
-
-        // Only allow withdrawal of verified winnings (positive net profit)
-        let verified_winnings = if game_state.net_profit > 0 {
-            game_state.net_profit as u64
-        } else {
-            0u64
-        };
-        require!(
-            amount <= verified_winnings,
-            GameError::WithdrawalExceedsWinnings
-        );
         require!(amount <= game_state.balance, GameError::InsufficientBalance);
 
         // Convert human-readable amount to base units (9 decimals)

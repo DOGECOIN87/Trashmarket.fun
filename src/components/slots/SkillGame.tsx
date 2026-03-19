@@ -313,24 +313,37 @@ export default function SkillGame() {
     if (!publicKey || !connection) return;
 
     const restore = async () => {
-      // 1. Try reading on-chain game state PDA balance
+      // 1. Try localStorage first (HMAC-protected) — this is the most current balance,
+      // updated every spin. PDA balance is stale (only updated on deposit/withdraw).
+      // Using localStorage first prevents refresh-cheating (balance already reflects deductions).
+      const key = `slots_balance_${publicKey.toBase58()}`;
+      const npKey = `slots_netprofit_${publicKey.toBase58()}`;
+      const saved = await getWithIntegrity(key);
+      const savedNp = await getWithIntegrity(npKey);
+      if (saved) {
+        const parsed = parseFloat(saved);
+        if (!isNaN(parsed) && parsed >= 0) {
+          setBalance(parsed);
+          if (savedNp) {
+            const parsedNp = parseFloat(savedNp);
+            if (!isNaN(parsedNp)) setNetProfit(parsedNp);
+          }
+          balanceRestoredRef.current = true;
+          return;
+        }
+      }
+
+      // 2. Fallback: on-chain game state PDA balance (first session or corrupted localStorage)
       const pdaBal = await refreshGameBalance();
       if (pdaBal !== null) return;
 
-      // 2. Fallback: localStorage (with HMAC integrity check)
-      const key = `slots_balance_${publicKey.toBase58()}`;
-      const saved = await getWithIntegrity(key);
-      if (saved) {
-        const parsed = parseFloat(saved);
-        if (!isNaN(parsed) && parsed > 0) setBalance(parsed);
-      }
       balanceRestoredRef.current = true;
     };
 
     restore();
   }, [publicKey, connection, refreshGameBalance]);
 
-  // Auto-save in-game balance — only after restore has run to prevent clobbering
+  // Auto-save in-game balance and netProfit — only after restore has run to prevent clobbering
   useEffect(() => {
     if (!publicKey || !balanceRestoredRef.current) return;
     const key = `slots_balance_${publicKey.toBase58()}`;
@@ -338,6 +351,14 @@ export default function SkillGame() {
       console.error('[Slots] HMAC save failed:', err)
     );
   }, [balance, publicKey]);
+
+  useEffect(() => {
+    if (!publicKey || !balanceRestoredRef.current) return;
+    const key = `slots_netprofit_${publicKey.toBase58()}`;
+    setWithIntegrity(key, netProfit.toString()).catch((err) =>
+      console.error('[Slots] netProfit HMAC save failed:', err)
+    );
+  }, [netProfit, publicKey]);
 
   // ─── Deposit DEBRIS into game ────────────────────────────────────────
   const handleDeposit = async () => {
@@ -416,9 +437,8 @@ export default function SkillGame() {
     setTxPending(true);
     setTxMessage('Withdrawing DEBRIS...');
     try {
-      // verifiedWinnings = netProfit (clamped to 0 — can't withdraw if net negative)
-      const verifiedWinnings = Math.max(0, Math.floor(netProfit));
-      const sig = await onChain.withdrawBalance(intAmount, verifiedWinnings, Math.floor(balance));
+      // Allow withdrawal up to full game balance (on-chain program validates against balance)
+      const sig = await onChain.withdrawBalance(intAmount, Math.floor(balance), Math.floor(balance));
       if (sig) {
         setBalance((prev) => prev - intAmount);
         setWithdrawAmount('');
@@ -456,8 +476,6 @@ export default function SkillGame() {
     setIsPlayDisabled(false);
     setPlayButtonText('Play');
     setPreviewShown(false);
-    setLevelLocked(false);
-    lockedGridRef.current = null; // force fresh grid next round
 
     if (won && winAmount > 0) {
       setBalance((prev) => prev + winAmount);
@@ -584,11 +602,6 @@ export default function SkillGame() {
     }, 2000);
   };
 
-  // Locked grid for the current play session — ONE grid per preview cycle.
-  // Only the previewed level gets a grid; switching levels is blocked after preview.
-  const lockedGridRef = useRef<{ level: number; grid: number[] } | null>(null);
-  const [levelLocked, setLevelLocked] = useState(false);
-
   const handlePreview = () => {
     if (stage !== 'IDLE' || isAnimating) return;
     if (!connected) {
@@ -596,21 +609,17 @@ export default function SkillGame() {
       return;
     }
 
-    // Generate a single grid for the current level and lock it
-    if (!lockedGridRef.current || lockedGridRef.current.level !== playLevel) {
-      lockedGridRef.current = { level: playLevel, grid: constructGameGrid() };
-    }
-
-    setGrid(lockedGridRef.current.grid);
+    // Generate a fresh grid for preview each time
+    const previewGrid = constructGameGrid();
+    setGrid(previewGrid);
     setStatusMessage('Previewing...');
-    setLevelLocked(true); // Lock level selector after preview
 
     // Show for 2 seconds, then hide the symbols
     addTimeout(() => {
       setGrid(Array(9).fill(null));
       setPreviewShown(true);
-      setPlayButtonText('Confirm');
-      setStatusMessage('Press Play or change level to re-roll');
+      setPlayButtonText('Play');
+      setStatusMessage("Press Play to spin");
     }, 2000);
   };
 
@@ -627,19 +636,15 @@ export default function SkillGame() {
       return;
     }
 
-    // Deduct wager upfront
+    // Deduct wager upfront (saved to localStorage immediately via auto-save effect)
     setBalance((prev) => prev - playLevel);
     setNetProfit((prev) => prev - playLevel);
     setStatusMessage(null);
     setIsPlayDisabled(true);
 
-    // Use locked grid for this level (from preview) or construct fresh
-    const baseGrid = (lockedGridRef.current?.level === playLevel)
-      ? lockedGridRef.current.grid
-      : constructGameGrid();
-    lockedGridRef.current = null;
+    // Always construct a fresh grid
+    const baseGrid = constructGameGrid();
     setPreviewShown(false);
-    setLevelLocked(false);
 
     setPlayButtonText('Spinning...');
     setStage('PLAYING');
@@ -652,20 +657,14 @@ export default function SkillGame() {
     });
   };
 
-  // Level selection — changing levels discards any previewed grid (prevents scanning exploit)
+  // Level selection — freely switch levels anytime while idle
   const handleLevelSelect = (index: number) => {
     if (stage !== 'IDLE' || isAnimating) return;
     setLevelIndex(index);
-
-    // Discard previewed grid when switching levels — player must preview again
-    if (lockedGridRef.current) {
-      lockedGridRef.current = null;
-      setPreviewShown(false);
-      setLevelLocked(false);
-      setPlayButtonText('Play');
-      setGrid(Array(9).fill(null));
-      setStatusMessage("Adjust 'Play Level'");
-    }
+    setPreviewShown(false);
+    setPlayButtonText('Play');
+    setGrid(Array(9).fill(null));
+    setStatusMessage("Adjust 'Play Level'");
   };
 
   // Render individual cell content
@@ -867,7 +866,7 @@ export default function SkillGame() {
               key={level}
               className={`skill-level-btn${index === levelIndex ? ' active' : ''}`}
               onClick={() => handleLevelSelect(index)}
-              disabled={stage !== 'IDLE' || isAnimating || levelLocked}
+              disabled={stage !== 'IDLE' || isAnimating}
             >
               {level}
             </button>

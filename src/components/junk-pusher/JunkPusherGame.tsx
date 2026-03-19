@@ -273,9 +273,8 @@ const JunkPusherGame: React.FC = () => {
         txInFlightRef.current = true;
         try {
             const intAmount = Math.floor(amount);
-            // verifiedWinnings = netProfit (clamped to 0 minimum — can't withdraw if net negative)
-            const verifiedWinnings = Math.max(0, Math.floor(gameStateRef.current.netProfit));
-            const sig = await oc.withdrawBalance(intAmount, verifiedWinnings, Math.floor(currentBalance));
+            // Allow withdrawal up to full game balance (on-chain program validates against balance)
+            const sig = await oc.withdrawBalance(intAmount, Math.floor(currentBalance), Math.floor(currentBalance));
             if (sig) {
                 // Deduct from engine balance
                 if (engineRef.current) {

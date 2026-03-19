@@ -131,7 +131,7 @@ const Raffle: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-8">
         <div className="bg-black/50 border border-magic-green/20 p-4">
           <div className="text-gray-400 text-sm mb-1">TOTAL RAFFLES</div>
           <div className="text-2xl font-bold text-magic-green">{raffles.length}</div>
@@ -217,14 +217,14 @@ const Raffle: React.FC = () => {
 // Infinite Carousel Component
 const RaffleCarousel: React.FC<{ raffles: RaffleType[]; onUpdate: () => void }> = ({ raffles, onUpdate }) => {
   const [isPaused, setIsPaused] = useState(false);
-  const carouselRef = useRef<HTMLDivElement>(null);
 
   // Fixed card width for consistent sizing
   const cardWidth = 220; // px
   const gap = 16; // px (gap-4)
   const totalItemWidth = cardWidth + gap;
   const trackWidth = totalItemWidth * raffles.length;
-  const needsScroll = raffles.length > 1;
+  // Only auto-scroll when there are enough raffles to overflow (4+ cards)
+  const needsScroll = raffles.length >= 4;
 
   return (
     <div
@@ -248,11 +248,10 @@ const RaffleCarousel: React.FC<{ raffles: RaffleType[]; onUpdate: () => void }> 
         `}</style>
       )}
       <div
-        ref={carouselRef}
         className={`flex gap-4 p-4 ${needsScroll ? 'carousel-track' : 'justify-center flex-wrap'}`}
       >
         {(needsScroll ? [...raffles, ...raffles] : raffles).map((raffle, idx) => (
-          <div key={`${raffle.publicKey}-${idx}`} className="flex-shrink-0 w-[180px] sm:w-[220px] md:w-[240px]">
+          <div key={`${raffle.publicKey}-${idx}`} className="flex-shrink-0 w-[160px] sm:w-[220px] md:w-[240px]">
             <RaffleCard raffle={raffle} onUpdate={onUpdate} isCompact={true} />
           </div>
         ))}
@@ -1081,21 +1080,21 @@ const RaffleDetailView: React.FC<{
 
   return (
     <div className="fixed inset-0 bg-black/95 z-50 overflow-y-auto">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
         {/* Back button */}
         <button
           onClick={onClose}
-          className="flex items-center gap-2 text-gray-400 hover:text-magic-green transition-colors mb-6 group"
+          className="flex items-center gap-2 text-gray-400 hover:text-magic-green transition-colors mb-4 sm:mb-6 group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="text-sm font-bold uppercase tracking-widest">BACK TO RAFFLES</span>
         </button>
 
         {/* Main content: Image left, Info right */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Left: NFT Image */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 mb-8">
+          {/* Left: NFT Image — constrained height on small screens */}
           <div className="bg-black/50 border border-magic-green/20 overflow-hidden">
-            <div className="aspect-square relative">
+            <div className="aspect-square max-h-[40vh] sm:max-h-[50vh] lg:max-h-none relative">
               {nftImage ? (
                 <img
                   src={nftImage}
@@ -1104,11 +1103,11 @@ const RaffleDetailView: React.FC<{
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-black/30">
-                  <TicketIcon size={120} className="opacity-20" />
+                  <TicketIcon size={80} className="opacity-20" />
                 </div>
               )}
               {/* Status badge */}
-              <div className={`absolute top-4 right-4 px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${isDrawingNeedsClaim ? 'bg-blue-500 text-white' :
+              <div className={`absolute top-2 right-2 sm:top-4 sm:right-4 px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider ${isDrawingNeedsClaim ? 'bg-blue-500 text-white' :
                 isExpiredWithSales ? 'bg-yellow-500 text-black' :
                   isExpiredNoSales ? 'bg-red-500 text-white' :
                     isNeedsDrawOrSoldOut ? 'bg-yellow-500 text-black' :
@@ -1126,39 +1125,39 @@ const RaffleDetailView: React.FC<{
           </div>
 
           {/* Right: Raffle Info */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3 sm:gap-6">
             {/* Prize header */}
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <TicketIcon size={20} />
+              <div className="flex items-center gap-2 mb-1 sm:mb-2">
+                <TicketIcon size={16} className="sm:w-5 sm:h-5" />
                 <span className="text-[10px] text-gray-500 uppercase tracking-widest">RAFFLE PRIZE &middot; 1 WINNER</span>
               </div>
-              <h1 className="text-3xl font-bold text-magic-green font-pusia">{nftName}</h1>
-              <p className="text-xs text-gray-500 font-mono mt-1">{raffle.nftMint}</p>
+              <h1 className="text-xl sm:text-3xl font-bold text-magic-green font-pusia truncate">{nftName}</h1>
+              <p className="text-[10px] sm:text-xs text-gray-500 font-mono mt-1 truncate">{raffle.nftMint}</p>
             </div>
 
             {/* Stats grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-black/50 border border-magic-green/20 p-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
+              <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">TICKET PRICE</div>
-                <div className="text-xl font-bold text-magic-green font-mono">{raffle.ticketPrice.toFixed(2)} GGOR</div>
+                <div className="text-sm sm:text-xl font-bold text-magic-green font-mono">{raffle.ticketPrice.toFixed(2)} GGOR</div>
               </div>
-              <div className="bg-black/50 border border-magic-green/20 p-4">
+              <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">PLATFORM FEE</div>
-                <div className="text-xl font-bold text-magic-green font-mono">{formatFeeBps(raffle.platformFeeBps)}</div>
+                <div className="text-sm sm:text-xl font-bold text-magic-green font-mono">{formatFeeBps(raffle.platformFeeBps)}</div>
               </div>
             </div>
 
             {/* Tickets remaining */}
-            <div className="bg-black/50 border border-magic-green/20 p-4">
-              <div className="flex justify-between items-center mb-3">
+            <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
+              <div className="flex justify-between items-center mb-2 sm:mb-3">
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest">TICKETS REMAINING</div>
                 <div className="flex items-center gap-1.5">
-                  <TicketIcon size={16} />
-                  <span className="text-white font-mono font-bold">{ticketsRemaining} of {raffle.totalTickets}</span>
+                  <TicketIcon size={14} />
+                  <span className="text-white font-mono font-bold text-xs sm:text-sm">{ticketsRemaining} of {raffle.totalTickets}</span>
                 </div>
               </div>
-              <div className="w-full bg-black h-3 border border-white/5">
+              <div className="w-full bg-black h-2 sm:h-3 border border-white/5">
                 <div
                   className="bg-magic-green h-full transition-all duration-500"
                   style={{ width: `${progress}%` }}
@@ -1170,23 +1169,23 @@ const RaffleDetailView: React.FC<{
             </div>
 
             {/* Countdown */}
-            <div className="bg-black/50 border border-magic-green/20 p-4">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
+              <div className="flex items-center gap-2 mb-1 sm:mb-2">
                 <Clock className="w-4 h-4 text-gray-500" />
                 <span className="text-[10px] text-gray-500 uppercase tracking-widest">
                   {raffle.endTime > Date.now() ? 'ENDS IN' : 'ENDED'}
                 </span>
               </div>
-              <div className={`text-2xl font-bold font-mono ${countdown === 'ENDED' ? 'text-red-400' : 'text-magic-green'}`}>
+              <div className={`text-lg sm:text-2xl font-bold font-mono ${countdown === 'ENDED' ? 'text-red-400' : 'text-magic-green'}`}>
                 {countdown}
               </div>
             </div>
 
             {/* Raffler / Creator info */}
-            <div className="bg-black/50 border border-magic-green/20 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">RAFFLER</div>
+            <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 sm:mb-2">RAFFLER</div>
               <div className="flex items-center justify-between">
-                <span className="text-white font-mono text-sm">{shortenAddress(raffle.creator)}</span>
+                <span className="text-white font-mono text-xs sm:text-sm">{shortenAddress(raffle.creator)}</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => copyAddress(raffle.creator)}
@@ -1224,15 +1223,15 @@ const RaffleDetailView: React.FC<{
               <button
                 onClick={handleBuyTicket}
                 disabled={loading || !wallet.connected}
-                className="w-full py-5 bg-magic-green text-black font-bold uppercase tracking-widest text-lg hover:bg-magic-green/80 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                className="w-full py-3 sm:py-5 bg-magic-green text-black font-bold uppercase tracking-widest text-sm sm:text-lg hover:bg-magic-green/80 transition-all disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
               >
                 {loading ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
                 ) : !wallet.connected ? (
                   'CONNECT WALLET'
                 ) : (
                   <>
-                    <TicketIcon size={24} />
+                    <TicketIcon size={20} />
                     BUY TICKET &middot; {raffle.ticketPrice.toFixed(2)} GGOR
                   </>
                 )}

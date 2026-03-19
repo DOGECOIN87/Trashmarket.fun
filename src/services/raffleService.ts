@@ -281,14 +281,25 @@ export class RaffleService {
     const ticketPrice = (raffleData as any).ticketPrice as BN;
     const totalCost = ticketPrice.mul(new BN(quantity));
 
+    // Pre-flight balance check — buyer needs ticket cost + rent for ATA + tx fees
+    const buyerBalance = await this.connection.getBalance(buyer);
+    const rentExemption = await this.connection.getMinimumBalanceForRentExemption(165); // TokenAccount size
+    const estimatedFees = 15000; // ~3 signatures worth of fees
+    const totalNeeded = totalCost.toNumber() + rentExemption + estimatedFees;
+    if (buyerBalance < totalNeeded) {
+      const have = (buyerBalance / Math.pow(10, 9)).toFixed(4);
+      const need = (totalNeeded / Math.pow(10, 9)).toFixed(4);
+      throw new Error(`Insufficient GOR balance. Need ~${need} GOR (${fromGGOR(totalCost)} for tickets + rent + fees), have ${have} GOR.`);
+    }
+
     // Build transaction with wrapping instructions
     const transaction = new Transaction();
 
     // 1. Create wrapped GOR ATA if it doesn't exist
     let ataExists = false;
     try {
-      await getAccount(this.connection, buyerTokenAccount);
-      ataExists = true;
+      const acct = await getAccount(this.connection, buyerTokenAccount);
+      ataExists = acct !== null;
     } catch {
       // ATA doesn't exist, create it
     }

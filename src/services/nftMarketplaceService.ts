@@ -43,7 +43,7 @@ const METAPLEX_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt
 const DAS_API_URL = RPC_ENDPOINTS.GORBAGANA_API;
 
 /** Allowed NFT symbols for the marketplace */
-const ALLOWED_SYMBOLS = ['GORBAGIO'];
+const ALLOWED_SYMBOLS = ['GORBAGIO', 'GORI'];
 
 // ─── Connection Singleton ───────────────────────────────────────────────────
 
@@ -288,20 +288,82 @@ async function fetchOnChainMetadataBatch(
   return results;
 }
 
-/** In-memory image cache to avoid re-fetching IPFS JSON */
+/** In-memory image cache to avoid re-fetching */
 const imageCache = new Map<string, string>();
 
 /**
- * Resolve the image URL for an NFT by fetching its off-chain JSON metadata.
- * Uses the original IPFS gateway URLs from on-chain metadata.
+ * Gorbagio image base URL — images follow pattern {BASE}/{N}.png
+ * Derived from on-chain metadata; hosted on Pinata.
  */
-async function resolveNftImage(jsonUri: string): Promise<string> {
+const GORBAGIO_IMAGE_BASE =
+  'https://plum-far-bobcat-940.mypinata.cloud/ipfs/bafybeihkdrontwttwgcaqlpifsav2pvyzyi2m4otl2jeklp4dbdzasdcu4';
+
+/**
+ * Gorigin image CID mapping — loaded once from static JSON.
+ * Maps NFT number → IPFS CID (e.g., "337" → "QmZpKxFn...")
+ */
+let goriginImageMap: Record<string, string> | null = null;
+let goriginMapLoading: Promise<void> | null = null;
+
+async function loadGoriginImageMap(): Promise<void> {
+  if (goriginImageMap) return;
+  if (goriginMapLoading) return goriginMapLoading;
+
+  goriginMapLoading = (async () => {
+    try {
+      const resp = await fetch('/data/gorigin-images.json');
+      if (resp.ok) {
+        goriginImageMap = await resp.json();
+      } else {
+        console.warn('[NFT] Failed to load gorigin-images.json:', resp.status);
+        goriginImageMap = {};
+      }
+    } catch (err) {
+      console.warn('[NFT] Failed to load gorigin-images.json:', err);
+      goriginImageMap = {};
+    }
+  })();
+  return goriginMapLoading;
+}
+
+/**
+ * Resolve NFT image URL directly from on-chain metadata name + symbol.
+ * No IPFS JSON fetch needed — uses predictable URL patterns or static mapping.
+ */
+function resolveNftImageDirect(name: string, symbol: string): string {
+  // Extract NFT number from name (e.g., "Gorbagio #700" → "700", "Gorigin #337" → "337")
+  const numMatch = name.match(/#(\d+)/);
+  if (!numMatch) return '/assets/nft-placeholder.svg';
+  const num = numMatch[1];
+
+  if (symbol === 'GORBAGIO') {
+    return `${GORBAGIO_IMAGE_BASE}/${num}.png`;
+  }
+
+  if (symbol === 'GORI' && goriginImageMap) {
+    const cid = goriginImageMap[num];
+    if (cid) {
+      return `https://gateway.pinata.cloud/ipfs/${cid}`;
+    }
+  }
+
+  return '/assets/nft-placeholder.svg';
+}
+
+/**
+ * Fallback: Resolve image by fetching off-chain JSON metadata (slow, unreliable).
+ * Only used when direct resolution fails.
+ */
+async function resolveNftImageFromJson(jsonUri: string): Promise<string> {
   if (!jsonUri) return '/assets/nft-placeholder.svg';
   const cached = imageCache.get(jsonUri);
   if (cached) return cached;
 
   try {
-    const response = await fetch(jsonUri);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const response = await fetch(jsonUri, { signal: controller.signal });
+    clearTimeout(timeoutId);
     if (!response.ok) return '/assets/nft-placeholder.svg';
     const json = await response.json();
     const image = json.image || json.image_url || '/assets/nft-placeholder.svg';
@@ -359,15 +421,14 @@ export async function fetchWalletNFTs(
       ([, meta]) => ALLOWED_SYMBOLS.includes(meta.symbol),
     );
 
-    // Resolve images in parallel
-    const imageResults = await Promise.all(
-      filtered.map(([, meta]) => resolveNftImage(meta.uri)),
-    );
+    // Load Gorigin image map (no-op if already loaded)
+    await loadGoriginImageMap();
 
-    return filtered.map(([mint, meta], idx) => ({
+    // Resolve images directly from name + symbol (no IPFS fetches needed)
+    return filtered.map(([mint, meta]) => ({
       mint,
       name: meta.name || `NFT #${mint.slice(-4)}`,
-      image: imageResults[idx],
+      image: resolveNftImageDirect(meta.name, meta.symbol),
       owner: ownerAddress,
     }));
   } catch (error) {
@@ -388,7 +449,12 @@ export async function fetchNftMetadata(
   const meta = metadataMap.get(mintAddress);
   if (!meta) return null;
 
-  const image = await resolveNftImage(meta.uri);
+  await loadGoriginImageMap();
+  let image = resolveNftImageDirect(meta.name, meta.symbol);
+  // Fallback to JSON fetch if direct resolution returned placeholder and URI exists
+  if (image === '/assets/nft-placeholder.svg' && meta.uri) {
+    image = await resolveNftImageFromJson(meta.uri);
+  }
   return {
     name: meta.name || `NFT #${mintAddress.slice(-4)}`,
     image,

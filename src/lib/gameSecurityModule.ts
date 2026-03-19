@@ -44,23 +44,16 @@ export function validateDepositAmount(amount: number): { valid: boolean; error?:
 }
 
 /**
- * Validates withdrawal amount against verified winnings
- * This ensures players can only withdraw what they've actually won
+ * Validates withdrawal amount against current game balance.
+ * Players can withdraw up to their full game balance (deposits + winnings - losses).
  */
 export function validateWithdrawalAmount(
   requestedAmount: number,
-  verifiedWinnings: number,
+  _verifiedWinnings: number,
   currentBalance: number
 ): { valid: boolean; error?: string } {
   if (requestedAmount <= 0) {
     return { valid: false, error: 'Withdrawal amount must be greater than 0' };
-  }
-
-  if (requestedAmount > verifiedWinnings) {
-    return {
-      valid: false,
-      error: `Cannot withdraw ${requestedAmount}. Verified winnings: ${verifiedWinnings}`,
-    };
   }
 
   if (requestedAmount > currentBalance) {

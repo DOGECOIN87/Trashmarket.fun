@@ -29,9 +29,18 @@ const ANCHOR_ERROR_MAP: Record<number, string> = {
   2008: 'Constraint rent exempt — account not rent exempt.',
   2009: 'Constraint seeds — PDA seeds mismatch.',
   2010: 'Constraint executable — account must be executable.',
-  // Solana built-in errors
-  0: 'Transaction failed — insufficient funds for fees.',
-  1: 'Account not found or not initialized.',
+  // GoRaffle errors (6000+ = Anchor custom error offset)
+  6000: 'Invalid ticket count.',
+  6001: 'Invalid ticket price.',
+  6002: 'Invalid end time.',
+  6003: 'Raffle is not active.',
+  6004: 'Raffle has ended.',
+  6005: 'Not enough tickets remaining.',
+  6006: 'Invalid raffle status.',
+  6007: 'Raffle has not ended yet.',
+  6008: 'Cannot cancel this raffle.',
+  6009: 'Insufficient GGOR balance for tickets.',
+  6010: 'Arithmetic overflow.',
 };
 
 // Common Solana/wallet error patterns
@@ -43,6 +52,7 @@ const ERROR_PATTERNS: [RegExp, string][] = [
   [/block height exceeded/i, 'Transaction expired. Please try again.'],
   // Don't swallow simulation errors — let the actual error message through
   [/Account does not exist/i, 'Token account not found. Deposit DEBRIS first.'],
+  [/custom program error: 0x1\b/, 'Insufficient token balance for this transaction.'],
   [/0x1$/, 'Insufficient funds for transaction fees.'],
   [/0x0$/, 'Transaction failed — check your balance.'],
   [/Attempt to debit an account but found no record/i, 'No token account found. Make sure you have DEBRIS tokens.'],

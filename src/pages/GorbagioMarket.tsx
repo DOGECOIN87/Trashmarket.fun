@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
   Loader,
@@ -278,13 +278,33 @@ const GorbagioMarket: React.FC = () => {
 
   const NftImage = ({ src, alt }: { src: string; alt: string }) => {
     const [imgSrc, setImgSrc] = useState(src);
+    const triedRef = useRef(new Set<string>());
+    const handleError = () => {
+      // Try alternative IPFS gateways before falling back to placeholder
+      const ipfsMatch = imgSrc.match(/\/ipfs\/(.+)$/);
+      if (ipfsMatch) {
+        const cid = ipfsMatch[1];
+        const gateways = [
+          `https://gateway.pinata.cloud/ipfs/${cid}`,
+          `https://cloudflare-ipfs.com/ipfs/${cid}`,
+          `https://4everland.io/ipfs/${cid}`,
+        ];
+        const next = gateways.find((g) => !triedRef.current.has(g) && g !== imgSrc);
+        if (next) {
+          triedRef.current.add(next);
+          setImgSrc(next);
+          return;
+        }
+      }
+      setImgSrc('/assets/nft-placeholder.svg');
+    };
     return (
       <img
         src={imgSrc}
         alt={alt}
         className="w-full h-full object-cover"
         loading="lazy"
-        onError={() => setImgSrc('/assets/nft-placeholder.svg')}
+        onError={handleError}
       />
     );
   };
@@ -298,7 +318,7 @@ const GorbagioMarket: React.FC = () => {
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold font-heading">GORBAGIO NFT MARKET</h1>
-            <p className="text-gray-400 text-sm">Trade Gorbagio NFTs on Gorbagana</p>
+            <p className="text-gray-400 text-sm">Trade Gorbagio &amp; Gorigin NFTs on Gorbagana</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative w-full sm:w-64">
