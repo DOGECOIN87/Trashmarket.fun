@@ -305,7 +305,7 @@ const GORBAGIO_IMAGE_BASE =
 let goriginImageMap: Record<string, string> | null = null;
 let goriginMapLoading: Promise<void> | null = null;
 
-async function loadGoriginImageMap(): Promise<void> {
+export async function loadGoriginImageMap(): Promise<void> {
   if (goriginImageMap) return;
   if (goriginMapLoading) return goriginMapLoading;
 
@@ -330,7 +330,7 @@ async function loadGoriginImageMap(): Promise<void> {
  * Resolve NFT image URL directly from on-chain metadata name + symbol.
  * No IPFS JSON fetch needed — uses predictable URL patterns or static mapping.
  */
-function resolveNftImageDirect(name: string, symbol: string): string {
+export function resolveNftImageDirect(name: string, symbol: string): string {
   // Extract NFT number from name (e.g., "Gorbagio #700" → "700", "Gorigin #337" → "337")
   const numMatch = name.match(/#(\d+)/);
   if (!numMatch) return '/assets/nft-placeholder.svg';
@@ -424,13 +424,21 @@ export async function fetchWalletNFTs(
     // Load Gorigin image map (no-op if already loaded)
     await loadGoriginImageMap();
 
-    // Resolve images directly from name + symbol (no IPFS fetches needed)
-    return filtered.map(([mint, meta]) => ({
-      mint,
-      name: meta.name || `NFT #${mint.slice(-4)}`,
-      image: resolveNftImageDirect(meta.name, meta.symbol),
-      owner: ownerAddress,
-    }));
+    // Resolve images: direct URL first, fallback to off-chain JSON if needed
+    const results: WalletNft[] = [];
+    for (const [mint, meta] of filtered) {
+      let image = resolveNftImageDirect(meta.name, meta.symbol);
+      if (image === '/assets/nft-placeholder.svg' && meta.uri) {
+        image = await resolveNftImageFromJson(meta.uri);
+      }
+      results.push({
+        mint,
+        name: meta.name || `NFT #${mint.slice(-4)}`,
+        image,
+        owner: ownerAddress,
+      });
+    }
+    return results;
   } catch (error) {
     console.error('[NFT Marketplace] Error fetching wallet NFTs:', error);
     return [];

@@ -11,6 +11,7 @@ import { Loader2, AlertCircle, CheckCircle2, X, Search, ChevronLeft, ExternalLin
 import { BN } from '@coral-xyz/anchor';
 import bs58 from 'bs58';
 import { RPC_ENDPOINTS, EXPLORER_URLS } from '../lib/rpcConfig';
+import { resolveNftImageDirect, loadGoriginImageMap } from '../services/nftMarketplaceService';
 
 interface UserNFT {
   tokenAccount: string;
@@ -294,17 +295,23 @@ const RaffleCard: React.FC<{ raffle: RaffleType; onUpdate: () => void; isCompact
       if (!accountData) return;
 
       const buf = Buffer.from(accountData, 'base64');
-      // Parse name + uri from Metaplex metadata
+      // Parse name + symbol + uri from Metaplex metadata
       let offset = 1 + 32 + 32;
       const nameLen = buf.readUInt32LE(offset); offset += 4;
       const name = buf.slice(offset, offset + nameLen).toString('utf8').replace(/\0/g, '').trim();
       offset += nameLen;
-      const symbolLen = buf.readUInt32LE(offset); offset += 4 + symbolLen;
+      const symbolLen = buf.readUInt32LE(offset); offset += 4;
+      const symbol = buf.slice(offset, offset + symbolLen).toString('utf8').replace(/\0/g, '').trim();
+      offset += symbolLen;
       const uriLen = buf.readUInt32LE(offset); offset += 4;
       const uri = buf.slice(offset, offset + uriLen).toString('utf8').replace(/\0/g, '').trim();
 
-      let image = '';
-      if (uri && uri.startsWith('http')) {
+      // Load Gorigin image map and try direct resolution first
+      await loadGoriginImageMap();
+      let image = resolveNftImageDirect(name, symbol);
+
+      // Fallback to off-chain JSON if direct resolution failed
+      if (image === '/assets/nft-placeholder.svg' && uri && uri.startsWith('http')) {
         try {
           const jsonRes = await fetch(uri);
           if (jsonRes.ok) {
@@ -552,19 +559,21 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
   };
 
   // Parse on-chain Metaplex metadata account data
-  const parseMetaplexMetadata = (data: Buffer): { name: string; uri: string } => {
-    // Metaplex metadata layout: key(1) + updateAuth(32) + mint(32) + name(4+32) + symbol(4+10) + uri(4+200)
+  const parseMetaplexMetadata = (data: Buffer): { name: string; symbol: string; uri: string } => {
+    // Metaplex metadata layout: key(1) + updateAuth(32) + mint(32) + name(4+var) + symbol(4+var) + uri(4+var)
     let offset = 1 + 32 + 32;
     const nameLen = data.readUInt32LE(offset);
     offset += 4;
     const name = data.slice(offset, offset + nameLen).toString('utf8').replace(/\0/g, '').trim();
     offset += nameLen;
     const symbolLen = data.readUInt32LE(offset);
-    offset += 4 + symbolLen;
+    offset += 4;
+    const symbol = data.slice(offset, offset + symbolLen).toString('utf8').replace(/\0/g, '').trim();
+    offset += symbolLen;
     const uriLen = data.readUInt32LE(offset);
     offset += 4;
     const uri = data.slice(offset, offset + uriLen).toString('utf8').replace(/\0/g, '').trim();
-    return { name, uri };
+    return { name, symbol, uri };
   };
 
   const fetchUserNFTs = useCallback(async () => {
@@ -615,6 +624,9 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
         const metaData = await metaResponse.json();
         const metaAccounts = metaData.result?.value || [];
 
+        // Load Gorigin image map for direct resolution
+        await loadGoriginImageMap();
+
         const nfts: UserNFT[] = [];
         for (let i = 0; i < nftMints.length; i++) {
           const mint = nftMints[i];
@@ -628,8 +640,11 @@ const CreateRaffleModal: React.FC<{ onClose: () => void; onSuccess: () => void }
               const parsed = parseMetaplexMetadata(buf);
               name = parsed.name || name;
 
-              // Fetch off-chain JSON metadata for the image
-              if (parsed.uri && parsed.uri.startsWith('http')) {
+              // Try direct image resolution first (fast, reliable)
+              image = resolveNftImageDirect(parsed.name, parsed.symbol);
+
+              // Fallback to off-chain JSON metadata if direct resolution failed
+              if (image === '/assets/nft-placeholder.svg' && parsed.uri && parsed.uri.startsWith('http')) {
                 try {
                   const jsonRes = await fetch(parsed.uri);
                   if (jsonRes.ok) {
