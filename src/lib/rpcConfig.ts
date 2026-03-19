@@ -20,7 +20,7 @@ export const RPC_ENDPOINTS = {
   GORBAGANA_WS: 'wss://rpc.gorbagana.wtf',
 
   /** Gorbagana REST API */
-  GORBAGANA_API: 'https://gorapi.trashscan.io',
+  GORBAGANA_API: import.meta.env?.VITE_API_BASE_URL || 'https://gorapi.trashscan.io',
 
   /** Solana mainnet-beta RPC */
   SOLANA_MAINNET: 'https://api.mainnet-beta.solana.com',
