@@ -399,11 +399,6 @@ const Airdrop: React.FC = () => {
           Secure &bull; Verified &bull; On-Chain
         </p>
 
-        {totalRegistrations !== null && (
-          <p className="text-gray-600 text-xs font-mono uppercase tracking-widest mt-8">
-            {totalRegistrations.toLocaleString()} wallets registered
-          </p>
-        )}
       </div>
     </div>
   );
