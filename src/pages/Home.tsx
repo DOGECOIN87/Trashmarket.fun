@@ -150,7 +150,7 @@ const Home: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen pb-20" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
+    <div className="min-h-screen" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
       {/* Hero / Spotlight with Background Video */}
       {featuredCollection ? (
         <div className="relative h-[300px] sm:h-[400px] md:h-[450px] w-full overflow-hidden border-b border-white/20">
@@ -160,8 +160,8 @@ const Home: React.FC = () => {
             loop
             muted={isMuted}
             playsInline
-            className="absolute top-0 left-0 w-full h-full object-cover opacity-80"
-            src="/Trashmarket-index-background-video.mp4"
+            className="absolute top-0 left-0 w-full h-full object-cover opacity-90"
+            src="/assets/backgrounds/lv_0_20260323005114.mp4"
           />
           <button
             onClick={toggleMute}
@@ -259,7 +259,9 @@ const Home: React.FC = () => {
         </div>
       )}
 
-      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-12">
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/30" />
+      <div className="relative z-10 max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-12 pb-24 sm:pb-32">
         {/* ─── DEBRIS Token Showcase ─── */}
         <div className="mb-12">
           <div className="flex items-center gap-2 mb-6">
@@ -269,7 +271,7 @@ const Home: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Token Card */}
-            <div className={`lg:col-span-1 border ${borderAccent}/30 bg-black p-6 relative`}>
+            <div className={`lg:col-span-1 border ${borderAccent}/30 bg-black/70 backdrop-blur-sm p-6 relative`}>
               <div className={`absolute -top-1 -left-1 w-2 h-2 border-t border-l ${borderAccent}`}></div>
               <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${borderAccent}`}></div>
 
@@ -320,7 +322,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Holders Table */}
-            <div className="lg:col-span-2 border border-white/20 bg-black relative">
+            <div className="lg:col-span-2 border border-white/20 bg-black/70 backdrop-blur-sm relative">
               <div className={`absolute -top-1 -left-1 w-2 h-2 border-t border-l ${borderAccent}`}></div>
               <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${borderAccent}`}></div>
 
@@ -414,7 +416,7 @@ const Home: React.FC = () => {
             </span>
           </div>
 
-          <div className="border border-white/20 bg-black relative">
+          <div className="border border-white/20 bg-black/70 backdrop-blur-sm relative">
             <div className={`absolute -top-1 -left-1 w-2 h-2 border-t border-l ${borderAccent}`}></div>
             <div className={`absolute -bottom-1 -right-1 w-2 h-2 border-b border-r ${borderAccent}`}></div>
 
@@ -484,6 +486,7 @@ const Home: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

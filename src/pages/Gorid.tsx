@@ -545,7 +545,7 @@ const Gorid: React.FC = () => {
                           </div>
                           <Zap className="w-4 h-4 text-gray-600 group-hover:text-magic-green transition-colors" />
                         </div>
-                        <h3 className="text-xl font-black text-white mb-2 group-hover:text-magic-green transition-colors">
+                        <h3 className="text-xl font-black text-white mb-2 group-hover:text-magic-green transition-colors break-all">
                           {listing.name}
                         </h3>
                         <div className="flex items-center justify-between">
@@ -555,9 +555,9 @@ const Gorid: React.FC = () => {
                               {currency} {listing.price}
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right min-w-0 flex-shrink">
                             <div className="text-[10px] text-gray-500 uppercase font-bold">Owner</div>
-                            <div className="text-gray-400 font-mono text-sm">{listing.owner}</div>
+                            <div className="text-gray-400 font-mono text-sm truncate max-w-[120px]">{listing.owner}</div>
                           </div>
                         </div>
                       </div>

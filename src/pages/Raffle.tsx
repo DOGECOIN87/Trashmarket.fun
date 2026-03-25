@@ -28,12 +28,92 @@ const Raffle: React.FC = () => {
   const [raffles, setRaffles] = useState<RaffleType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [autoDrawing, setAutoDrawing] = useState<Set<string>>(new Set());
+  const autoDrawInProgressRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (wallet.connected && wallet.publicKey) {
       loadRaffles();
     }
   }, [wallet.connected, wallet.publicKey]);
+
+  // Auto-draw winners for eligible raffles
+  useEffect(() => {
+    if (!wallet.connected || !wallet.publicKey || raffles.length === 0) return;
+
+    const checkAndDrawWinners = async () => {
+      const now = Date.now();
+      
+      // Find raffles that need drawing (expired with sales OR sold out)
+      const needsDrawing = raffles.filter(r => {
+        if (r.status !== 'active') return false;
+        if (autoDrawInProgressRef.current.has(r.raffleId)) return false;
+        
+        const isExpiredWithSales = r.endTime <= now && r.ticketsSold > 0;
+        const isSoldOut = r.ticketsSold >= r.totalTickets;
+        
+        return isExpiredWithSales || isSoldOut;
+      });
+
+      if (needsDrawing.length === 0) return;
+
+      console.log(`Auto-drawing winners for ${needsDrawing.length} raffle(s)...`);
+
+      // Process each raffle that needs drawing
+      for (const raffle of needsDrawing) {
+        // Skip if already processing
+        if (autoDrawInProgressRef.current.has(raffle.raffleId)) continue;
+
+        try {
+          autoDrawInProgressRef.current.add(raffle.raffleId);
+          setAutoDrawing(prev => new Set(prev).add(raffle.raffleId));
+
+          console.log(`Drawing winner for raffle ${raffle.raffleId}...`);
+          const service = new RaffleService(connection, wallet);
+          
+          // Phase 1: Draw winner
+          await service.drawWinner(raffle.raffleId);
+          
+          // Phase 2: Claim prize
+          await service.claimPrize(raffle.raffleId, new PublicKey(raffle.nftMint));
+          
+          console.log(`Successfully drew winner for raffle ${raffle.raffleId}`);
+          
+          // Reload raffles to show updated status
+          await loadRaffles();
+        } catch (error: any) {
+          console.error(`Error auto-drawing raffle ${raffle.raffleId}:`, error);
+          
+          // If draw succeeded but claim failed, try claim only
+          const rawMsg = error instanceof Error ? error.message : String(error);
+          if (rawMsg.includes('InvalidStatus') || rawMsg.includes('Drawing')) {
+            try {
+              const service = new RaffleService(connection, wallet);
+              await service.claimPrize(raffle.raffleId, new PublicKey(raffle.nftMint));
+              await loadRaffles();
+            } catch (claimError) {
+              console.error(`Error claiming prize for raffle ${raffle.raffleId}:`, claimError);
+            }
+          }
+        } finally {
+          autoDrawInProgressRef.current.delete(raffle.raffleId);
+          setAutoDrawing(prev => {
+            const next = new Set(prev);
+            next.delete(raffle.raffleId);
+            return next;
+          });
+        }
+      }
+    };
+
+    // Check immediately
+    checkAndDrawWinners();
+
+    // Check periodically (every 30 seconds)
+    const interval = setInterval(checkAndDrawWinners, 30000);
+
+    return () => clearInterval(interval);
+  }, [raffles, wallet.connected, wallet.publicKey, connection]);
 
   const loadRaffles = async () => {
     if (!wallet.publicKey) return;
@@ -80,9 +160,13 @@ const Raffle: React.FC = () => {
     return `${hours}h ${minutes}m`;
   };
 
-  // Separate active raffles from others
+  // Separate active raffles from others, excluding cancelled and completed
   const activeRaffles = raffles.filter(r => r.status === 'active' && r.endTime > Date.now());
-  const otherRaffles = raffles.filter(r => r.status !== 'active' || r.endTime <= Date.now());
+  const otherRaffles = raffles.filter(r => 
+    (r.status !== 'active' || r.endTime <= Date.now()) && 
+    r.status !== 'cancelled' && 
+    r.status !== 'completed'
+  );
 
   if (!wallet.connected) {
     return (
@@ -135,7 +219,9 @@ const Raffle: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-8">
         <div className="bg-black/50 border border-magic-green/20 p-4">
           <div className="text-gray-400 text-sm mb-1">TOTAL RAFFLES</div>
-          <div className="text-2xl font-bold text-magic-green">{raffles.length}</div>
+          <div className="text-2xl font-bold text-magic-green">
+            {raffles.filter(r => r.status !== 'cancelled' && r.status !== 'completed').length}
+          </div>
         </div>
         <div className="bg-black/50 border border-magic-green/20 p-4">
           <div className="text-gray-400 text-sm mb-1">ACTIVE</div>
@@ -144,18 +230,34 @@ const Raffle: React.FC = () => {
           </div>
         </div>
         <div className="bg-black/50 border border-magic-green/20 p-4">
-          <div className="text-gray-400 text-sm mb-1">COMPLETED</div>
-          <div className="text-2xl font-bold text-blue-400">
-            {raffles.filter(r => r.status === 'completed').length}
+          <div className="text-gray-400 text-sm mb-1">
+            {autoDrawing.size > 0 ? 'AUTO-DRAWING' : 'AWAITING DRAW'}
+          </div>
+          <div className={`text-2xl font-bold ${autoDrawing.size > 0 ? 'text-magic-green' : 'text-yellow-400'} flex items-center gap-2`}>
+            {autoDrawing.size > 0 && <Loader2 className="w-5 h-5 animate-spin" />}
+            {autoDrawing.size > 0 ? autoDrawing.size : raffles.filter(r => (r.status === 'active' && r.endTime <= Date.now() && r.ticketsSold > 0) || (r.status === 'active' && r.ticketsSold >= r.totalTickets)).length}
           </div>
         </div>
         <div className="bg-black/50 border border-magic-green/20 p-4">
           <div className="text-gray-400 text-sm mb-1">YOUR RAFFLES</div>
           <div className="text-2xl font-bold text-magic-green">
-            {raffles.filter(r => r.creator === wallet.publicKey?.toString()).length}
+            {raffles.filter(r => r.creator === wallet.publicKey?.toString() && r.status !== 'cancelled' && r.status !== 'completed').length}
           </div>
         </div>
       </div>
+
+      {/* Auto-drawing notification */}
+      {autoDrawing.size > 0 && (
+        <div className="mb-8 bg-magic-green/10 border border-magic-green/30 p-4 flex items-center gap-3">
+          <Loader2 className="w-5 h-5 text-magic-green animate-spin flex-shrink-0" />
+          <div className="flex-1">
+            <div className="text-magic-green font-bold text-sm">Automatically drawing winners...</div>
+            <div className="text-gray-400 text-xs mt-1">
+              {autoDrawing.size} raffle{autoDrawing.size > 1 ? 's' : ''} in progress
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Active Raffles Carousel Section */}
       {activeRaffles.length > 0 && (

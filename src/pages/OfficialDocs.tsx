@@ -19,7 +19,7 @@ const OfficialDocs: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen text-white">
       {/* Hero Section */}
       <div className="border-b border-white/20 bg-gradient-to-b from-black via-black to-black/80">
         <div className="max-w-6xl mx-auto px-6 py-20">

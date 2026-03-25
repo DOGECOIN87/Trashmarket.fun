@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getAuth, TwitterAuthProvider } from 'firebase/auth';
 
 // Firebase configuration - uses Vite environment variables (import.meta.env)
 // Set these in your .env file with the VITE_ prefix
@@ -19,9 +20,7 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase services
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const auth = getAuth(app);
+export const twitterProvider = new TwitterAuthProvider();
 
 export default app;
-
-// Admin authentication is now handled server-side via the Trashmarket API backend.
-// See services/adminAuthService.ts for the secure wallet-signature-based auth flow.
-// ADMIN_WALLETS and ADMIN_PASSWORD have been removed from the client bundle.

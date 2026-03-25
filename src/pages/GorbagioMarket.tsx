@@ -315,7 +315,9 @@ const GorbagioMarket: React.FC = () => {
   // ─── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 overflow-x-hidden">
+    <div 
+      className="min-h-screen text-white p-4 overflow-x-hidden"
+    >
       <div className="max-w-[1600px] mx-auto">
         {/* Header */}
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

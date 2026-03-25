@@ -198,7 +198,7 @@ const DexPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white font-mono flex items-center justify-center">
+      <div className="min-h-screen text-white font-mono flex items-center justify-center">
         <div className="text-magic-green animate-pulse uppercase tracking-widest text-lg">
           LOADING TRASH DEX...
         </div>
@@ -208,7 +208,7 @@ const DexPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black text-white font-mono flex items-center justify-center">
+      <div className="min-h-screen text-white font-mono flex items-center justify-center">
         <div className="text-center">
           <div className="text-magic-red text-lg mb-2">{error}</div>
           <button
@@ -223,14 +223,14 @@ const DexPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen text-white font-mono">
+    <div className="relative min-h-screen bg-black text-white font-mono">
       {/* Background Video */}
       <video
         autoPlay
         loop
         muted
         playsInline
-        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-60 pointer-events-none"
+        className="fixed top-0 left-0 w-full h-full object-cover z-0 opacity-60 pointer-events-none"
         src="/gorbagio-video-pill.mp4"
       />
       {/* Header */}

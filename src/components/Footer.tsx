@@ -48,7 +48,7 @@ const Footer: React.FC = () => {
                         <ul className="space-y-2 text-gray-500 text-xs font-mono uppercase tracking-wider">
                             <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/official-docs">Docs</Link></li>
                             <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/docs">Brand Kit</Link></li>
-                            <li className="hover:text-magic-green cursor-pointer transition-colors"><a href="/airdrop" target="_blank" rel="noopener noreferrer">Airdrop</a></li>
+                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/airdrop">Airdrop</Link></li>
                         </ul>
                     </div>
 

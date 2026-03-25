@@ -79,9 +79,11 @@ export class GameEngine {
 
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    this.camera.position.set(0, 14, 11);
-    this.camera.lookAt(0, 0, 0);
+    this.camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+    // Low camera angle — eye-level with the table surface, tilted ~15° down
+    // Strong one-point perspective with converging side rails
+    this.camera.position.set(0, 1.8, 12);
+    this.camera.lookAt(0, 0.5, -1);
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -280,14 +282,16 @@ export class GameEngine {
     const panelZ = rearWallZ - panelDepth / 2;  // -5 - 2.5 = -7.5
     const panelY = wallHeight / 2;               // Centered vertically on wall
 
-    // Create unlit black material (no shadows, no lighting)
+    // Create transparent material so background image shows through
     const occlusionMat = new THREE.MeshBasicMaterial({
-      color: 0x000000,  // Pure black matching background
+      color: 0x000000,
       side: THREE.FrontSide,
       fog: false,
-      transparent: false,
+      transparent: true,
+      opacity: 0,
       depthWrite: true,
-      depthTest: true
+      depthTest: true,
+      colorWrite: false,
     });
 
     // Create geometry
@@ -309,7 +313,7 @@ export class GameEngine {
   }
 
   private buildPusher() {
-    const width = DIMENSIONS.PLAYFIELD_WIDTH - 0.2;
+    const width = 8; // Keep pusher at original width while playfield is wider
     const height = 1;
 
     // --- Geometry math (movement logic is NOT changed) ---
@@ -330,6 +334,7 @@ export class GameEngine {
     // --- Visible mesh: sized to totalLength, offset so front face stays put ---
     const geo = new THREE.BoxGeometry(width, height, totalLength);
     geo.translate(0, 0, zOffset);  // shift verts backward in local space
+    
     // Realistic stainless steel material (PBR)
     // Color: neutral stainless steel (light silver-gray)
     // Metalness: 0.9 (highly metallic)
@@ -343,6 +348,8 @@ export class GameEngine {
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = true;
+    
+    // Store the mesh for later rotation application in syncGraphics
     this.scene.add(mesh);
 
     // --- Rigid body (position & movement are UNCHANGED) ---

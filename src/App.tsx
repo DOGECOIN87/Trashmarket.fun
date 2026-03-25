@@ -20,6 +20,7 @@ import VanityGenerator from './pages/VanityGenerator';
 import Submit from './pages/Submit';
 import Raffle from './pages/Raffle';
 import GorbagioMigration from './pages/GorbagioMigration';
+import Airdrop from './pages/Airdrop';
 import Notifications from './components/Notifications';
 
 const App: React.FC = () => {
@@ -32,7 +33,16 @@ const App: React.FC = () => {
         <DynamicConnectionProvider wallets={wallets}>
           <WalletModalProvider>
             <Router>
-              <div className="flex flex-col min-h-screen text-white font-mono antialiased selection:bg-magic-green selection:text-black">
+              <div
+                className="flex flex-col min-h-screen text-white font-mono antialiased selection:bg-magic-green selection:text-black"
+                style={{
+                  backgroundImage: 'url(/images/Junk-background.png)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'top center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundAttachment: 'fixed'
+                }}
+              >
                 <Navbar />
                 <PriceTicker />
                 <main className="flex-grow">
@@ -52,6 +62,7 @@ const App: React.FC = () => {
                     <Route path="/submit" element={<Submit />} />
                     <Route path="/raffle" element={<Raffle />} />
                     <Route path="/migrate" element={<GorbagioMigration />} />
+                    <Route path="/airdrop" element={<Airdrop />} />
                   </Routes>
                 </main>
                 <ActivityTicker />
