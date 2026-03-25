@@ -73,7 +73,11 @@ const Airdrop: React.FC = () => {
       const { twitterHandle: handle } = await signInWithTwitter();
       setTwitterHandle(handle);
     } catch (err: any) {
-      if (err?.code !== 'auth/popup-closed-by-user') {
+      console.error('[Airdrop] Twitter login error:', err?.code, err?.message, err);
+      if (err?.code === 'auth/popup-closed-by-user') return;
+      if (err?.code === 'auth/internal-error') {
+        setError('Authentication failed. Please check that the X/Twitter API keys are configured correctly in Firebase.');
+      } else {
         setError(err?.message || 'Failed to sign in with X');
       }
     }
