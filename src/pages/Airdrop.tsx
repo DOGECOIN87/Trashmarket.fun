@@ -9,7 +9,6 @@ import {
   onAuthChange,
   getRegistration,
   registerForAirdrop,
-  getRegistrationCount,
   type AirdropRegistration,
 } from '../services/airdropService';
 
@@ -27,7 +26,6 @@ const Airdrop: React.FC = () => {
   const [walletInput, setWalletInput] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [totalRegistrations, setTotalRegistrations] = useState<number | null>(null);
 
   // Solana wallet (for auto-filling)
   const { connected, publicKey } = useWallet();
@@ -59,12 +57,8 @@ const Airdrop: React.FC = () => {
     return unsub;
   }, []);
 
-  // Fetch total registrations
-  useEffect(() => {
-    getRegistrationCount()
-      .then(setTotalRegistrations)
-      .catch(() => setTotalRegistrations(null));
-  }, [registration]);
+  // Registration count is not available with current security rules
+  // (rules only allow users to read their own document)
 
   // Auto-fill wallet from connected Solana wallet
   useEffect(() => {
@@ -231,11 +225,6 @@ const Airdrop: React.FC = () => {
           </button>
         </div>
 
-        {totalRegistrations !== null && (
-          <p className="text-center text-gray-600 text-xs font-mono uppercase tracking-widest">
-            {totalRegistrations.toLocaleString()} total registrations
-          </p>
-        )}
       </div>
     );
   }
