@@ -6,13 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline';
+      script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline' https://apis.google.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: blob: https:;
       connect-src 'self' https://*.trashscan.io https://*.gorbagana.wtf https://trashmarket-api.gor-incinerator.workers.dev https://*.solana.com https://*.helius-rpc.com wss://*.solana.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.trashmarket.fun https://api.meteora.ag https://gorapi.trashscan.io https://*.pinata.cloud https://*.mypinata.cloud https://ipfs.io wss://localhost:* ws://localhost:*;
       worker-src 'self' blob:;
-      frame-src https://trashmarket.fun https://trashmarket-fun.firebaseapp.com;
+      frame-src https://trashmarket.fun https://trashmarket-fun.firebaseapp.com https://apis.google.com;
       object-src 'none';
       base-uri 'self';
     " />
