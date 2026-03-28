@@ -80,10 +80,10 @@ export class GameEngine {
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     this.camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    // Low camera angle — eye-level with the table surface, tilted ~15° down
-    // Strong one-point perspective with converging side rails
-    this.camera.position.set(0, 1.8, 12);
-    this.camera.lookAt(0, 0.5, -1);
+    // Moderate top-down angle — back wall top edge at ~50% screen height
+    // Full playfield depth visible, front lip at bottom of frame
+    this.camera.position.set(0, 5, 12);
+    this.camera.lookAt(0, 1.8, -4);
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -428,13 +428,21 @@ export class GameEngine {
   }
 
   private spawnInitialCoins() {
-    // Drop a small amount of FREE coins on initial load
+    // Fill the pusher surface with coins on initial load
     // These coins are NOT deducted from balance - they're a free sample
-    const numInitial = 10; // Reduced from 20 to make it a small "free" sample
-    for (let i = 0; i < numInitial; i++) {
-      const x = (Math.random() - 0.5) * 6;
-      const z = (Math.random() - 0.5) * 4;
-      this.spawnCoin(x, 2 + Math.random() * 2, z);
+    const pfW = DIMENSIONS.PLAYFIELD_WIDTH;
+    const pfL = DIMENSIONS.PLAYFIELD_LENGTH;
+    const coinSpacing = 1.25; // Must exceed coin diameter (1.1) to prevent overlap jitter
+    const margin = 0.7;
+
+    // Grid across playfield: x from left+margin to right-margin, z from back+margin to front-margin
+    for (let x = -pfW / 2 + margin; x <= pfW / 2 - margin; x += coinSpacing) {
+      for (let z = -pfL / 2 + margin; z <= pfL / 2 - margin; z += coinSpacing) {
+        // Small random offset to look natural
+        const jx = x + (Math.random() - 0.5) * 0.3;
+        const jz = z + (Math.random() - 0.5) * 0.3;
+        this.spawnCoin(jx, 0.5 + Math.random() * 0.3, jz);
+      }
     }
   }
 
@@ -444,7 +452,8 @@ export class GameEngine {
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(x, y, z)
       .setLinearDamping(PHYSICS.COIN_LINEAR_DAMPING)
-      .setAngularDamping(PHYSICS.COIN_ANGULAR_DAMPING);
+      .setAngularDamping(PHYSICS.COIN_ANGULAR_DAMPING)
+      .setCanSleep(true);
 
     const body = this.world.createRigidBody(bodyDesc);
     this.world.createCollider(

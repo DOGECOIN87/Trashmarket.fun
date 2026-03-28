@@ -25,5 +25,5 @@ export async function confirmTransaction(
     }
     await new Promise((r) => setTimeout(r, intervalMs));
   }
-  throw new Error('Transaction confirmation timed out — check explorer to verify');
+  throw new Error(`Transaction confirmation timed out — check explorer to verify (sig: ${signature})`);
 }

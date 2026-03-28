@@ -7,8 +7,8 @@ export const PHYSICS = {
   PUSHER_PERIOD: 4.0, // Slower, heavier machine feel
   COIN_FRICTION: 0.4, // Improved friction for realistic sliding
   COIN_RESTITUTION: 0.1, // Less bouncy, heavier feel
-  COIN_LINEAR_DAMPING: 0.1, // Less air resistance, carries momentum
-  COIN_ANGULAR_DAMPING: 0.5, // Natural spin decay
+  COIN_LINEAR_DAMPING: 2.0, // High damping so resting coins settle quickly
+  COIN_ANGULAR_DAMPING: 2.0, // Stops spin fast to prevent jitter
   MAX_COINS: 800,
   COIN_DENSITY: 8.0, // Realistic metal density
 };

@@ -28,8 +28,8 @@ export function validateDebrisTokenMint(tokenMint: string | PublicKey): boolean 
  * Validates deposit amount is within acceptable range
  */
 export function validateDepositAmount(amount: number): { valid: boolean; error?: string } {
-  if (amount < 0) {
-    return { valid: false, error: 'Deposit amount cannot be negative' };
+  if (amount <= 0) {
+    return { valid: false, error: 'Deposit amount must be greater than 0' };
   }
 
   if (amount > 1_000_000_000) {
@@ -44,16 +44,27 @@ export function validateDepositAmount(amount: number): { valid: boolean; error?:
 }
 
 /**
- * Validates withdrawal amount against current game balance.
- * Players can withdraw up to their full game balance (deposits + winnings - losses).
+ * Validates withdrawal amount against verified winnings and current game balance.
+ * Players can only withdraw up to their verified winnings, and never more than their balance.
  */
 export function validateWithdrawalAmount(
   requestedAmount: number,
-  _verifiedWinnings: number,
+  verifiedWinnings: number,
   currentBalance: number
 ): { valid: boolean; error?: string } {
   if (requestedAmount <= 0) {
     return { valid: false, error: 'Withdrawal amount must be greater than 0' };
+  }
+
+  if (!Number.isInteger(requestedAmount)) {
+    return { valid: false, error: 'Withdrawal amount must be an integer' };
+  }
+
+  if (requestedAmount > verifiedWinnings) {
+    return {
+      valid: false,
+      error: `Cannot withdraw ${requestedAmount}. Verified winnings: ${verifiedWinnings}`,
+    };
   }
 
   if (requestedAmount > currentBalance) {
@@ -61,10 +72,6 @@ export function validateWithdrawalAmount(
       valid: false,
       error: `Cannot withdraw ${requestedAmount}. Current balance: ${currentBalance}`,
     };
-  }
-
-  if (!Number.isInteger(requestedAmount)) {
-    return { valid: false, error: 'Withdrawal amount must be an integer' };
   }
 
   return { valid: true };
