@@ -36,7 +36,7 @@ const App: React.FC = () => {
               <div
                 className="flex flex-col min-h-screen text-white font-mono antialiased selection:bg-magic-green selection:text-black"
                 style={{
-                  backgroundImage: 'url(/images/Junk-background.png)',
+                  backgroundImage: 'url(/images/tm-background.png)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'top center',
                   backgroundRepeat: 'no-repeat',

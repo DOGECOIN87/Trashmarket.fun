@@ -314,7 +314,7 @@ const JunkPusherGame: React.FC = () => {
         <div className="relative w-full h-full overflow-hidden bg-black">
             {/* Background Image */}
             <img
-                src="/images/Junk-background.png"
+                src="/images/tm-background.png"
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                 style={{ objectPosition: 'center 10%' }}

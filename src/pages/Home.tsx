@@ -49,12 +49,21 @@ const Home: React.FC = () => {
   const [debrisSupply, setDebrisSupply] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+  const [isBgMuted, setIsBgMuted] = useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const bgVideoRef = React.useRef<HTMLVideoElement>(null);
 
   const toggleMute = () => {
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
+    }
+  };
+
+  const toggleBgMute = () => {
+    if (bgVideoRef.current) {
+      bgVideoRef.current.muted = !isBgMuted;
+      setIsBgMuted(!isBgMuted);
     }
   };
 
@@ -260,7 +269,27 @@ const Home: React.FC = () => {
       )}
 
       <div className="relative overflow-hidden">
+        <video
+          ref={bgVideoRef}
+          autoPlay
+          loop
+          muted={isBgMuted}
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+          src="/assets/backgrounds/lv_0_20260322165012.mp4"
+        />
         <div className="absolute inset-0 bg-black/30" />
+        <button
+          onClick={toggleBgMute}
+          className="absolute top-4 right-4 z-20 p-2 bg-black/50 border border-white/20 rounded-full hover:bg-black/70 transition-all duration-200 group"
+          aria-label={isBgMuted ? 'Unmute background video' : 'Mute background video'}
+        >
+          {isBgMuted ? (
+            <VolumeX className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+          ) : (
+            <Volume2 className="w-4 h-4 text-magic-green group-hover:text-magic-green/80 transition-colors" />
+          )}
+        </button>
       <div className="relative z-10 max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-12 pb-24 sm:pb-32">
         {/* ─── DEBRIS Token Showcase ─── */}
         <div className="mb-12">
