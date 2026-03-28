@@ -7,7 +7,7 @@ import { getAuth, TwitterAuthProvider } from 'firebase/auth';
 // Set these in your .env file with the VITE_ prefix
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "trashmarket-fun.firebaseapp.com",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "trashmarket.fun",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "trashmarket-fun",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "trashmarket-fun.firebasestorage.app",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",

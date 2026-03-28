@@ -76,7 +76,7 @@ const Airdrop: React.FC = () => {
       console.error('[Airdrop] Twitter login error:', err?.code, err?.message, err);
       if (err?.code === 'auth/popup-closed-by-user') return;
       if (err?.code === 'auth/internal-error') {
-        setError('Authentication failed. Please check that the X/Twitter API keys are configured correctly in Firebase.');
+        setError('Authentication failed. Please disable browser extensions and try again, or use an incognito window.');
       } else {
         setError(err?.message || 'Failed to sign in with X');
       }

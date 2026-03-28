@@ -22,14 +22,13 @@ export interface AirdropRegistration {
 }
 
 /**
- * Sign in with Twitter/X via Firebase Auth
+ * Sign in with Twitter/X via Firebase Auth popup
  */
 export async function signInWithTwitter(): Promise<{
   user: User;
   twitterHandle: string;
 }> {
   const result = await signInWithPopup(auth, twitterProvider);
-  // Twitter handle is available from the provider data
   const twitterData = result.user.providerData.find(
     (p) => p.providerId === 'twitter.com'
   );
