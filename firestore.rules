@@ -89,6 +89,25 @@ service cloud.firestore {
                     && resource.data.seller == request.auth.token.wallet;
     }
 
+    // ─── Airdrop Registrations ──────────────────────────────────────────
+    match /airdrop_registrations/{twitterUid} {
+
+      // Users can only read their own registration
+      allow read: if request.auth != null
+                  && request.auth.uid == twitterUid;
+
+      // Authenticated users can create their own registration (one per Twitter account)
+      allow create: if request.auth != null
+                    && request.auth.uid == twitterUid
+                    && request.resource.data.twitterUid == twitterUid
+                    && request.resource.data.walletAddress is string
+                    && request.resource.data.walletAddress.size() >= 32
+                    && request.resource.data.walletAddress.size() <= 44;
+
+      // No updates or deletes — registration is permanent
+      allow update, delete: if false;
+    }
+
     // ─── Deny everything else ────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;

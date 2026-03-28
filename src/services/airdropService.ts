@@ -8,6 +8,8 @@ import {
 } from 'firebase/firestore';
 import {
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
   type User,
@@ -22,13 +24,48 @@ export interface AirdropRegistration {
 }
 
 /**
- * Sign in with Twitter/X via Firebase Auth popup
+ * Detect embedded/in-app browsers (Backpack, Phantom, MetaMask, etc.)
+ * that block popups or don't support window.open properly.
+ */
+function isEmbeddedBrowser(): boolean {
+  const ua = navigator.userAgent || '';
+  // Backpack, Phantom, MetaMask, and generic WebView/in-app indicators
+  return /Backpack|Phantom|MetaMask|wv|WebView|FBAN|FBAV|Instagram|Twitter/i.test(ua)
+    || (typeof window !== 'undefined' && window.innerWidth > 0 && !window.menubar?.visible);
+}
+
+/**
+ * Sign in with Twitter/X via Firebase Auth.
+ * Uses redirect flow in embedded browsers (Backpack, etc.) where popups are blocked,
+ * and popup flow in normal browsers.
  */
 export async function signInWithTwitter(): Promise<{
   user: User;
   twitterHandle: string;
-}> {
+} | null> {
+  if (isEmbeddedBrowser()) {
+    // Redirect flow — result is picked up by handleRedirectResult() on page reload
+    await signInWithRedirect(auth, twitterProvider);
+    return null; // Page will redirect, this won't resolve
+  }
+
   const result = await signInWithPopup(auth, twitterProvider);
+  const twitterData = result.user.providerData.find(
+    (p) => p.providerId === 'twitter.com'
+  );
+  const twitterHandle = twitterData?.displayName || result.user.displayName || 'unknown';
+  return { user: result.user, twitterHandle };
+}
+
+/**
+ * Check for redirect result on page load (for embedded browser flow).
+ */
+export async function handleRedirectResult(): Promise<{
+  user: User;
+  twitterHandle: string;
+} | null> {
+  const result = await getRedirectResult(auth);
+  if (!result) return null;
   const twitterData = result.user.providerData.find(
     (p) => p.providerId === 'twitter.com'
   );

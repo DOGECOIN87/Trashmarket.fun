@@ -9,6 +9,7 @@ import {
   onAuthChange,
   getRegistration,
   registerForAirdrop,
+  handleRedirectResult,
   type AirdropRegistration,
 } from '../services/airdropService';
 
@@ -30,6 +31,22 @@ const Airdrop: React.FC = () => {
   // Solana wallet (for auto-filling)
   const { connected, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
+
+  // Handle redirect result from embedded browser auth flow (Backpack, etc.)
+  useEffect(() => {
+    handleRedirectResult()
+      .then((result) => {
+        if (result) {
+          setTwitterHandle(result.twitterHandle);
+        }
+      })
+      .catch((err) => {
+        console.error('[Airdrop] Redirect result error:', err);
+        if (err?.code !== 'auth/popup-closed-by-user') {
+          setError(err?.message || 'Authentication failed after redirect');
+        }
+      });
+  }, []);
 
   // Listen for Firebase auth state
   useEffect(() => {
@@ -70,13 +87,17 @@ const Airdrop: React.FC = () => {
   const handleTwitterLogin = async () => {
     setError('');
     try {
-      const { twitterHandle: handle } = await signInWithTwitter();
-      setTwitterHandle(handle);
+      const result = await signInWithTwitter();
+      // null means redirect flow was used (embedded browser) — page will reload
+      if (result) {
+        setTwitterHandle(result.twitterHandle);
+      }
     } catch (err: any) {
       console.error('[Airdrop] Twitter login error:', err?.code, err?.message, err);
       if (err?.code === 'auth/popup-closed-by-user') return;
-      if (err?.code === 'auth/internal-error') {
-        setError('Authentication failed. Please disable browser extensions and try again, or use an incognito window.');
+      if (err?.code === 'auth/internal-error' || err?.code === 'auth/cancelled-popup-request'
+          || err?.message?.includes('requested action is invalid')) {
+        setError('Authentication failed. If using a wallet browser, please try opening trashmarket.fun in your device\'s main browser instead.');
       } else {
         setError(err?.message || 'Failed to sign in with X');
       }
