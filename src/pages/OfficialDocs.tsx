@@ -204,7 +204,7 @@ const OfficialDocs: React.FC = () => {
                   <ul className="space-y-1">
                     <li>• Currency: DEBRIS token</li>
                     <li>• Drop cost: 1 DEBRIS per coin</li>
-                    <li>• Bump cost: 50 DEBRIS</li>
+                    <li>• Bump cost: 20 DEBRIS</li>
                     <li>• On-chain leaderboard</li>
                     <li>• 2.5% platform fee on deposits</li>
                   </ul>

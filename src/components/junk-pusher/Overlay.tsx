@@ -237,6 +237,11 @@ export const Overlay: React.FC<OverlayProps> = ({
                         </div>
                     </div>
 
+                    {/* Sound Control */}
+                    <div className="pointer-events-auto mt-1">
+                        <SoundControl />
+                    </div>
+
                 </div>
             </div>
 
@@ -286,16 +291,16 @@ export const Overlay: React.FC<OverlayProps> = ({
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                             <span className="text-gray-400">Bump</span>
-                            <span className="text-fuchsia-400 font-mono font-bold">-50</span>
+                            <span className="text-fuchsia-400 font-mono font-bold">-20</span>
                         </div>
                     </div>
                 </div>
 
                 {/* --- BOTTOM HUD --- */}
-                <div className="w-full px-3 py-3 sm:p-8 flex items-end justify-between gap-2">
+                <div className="w-full px-3 py-3 sm:p-8 flex items-end justify-center gap-2">
 
                     {/* Controls */}
-                    <div className="flex flex-wrap gap-1.5 sm:gap-3 pointer-events-auto">
+                    <div className="flex flex-wrap justify-center gap-1.5 sm:gap-3 pointer-events-auto">
                         {wallet.isConnected && (
                             <button
                                 onClick={() => {
@@ -381,27 +386,6 @@ export const Overlay: React.FC<OverlayProps> = ({
                         {/* Withdraw Controls */}
                         {wallet.isConnected && gameState.balance > 0 && (
                             <>
-                                <div className="skew-x-[-15deg]">
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max={Math.min(Math.floor(gameState.balance), MAX_WITHDRAW)}
-                                        value={withdrawAmount}
-                                        onChange={(e) => {
-                                            const val = e.target.value.replace(/[^0-9]/g, '');
-                                            const num = parseInt(val, 10);
-                                            const cap = Math.min(Math.floor(gameState.balance), MAX_WITHDRAW);
-                                            if (val === '' || (num > 0 && num <= cap)) {
-                                                setWithdrawAmount(val);
-                                            } else if (num > cap) {
-                                                setWithdrawAmount(String(cap));
-                                            }
-                                        }}
-                                        placeholder={String(Math.min(Math.floor(gameState.balance), MAX_WITHDRAW))}
-                                        className="h-9 sm:h-12 w-[60px] sm:w-[80px] bg-black/60 border border-amber-500/30 text-amber-200 text-center font-mono text-[10px] sm:text-xs outline-none focus:border-amber-400 placeholder:text-amber-500/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                        disabled={withdrawBtnStatus !== 'idle'}
-                                    />
-                                </div>
                                 <button
                                     onClick={() => {
                                         soundManager.initialize();
@@ -443,30 +427,17 @@ export const Overlay: React.FC<OverlayProps> = ({
                                 soundManager.initialize();
                                 onBump();
                             }}
-                            disabled={gameState.balance < 50}
-                            className={`group h-9 sm:h-12 min-w-[72px] sm:min-w-[120px] transition-all skew-x-[-15deg] backdrop-blur-sm ${gameState.balance >= 50 ? 'bg-fuchsia-950/30 border border-fuchsia-500/30 hover:bg-fuchsia-900/50 hover:border-fuchsia-400' : 'bg-gray-950/30 border border-gray-700/30 opacity-40 cursor-not-allowed'}`}
+                            disabled={gameState.balance < 20}
+                            className={`group h-9 sm:h-12 min-w-[72px] sm:min-w-[120px] transition-all skew-x-[-15deg] backdrop-blur-sm ${gameState.balance >= 20 ? 'bg-fuchsia-950/30 border border-fuchsia-500/30 hover:bg-fuchsia-900/50 hover:border-fuchsia-400' : 'bg-gray-950/30 border border-gray-700/30 opacity-40 cursor-not-allowed'}`}
                         >
                             <div className="skew-x-[15deg] flex flex-col items-center justify-center h-full px-2 sm:px-0">
                                 <span className="font-heading text-[8px] sm:text-[10px] text-fuchsia-200 font-bold tracking-[0.15em] sm:tracking-[0.2em] group-hover:text-white group-hover:drop-shadow-[0_0_5px_#ff00ff] uppercase">
                                     Bump
                                 </span>
-                                <span className="text-[7px] sm:text-[8px] text-fuchsia-400/60 font-mono">-50 DEBRIS</span>
+                                <span className="text-[7px] sm:text-[8px] text-fuchsia-400/60 font-mono">-20 DEBRIS</span>
                             </div>
                         </button>
 
-                    </div>
-
-                    {/* Sound Control */}
-                    <div className="pointer-events-auto">
-                        <SoundControl />
-                    </div>
-
-                    {/* Footer Info */}
-                    <div className="text-right pointer-events-none opacity-50 hidden sm:block shrink-0">
-                        <div className="text-[9px] text-green-400/60 uppercase tracking-widest leading-loose font-[Inter]">
-                            DEBRIS Token <br />
-                            v3.0.0 <span className="text-purple-600 mx-2">//</span> GORBAGANA
-                        </div>
                     </div>
                 </div>
             </div>
@@ -539,7 +510,7 @@ export const Overlay: React.FC<OverlayProps> = ({
                                             {wallet.isConnected && (
                                                 <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
                                                     <span className="text-[9px] sm:text-[10px] text-green-200 font-mono bg-black/40 px-1.5 py-0.5 rounded border border-green-500/30">
-                                                        {gameState.balance <= 0 ? `${DEPOSIT_AMOUNT} DEBRIS` : '50 DEBRIS'}
+                                                        {gameState.balance <= 0 ? `${DEPOSIT_AMOUNT} DEBRIS` : '20 DEBRIS'}
                                                     </span>
                                                 </div>
                                             )}

@@ -27,7 +27,7 @@ export const TOKEN_CONFIG = {
   // Game Configuration
   GAME: {
     INITIAL_BALANCE: 100, // Starting DEBRIS balance (Default tokens provided)
-    BUMP_COST: 50, // Cost in DEBRIS to bump the machine
+    BUMP_COST: 20, // Cost in DEBRIS to bump the machine
     DROP_COST: 1, // Cost in DEBRIS to drop a coin
   },
 } as const;
