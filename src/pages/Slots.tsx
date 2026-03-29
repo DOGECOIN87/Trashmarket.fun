@@ -43,15 +43,6 @@ export default function SlotsPage() {
 
     return (
         <div className="bg-gradient-to-b from-gray-900 via-gray-800 to-black">
-            {/* Background Video */}
-            <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
-                src="/gorbagio-video-mattress.mp4"
-            />
             <Suspense
                 fallback={
                     <div className="flex h-screen items-center justify-center">

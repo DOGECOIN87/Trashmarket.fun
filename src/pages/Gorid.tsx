@@ -302,16 +302,6 @@ const Gorid: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Background Video */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed top-0 left-0 w-full h-full object-cover -z-10 opacity-30 pointer-events-none"
-        src="/gorbagio-video-fence.mp4"
-      />
-
       {/* Success Toast */}
       {buySuccess && (
         <div className="fixed top-20 right-4 z-50 bg-magic-green text-black p-4 border border-magic-green max-w-sm animate-in slide-in-from-right">

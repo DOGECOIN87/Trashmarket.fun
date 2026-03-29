@@ -461,15 +461,6 @@ const Bridge: React.FC = () => {
 
   return (
     <div className="relative min-h-screen bg-black text-white font-mono">
-      {/* Background Video */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed top-0 left-0 w-full h-full object-cover z-0 opacity-30 pointer-events-none"
-        src="/gorbagio-video-run.mp4"
-      />
       {/* Status Banner - Only show on devnet */}
       {isDevnet && (
         <div className="bg-blue-500/20 border-b border-blue-500/50 animate-pulse">
