@@ -33,21 +33,6 @@ DEBRIS is the official utility token of the Trashmarket.fun ecosystem, powering 
 
 DEBRIS is being airdropped to community members who register through the official airdrop page on Trashmarket.fun. Registration requires a Twitter/X account and a Gorbagana wallet address.
 
-### Airdrop Tiers
-
-**Standard Airdrop — 0.1% of Total Supply Per User**
-
-- Each registered user receives **1,000,000 DEBRIS**
-- Open to all users who complete the registration process
-- One registration per Twitter/X account
-- Limited supply — once the airdrop pool is exhausted, registration closes
-
-**VIP Airdrop — 1% of Total Supply Per User**
-
-- Select community members receive **10,000,000 DEBRIS** each
-- Limited to a maximum of **6 VIP recipients**
-- Awarded to key early supporters and contributors
-
 ### How to Register
 
 1. Visit the Airdrop page on [Trashmarket.fun](https://trashmarket.fun)

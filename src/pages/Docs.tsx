@@ -504,17 +504,10 @@ const Docs: React.FC = () => {
               {/* Airdrop */}
               <section>
                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">Community_Airdrop</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="border border-white/20 bg-[#050505] p-6">
-                    <span className="text-gray-500 text-xs uppercase tracking-widest block mb-2">Standard Tier</span>
-                    <span className="text-white font-mono text-2xl font-bold block mb-1">1,000,000</span>
-                    <span className="text-gray-500 font-mono text-xs">DEBRIS per user (0.1% of supply)</span>
-                  </div>
-                  <div className="border border-magic-green/30 bg-[#050505] p-6">
-                    <span className="text-magic-green text-xs uppercase tracking-widest block mb-2">VIP Tier</span>
-                    <span className="text-white font-mono text-2xl font-bold block mb-1">10,000,000</span>
-                    <span className="text-gray-500 font-mono text-xs">DEBRIS per user (1% of supply) — max 6 recipients</span>
-                  </div>
+                <div className="border border-white/20 bg-[#050505] p-8 font-mono text-sm text-gray-300 space-y-3">
+                  <p>DEBRIS is airdropped to community members who register through the official airdrop page on Trashmarket.fun.</p>
+                  <p>Registration requires a Twitter/X account and a Gorbagana wallet address. One registration per account.</p>
+                  <p className="text-gray-500 text-xs mt-4">Limited supply — once the airdrop pool is exhausted, registration closes.</p>
                 </div>
               </section>
 
