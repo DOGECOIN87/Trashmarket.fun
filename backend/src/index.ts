@@ -17,6 +17,7 @@ export interface Env {
   JWT_SECRET: string;          // HMAC secret for session tokens
   FIREBASE_API_KEY?: string;   // optional: proxy firebase calls
   GAME_ADMIN_KEYPAIR: string;  // JSON array of admin keypair bytes for signing game txs
+  DEPLOYER_KEYPAIR: string;    // JSON array of deployer keypair bytes for VerifyCollection
 
   // Vars (set in wrangler.toml)
   CORS_ORIGIN: string;
@@ -722,6 +723,225 @@ async function handleGameSign(request: Request, env: Env): Promise<Response> {
   }
 }
 
+// ─── Collection Verification ────────────────────────────────────────────────
+
+const METAPLEX_PROGRAM_ID = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s';
+const GORBAGIO_COLLECTION_MINT = 'FBJ47AgQSzSWVQVzsspoUzcFVeEf8a6xihZKZgmRuno1';
+const GORBAGIO_COLLECTION_METADATA = 'FAi5K12awTH2ZChEUGg5whUcsK4QJ9GAAtjVz2LXPdUd';
+const GORBAGIO_COLLECTION_MASTER_EDITION = 'GpRXxtvvryUtbjjRny4mV3k5B7BMecGEbpxCbUPyvMkE';
+const DEPLOYER_WALLET = 'Drn1GXZoBpER3gUPFCZJTNGEghXvEyFYmtfB7ycoiMAJ';
+
+/**
+ * POST /api/migration/verify-collection
+ *
+ * Called automatically after a successful NFT migration.
+ * Builds, signs, and sends a VerifySizedCollectionItem transaction using the deployer keypair.
+ * This flips the `verified` flag on the NFT's collection field from false to true.
+ */
+async function handleVerifyCollection(request: Request, env: Env): Promise<Response> {
+  const body = (await request.json()) as { mint: string; metadataPDA: string };
+
+  if (!body.mint || !body.metadataPDA) {
+    return json({ error: 'Missing mint or metadataPDA' }, 400);
+  }
+
+  // Validate addresses
+  let mintBytes: Uint8Array;
+  let metadataPDABytes: Uint8Array;
+  try {
+    mintBytes = base58Decode(body.mint);
+    metadataPDABytes = base58Decode(body.metadataPDA);
+    if (mintBytes.length !== 32 || metadataPDABytes.length !== 32) throw new Error('Invalid length');
+  } catch {
+    return json({ error: 'Invalid mint or metadataPDA address' }, 400);
+  }
+
+  if (!env.DEPLOYER_KEYPAIR) {
+    return json({ error: 'Deployer keypair not configured' }, 500);
+  }
+
+  // Fetch the metadata account to validate before signing
+  try {
+    const metadataResponse = await fetch(env.GORBAGANA_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'getAccountInfo',
+        params: [body.metadataPDA, { encoding: 'base64' }],
+      }),
+    });
+    const metadataResult = (await metadataResponse.json()) as any;
+    const accountData = metadataResult.result?.value?.data?.[0];
+    if (!accountData) {
+      return json({ error: 'Metadata account not found on-chain' }, 400);
+    }
+
+    // Verify the account is owned by the Metaplex program
+    const owner = metadataResult.result?.value?.owner;
+    if (owner !== METAPLEX_PROGRAM_ID) {
+      return json({ error: 'Metadata account not owned by Metaplex program' }, 400);
+    }
+
+    // Decode and validate the metadata
+    const data = Uint8Array.from(atob(accountData), c => c.charCodeAt(0));
+    if (data[0] !== 4) { // Key::MetadataV1 = 4
+      return json({ error: 'Not a metadata account' }, 400);
+    }
+
+    // Verify mint field matches (offset 33, 32 bytes)
+    const mintField = data.slice(33, 65);
+    for (let i = 0; i < 32; i++) {
+      if (mintField[i] !== mintBytes[i]) {
+        return json({ error: 'Metadata mint does not match provided mint' }, 400);
+      }
+    }
+
+    // Check collection field — find it in the metadata
+    // Skip: key(1) + updateAuth(32) + mint(32) + name(4+var) + symbol(4+var) + uri(4+var) + fee(2) + creators + ...
+    // Instead, check if collection key bytes appear in the data
+    const collectionMintBytes = base58Decode(GORBAGIO_COLLECTION_MINT);
+    let collectionFound = false;
+    let alreadyVerified = false;
+
+    // Scan for the collection mint in the metadata (it's preceded by the verified flag byte)
+    for (let i = 0; i < data.length - 33; i++) {
+      let match = true;
+      for (let j = 0; j < 32; j++) {
+        if (data[i + 1 + j] !== collectionMintBytes[j]) { match = false; break; }
+      }
+      if (match) {
+        collectionFound = true;
+        alreadyVerified = data[i] === 1; // byte before collection key is the verified flag
+        break;
+      }
+    }
+
+    if (!collectionFound) {
+      return json({ error: 'NFT does not have Gorbagio collection set' }, 400);
+    }
+    if (alreadyVerified) {
+      return json({ success: true, message: 'Already verified', signature: '' });
+    }
+
+    // Build VerifySizedCollectionItem transaction
+    const deployerKeypairBytes = new Uint8Array(JSON.parse(env.DEPLOYER_KEYPAIR));
+    const deployerPubkeyBytes = deployerKeypairBytes.slice(32, 64);
+
+    // Verify the deployer matches
+    const expectedDeployer = base58Decode(DEPLOYER_WALLET);
+    for (let i = 0; i < 32; i++) {
+      if (deployerPubkeyBytes[i] !== expectedDeployer[i]) {
+        return json({ error: 'Deployer keypair does not match expected wallet' }, 500);
+      }
+    }
+
+    // Get recent blockhash
+    const bhResponse = await fetch(env.GORBAGANA_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'getLatestBlockhash',
+        params: [{ commitment: 'confirmed' }],
+      }),
+    });
+    const bhResult = (await bhResponse.json()) as any;
+    const blockhashB58 = bhResult.result?.value?.blockhash;
+    if (!blockhashB58) {
+      return json({ error: 'Failed to fetch blockhash' }, 500);
+    }
+    const blockhashBytes = base58Decode(blockhashB58);
+
+    // Account keys in order:
+    // [0] deployer (signer, writable) — collection authority + payer
+    // [1] metadata PDA (writable)
+    // [2] collection metadata PDA (writable — VerifySizedCollectionItem updates size)
+    // [3] collection mint (read-only)
+    // [4] collection master edition PDA (read-only)
+    // [5] metaplex program (read-only, program)
+    const collectionMetadataBytes = base58Decode(GORBAGIO_COLLECTION_METADATA);
+    const collectionMasterEdBytes = base58Decode(GORBAGIO_COLLECTION_MASTER_EDITION);
+    const metaplexProgramBytes = base58Decode(METAPLEX_PROGRAM_ID);
+
+    // Build message
+    const messageBytes = new Uint8Array(
+      3 + 1 + (6 * 32) + 32 + 1 + 1 + 1 + 6 + 1 + 1
+    ); // header(3) + numKeys(1) + keys(192) + blockhash(32) + numIx(1) + programIdx(1) + numAccounts(1) + accounts(6) + dataLen(1) + data(1)
+    let off = 0;
+
+    // Header
+    messageBytes[off++] = 1; // numRequiredSignatures
+    messageBytes[off++] = 0; // numReadonlySignedAccounts
+    messageBytes[off++] = 3; // numReadonlyUnsignedAccounts (collectionMint, collectionMasterEd, metaplexProgram)
+
+    // Number of account keys
+    messageBytes[off++] = 6;
+
+    // Account keys (ordered by writability: writable first, then read-only)
+    messageBytes.set(deployerPubkeyBytes, off); off += 32;     // [0] deployer (signer, writable)
+    messageBytes.set(metadataPDABytes, off); off += 32;        // [1] metadata PDA (writable)
+    messageBytes.set(collectionMetadataBytes, off); off += 32; // [2] collection metadata (writable — size update)
+    messageBytes.set(collectionMintBytes, off); off += 32;     // [3] collection mint (read-only)
+    messageBytes.set(collectionMasterEdBytes, off); off += 32; // [4] collection master edition (read-only)
+    messageBytes.set(metaplexProgramBytes, off); off += 32;    // [5] metaplex program (read-only)
+
+    // Recent blockhash
+    messageBytes.set(blockhashBytes, off); off += 32;
+
+    // Instructions (1 instruction)
+    messageBytes[off++] = 1; // numInstructions
+
+    // VerifySizedCollectionItem instruction
+    messageBytes[off++] = 5; // programIdIndex (metaplex at index 5)
+    messageBytes[off++] = 6; // numAccountMetas
+    messageBytes[off++] = 1; // metadata PDA
+    messageBytes[off++] = 0; // collection_authority (deployer)
+    messageBytes[off++] = 0; // payer (deployer)
+    messageBytes[off++] = 3; // collection_mint (was [2], now [3] after reorder)
+    messageBytes[off++] = 2; // collection metadata (was [3], now [2] after reorder)
+    messageBytes[off++] = 4; // collection master edition
+    messageBytes[off++] = 1; // dataLen
+    messageBytes[off++] = 30; // VerifySizedCollectionItem instruction discriminator
+
+    // Sign the message
+    const nacl = await import('tweetnacl');
+    const signature = nacl.sign.detached(messageBytes, deployerKeypairBytes);
+
+    // Build full transaction: [numSigs(1)] + [sig(64)] + [message]
+    const txBytes = new Uint8Array(1 + 64 + messageBytes.length);
+    txBytes[0] = 1; // numSignatures
+    txBytes.set(signature, 1);
+    txBytes.set(messageBytes, 65);
+
+    // Send transaction
+    const txB64 = btoa(String.fromCharCode(...txBytes));
+    const sendResponse = await fetch(env.GORBAGANA_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'sendTransaction',
+        params: [txB64, { encoding: 'base64', skipPreflight: false }],
+      }),
+    });
+    const sendResult = (await sendResponse.json()) as any;
+
+    if (sendResult.error) {
+      console.error('[VerifyCollection] RPC error:', sendResult.error);
+      return json({ error: `Transaction failed: ${sendResult.error.message || JSON.stringify(sendResult.error)}` }, 500);
+    }
+
+    const txSignature = sendResult.result;
+    console.log(`[VerifyCollection] Verified collection for mint ${body.mint}: ${txSignature}`);
+
+    return json({ success: true, signature: txSignature });
+  } catch (err: any) {
+    console.error('[VerifyCollection] Error:', err);
+    return json({ error: err.message || 'Failed to verify collection' }, 500);
+  }
+}
+
 // ─── Main router ────────────────────────────────────────────────────────────
 
 export default {
@@ -754,6 +974,8 @@ export default {
         response = await handleGameUpdateBalance(request, env);
       } else if (url.pathname === '/api/game/sign' && request.method === 'POST') {
         response = await handleGameSign(request, env);
+      } else if (url.pathname === '/api/migration/verify-collection' && request.method === 'POST') {
+        response = await handleVerifyCollection(request, env);
       } else {
         response = json({ error: 'Not found' }, 404);
       }

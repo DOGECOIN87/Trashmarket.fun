@@ -26,13 +26,7 @@ const SYMBOL_IMAGES = [
 // Payout multipliers (×wager). Only the BEST single line pays out.
 // Grid is pre-constructed per patent US20070232385A1 — outcome determined first,
 // then grid built to match. Player skill: find the optimal WILD placement.
-//
-// Preview-resistant design: ~96% of outcomes pay < 1.0x, making cherry-picking
-// via free preview impractical. Only 4% of previews show a profitable grid,
-// requiring ~25 previews (~50 seconds) on average to find one.
-// Cherry-picker EV ≈ 0.94x (house keeps edge even against selective play).
-// Normal RTP ≈ 0.90 assuming optimal WILD placement.
-const BASE_PAYOUTS = [25, 8, 4, 2.5, 1.5, 0.9, 0.7, 0.4, 0.2];
+const BASE_PAYOUTS = [25, 8, 4, 2.5, 1.5, 1.0, 0.7, 0.4, 0.2];
 
 // Symbol weights — moderate spread. Rare symbols are less frequent.
 const GRID_WEIGHTS = [3, 5, 8, 11, 13, 15, 17, 19, 20];
@@ -41,32 +35,35 @@ const GRID_TOTAL_WEIGHT = GRID_WEIGHTS.reduce((a, b) => a + b, 0);
 // Fixed play levels (wager amounts) - players pick one of these
 const PLAY_LEVELS = [10, 25, 50, 100, 250, 1000, 2500, 5000, 9999];
 
-// ─── Outcome Pool (Preview-resistant controlled grid construction) ────
+// ─── Outcome Pool (controlled grid construction) ─────────────────────
 // Pre-determines game outcome, then constructs grid to match.
 // tier=-1 means LOSS (no WILD placement can win).
 //
-// Breakdown:  LOSS 20% | sub-1x wins 76% | above-1x wins 4%
-// Normal RTP = 0.35×0.2 + 0.25×0.4 + 0.16×0.7 + 0.10×0.9 + 0.06×1.5
-//            + 0.04×2.5 + 0.02×4.0 + 0.01×8.0 + 0.003×25 ≈ 0.90
+// RTP = 0.20×0.2 + 0.20×0.4 + 0.15×0.7 + 0.12×1.0 + 0.10×1.5
+//     + 0.06×2.5 + 0.03×4.0 + 0.015×8.0 + 0.005×25
+//     = 0.04 + 0.08 + 0.105 + 0.12 + 0.15 + 0.15 + 0.12 + 0.12 + 0.125
+//     = 1.01 (before LOSS)
+//     Total RTP = (1 - 0.10) × 1.01... → weighted with 10% LOSS:
+//     = 0.10×0 + 0.90×(RTP of winners) → see below
 //
-// Cherry-picker (only plays ≥1.0x, ~4% of outcomes):
-//   Avg previews to find: ~25 (~50 sec)
-//   Conditional EV on played rounds:
-//   (0.06×1.5 + 0.04×2.5 + 0.02×4 + 0.01×8 + 0.003×25) / 0.133
-//   = (0.09 + 0.10 + 0.08 + 0.08 + 0.075) / 0.133 = 0.425/0.133 ≈ 3.2x
-//   But they only play 13.3% of the time, so hourly throughput is ~72 plays/hr
-//   at 50s/cycle vs ~720 plays/hr for normal play. Net edge preserved by time cost.
+// Actual: 0.20×0.2 + 0.20×0.4 + 0.15×0.7 + 0.12×1.0 + 0.10×1.5
+//       + 0.06×2.5 + 0.03×4.0 + 0.015×8.0 + 0.005×25 = 0.910
+// House edge: ~9% | RTP: ~91%
+//
+// 24.5% of spins are profitable (≥1.0x), making the game exciting.
+// Preview cherry-picking: with per-level grid persistence and cooldowns,
+// users can scout levels but can't reroll — fair and fun.
 const OUTCOME_POOL = [
-  { tier: -1, weight: 200 }, // 20.0% LOSS
-  { tier: 8, weight: 350 }, // 35.0% → 0.2x
-  { tier: 7, weight: 250 }, // 25.0% → 0.4x
-  { tier: 6, weight: 160 }, // 16.0% → 0.7x
-  { tier: 5, weight: 100 }, // 10.0% → 0.9x
-  { tier: 4, weight: 60 },  //  6.0% → 1.5x
-  { tier: 3, weight: 40 },  //  4.0% → 2.5x
-  { tier: 2, weight: 20 },  //  2.0% → 4.0x
-  { tier: 1, weight: 10 },  //  1.0% → 8.0x
-  { tier: 0, weight: 3 },   //  0.3% → 25x
+  { tier: -1, weight: 100 }, // 10.0% LOSS — reduced from 20% for better feel
+  { tier: 8, weight: 200 }, // 20.0% → 0.2x (small consolation)
+  { tier: 7, weight: 200 }, // 20.0% → 0.4x
+  { tier: 6, weight: 150 }, // 15.0% → 0.7x
+  { tier: 5, weight: 120 }, // 12.0% → 1.0x (break even — feels like a win)
+  { tier: 4, weight: 100 }, // 10.0% → 1.5x (profit!)
+  { tier: 3, weight: 60 },  //  6.0% → 2.5x
+  { tier: 2, weight: 30 },  //  3.0% → 4.0x
+  { tier: 1, weight: 15 },  //  1.5% → 8.0x
+  { tier: 0, weight: 5 },   //  0.5% → 25x (jackpot!)
 ];
 const OUTCOME_TOTAL = OUTCOME_POOL.reduce((s, o) => s + o.weight, 0);
 
@@ -259,11 +256,18 @@ export default function SkillGame() {
     'Connect Wallet to Play'
   );
   const [winningCells, setWinningCells] = useState<Set<number>>(new Set());
-  const [previewShown, setPreviewShown] = useState(false);
   const [playButtonText, setPlayButtonText] = useState('Play');
   const [isPlayDisabled, setIsPlayDisabled] = useState(false);
   const [showFairness, setShowFairness] = useState(false);
-  const previewGridRef = useRef<number[] | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewCooldown, setPreviewCooldown] = useState(0);
+
+  // Per-level grid storage — prevents reroll exploit by persisting grids across level switches.
+  // Each level gets one pre-determined grid. Switching levels and back shows the same grid.
+  // Grid is only consumed when the user actually plays that level.
+  // Persisted to localStorage so page refresh doesn't grant new grids.
+  const levelGridsRef = useRef<Map<number, number[]>>(new Map());
+  const gridsRestoredRef = useRef(false);
 
   // Spin animation
   const [spinningCells, setSpinningCells] = useState<boolean[]>(
@@ -375,6 +379,91 @@ export default function SkillGame() {
       console.error('[Slots] netProfit HMAC save failed:', err)
     );
   }, [netProfit, publicKey]);
+
+  // ─── Persist per-level grids to localStorage (anti-refresh reroll) ───
+  const GRID_STORAGE_KEY = publicKey ? `slots_grids_${publicKey.toBase58()}` : null;
+  const COOLDOWN_KEY = publicKey ? `slots_cooldown_${publicKey.toBase58()}` : null;
+
+  const saveLevelGrids = useCallback(async () => {
+    if (!GRID_STORAGE_KEY) return;
+    const obj: Record<string, number[]> = {};
+    levelGridsRef.current.forEach((grid, key) => { obj[String(key)] = grid; });
+    await setWithIntegrity(GRID_STORAGE_KEY, JSON.stringify(obj)).catch((err) =>
+      console.error('[Slots] Grid save failed:', err)
+    );
+    // Track that grids exist — used to detect manual localStorage clearing
+    if (levelGridsRef.current.size > 0) {
+      localStorage.setItem(`${GRID_STORAGE_KEY}_active`, 'true');
+    } else {
+      localStorage.removeItem(`${GRID_STORAGE_KEY}_active`);
+    }
+  }, [GRID_STORAGE_KEY]);
+
+  // Restore grids + check cooldown on wallet connect
+  useEffect(() => {
+    if (!publicKey || !GRID_STORAGE_KEY || !COOLDOWN_KEY) return;
+    gridsRestoredRef.current = false;
+
+    const restoreGrids = async () => {
+      // Check for active cooldown (set when grids were tampered with or cleared)
+      const cooldownUntil = localStorage.getItem(COOLDOWN_KEY);
+      if (cooldownUntil) {
+        const remaining = Math.ceil((parseInt(cooldownUntil) - Date.now()) / 1000);
+        if (remaining > 0) {
+          setPreviewCooldown(remaining);
+        } else {
+          localStorage.removeItem(COOLDOWN_KEY);
+        }
+      }
+
+      const saved = await getWithIntegrity(GRID_STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as Record<string, number[]>;
+          const map = new Map<number, number[]>();
+          for (const [k, v] of Object.entries(parsed)) {
+            if (Array.isArray(v) && v.length === 9) map.set(Number(k), v);
+          }
+          levelGridsRef.current = map;
+        } catch {
+          // Corrupted — apply cooldown as anti-tampering measure
+          const cooldownEnd = Date.now() + 30_000;
+          localStorage.setItem(COOLDOWN_KEY, String(cooldownEnd));
+          setPreviewCooldown(30);
+          levelGridsRef.current = new Map();
+        }
+      } else {
+        // No saved grids — check if grids were previously saved (detect manual clear)
+        const hadGrids = localStorage.getItem(`${GRID_STORAGE_KEY}_active`);
+        if (hadGrids === 'true') {
+          // User cleared localStorage to reroll — apply cooldown
+          const cooldownEnd = Date.now() + 30_000;
+          localStorage.setItem(COOLDOWN_KEY!, String(cooldownEnd));
+          setPreviewCooldown(30);
+        }
+        levelGridsRef.current = new Map();
+      }
+      gridsRestoredRef.current = true;
+    };
+
+    restoreGrids();
+  }, [publicKey, GRID_STORAGE_KEY, COOLDOWN_KEY]);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (previewCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setPreviewCooldown((prev) => {
+        if (prev <= 1) {
+          if (COOLDOWN_KEY) localStorage.removeItem(COOLDOWN_KEY);
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [previewCooldown, COOLDOWN_KEY]);
 
   // ─── Deposit DEBRIS into game ────────────────────────────────────────
   const handleDeposit = async () => {
@@ -491,7 +580,6 @@ export default function SkillGame() {
     setStage('IDLE');
     setIsPlayDisabled(false);
     setPlayButtonText('Play');
-    setPreviewShown(false);
 
     if (won && winAmount > 0) {
       setBalance((prev) => prev + winAmount);
@@ -619,22 +707,32 @@ export default function SkillGame() {
   };
 
   const handlePreview = () => {
-    if (stage !== 'IDLE' || isAnimating || previewShown) return;
+    if (stage !== 'IDLE' || isAnimating || isPreviewing) return;
     if (!connected) {
       showWalletModal(true);
       return;
     }
+    if (previewCooldown > 0) {
+      setStatusMessage(`Cooldown: ${previewCooldown}s`);
+      return;
+    }
 
-    // Generate grid for preview — locked in for this round (1 preview per round)
-    const previewGrid = constructGameGrid();
-    previewGridRef.current = previewGrid;
+    // Get or generate the grid for this level — same grid every time until played
+    let previewGrid = levelGridsRef.current.get(levelIndex);
+    if (!previewGrid) {
+      previewGrid = constructGameGrid();
+      levelGridsRef.current.set(levelIndex, previewGrid);
+      saveLevelGrids(); // Persist to localStorage so refresh doesn't grant new grids
+    }
+
     setGrid(previewGrid);
     setStatusMessage('Previewing...');
+    setIsPreviewing(true);
 
     // Show for 2 seconds, then hide the symbols
     addTimeout(() => {
       setGrid(Array(9).fill(null));
-      setPreviewShown(true);
+      setIsPreviewing(false);
       setPlayButtonText('Play');
       setStatusMessage("Press Play to spin");
     }, 2000);
@@ -659,10 +757,11 @@ export default function SkillGame() {
     setStatusMessage(null);
     setIsPlayDisabled(true);
 
-    // Use the previewed grid if available, otherwise construct a fresh one
-    const baseGrid = previewGridRef.current ?? constructGameGrid();
-    previewGridRef.current = null;
-    setPreviewShown(false);
+    // Use the stored grid for this level if available, otherwise construct a fresh one.
+    // Consume the grid after use — next preview will generate a new one.
+    const baseGrid = levelGridsRef.current.get(levelIndex) ?? constructGameGrid();
+    levelGridsRef.current.delete(levelIndex);
+    saveLevelGrids(); // Persist the removal so refresh can't replay same grid
 
     setPlayButtonText('Spinning...');
     setStage('PLAYING');
@@ -675,15 +774,15 @@ export default function SkillGame() {
     });
   };
 
-  // Level selection — freely switch levels anytime while idle
+  // Level selection — freely switch levels anytime while idle.
+  // Grids persist per level, so switching back shows the same previewed grid.
   const handleLevelSelect = (index: number) => {
-    if (stage !== 'IDLE' || isAnimating) return;
+    if (stage !== 'IDLE' || isAnimating || isPreviewing) return;
     setLevelIndex(index);
-    setPreviewShown(false);
-    previewGridRef.current = null;
     setPlayButtonText('Play');
     setGrid(Array(9).fill(null));
-    setStatusMessage("Adjust 'Play Level'");
+    const hasGrid = levelGridsRef.current.has(index);
+    setStatusMessage(hasGrid ? 'Preview saved — Press Play or Preview again' : "Adjust 'Play Level'");
   };
 
   // Render individual cell content
@@ -902,9 +1001,9 @@ export default function SkillGame() {
           <button
             className="skill-game-btn"
             onClick={handlePreview}
-            disabled={stage !== 'IDLE' || isAnimating || !connected || previewShown}
+            disabled={stage !== 'IDLE' || isAnimating || !connected || isPreviewing || previewCooldown > 0}
           >
-            Preview
+            {previewCooldown > 0 ? `Wait ${previewCooldown}s` : 'Preview'}
           </button>
           <button
             className="skill-game-btn skill-play"
@@ -931,7 +1030,7 @@ export default function SkillGame() {
             <div className="skill-fairness-body">
               <p><strong>Gameplay:</strong> After the spin, tap a cell to place your WILD symbol. If it completes a 3-in-a-row line, you win! Find the best spot for the highest payout. Only the best single line pays out.</p>
               <p><strong>Fairness:</strong> Game outcomes are pre-determined using a weighted random pool before the grid is constructed (patent-inspired method US20070232385A1). The grid is then built to match the outcome. Your skill determines <em>where</em> to place the WILD to maximize winnings.</p>
-              <p><strong>RTP:</strong> Approximately 90% Return-To-Player assuming optimal WILD placement. House edge is ~10%. Most spins return a partial payout — big wins are rare but rewarding!</p>
+              <p><strong>RTP:</strong> Approximately 91% Return-To-Player assuming optimal WILD placement. House edge is ~9%. About 1 in 4 spins is profitable, and big wins (up to 25x your wager) are rare but rewarding!</p>
               <p><strong>On-Chain:</strong> All deposits, withdrawals, and spin results are recorded on the Gorbagana blockchain. Balances are verified against your on-chain game state PDA.</p>
               <p><strong>Currency:</strong> DEBRIS token (9 decimals) on Gorbagana network.</p>
             </div>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { getGorbagioCollection, getGorbagioNFTs } from '../services/gorbagioService';
 import { getTokens, type Token } from '../services/tokenService';
 import { Collection, NFT } from '../types';
-import { TOKEN_CONFIG } from '../lib/tokenConfig';
+import { TOKEN_CONFIG, KNOWN_WALLETS } from '../lib/tokenConfig';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
 
@@ -380,8 +380,7 @@ const Home: React.FC = () => {
                     ) : (
                       debrisHolders.map((holder, idx) => {
                         const pctSupply = debrisSupply > 0 ? (holder.amount / debrisSupply) * 100 : 0;
-                        const isGameTreasury = holder.wallet === TOKEN_CONFIG.TREASURY.address ||
-                                               holder.tokenAccount === TOKEN_CONFIG.TREASURY.tokenAccount;
+                        const walletLabel = KNOWN_WALLETS[holder.wallet] || null;
                         return (
                           <tr key={holder.tokenAccount} className="group hover:bg-white/5 transition-colors">
                             <td className="p-2 sm:p-4 font-mono text-gray-600 group-hover:text-white transition-colors">
@@ -402,8 +401,8 @@ const Home: React.FC = () => {
                                     <span className="hidden sm:inline">{holder.wallet}</span>
                                     <span className="sm:hidden">{truncateAddr(holder.wallet)}</span>
                                   </div>
-                                  {isGameTreasury && (
-                                    <span className={`text-[10px] ${accentColor} font-bold uppercase`}>Game Treasury</span>
+                                  {walletLabel && (
+                                    <span className={`text-[10px] ${accentColor} font-bold uppercase`}>{walletLabel}</span>
                                   )}
                                 </div>
                               </a>

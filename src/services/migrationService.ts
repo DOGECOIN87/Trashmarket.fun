@@ -378,9 +378,32 @@ export async function executeMigration(
     const { confirmTransaction: confirmTx } = await import('../utils/confirmTx');
     await confirmTx(connection, signature);
 
+    // Auto-verify collection via backend (fire-and-forget — don't block migration success)
+    const newMintStr = newMintAddress.toBase58();
+    const [metadataPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from('metadata'), METAPLEX_METADATA_PROGRAM_ID.toBuffer(), newMintAddress.toBuffer()],
+      METAPLEX_METADATA_PROGRAM_ID,
+    );
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.trashmarket.fun';
+      fetch(`${apiBase}/api/migration/verify-collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mint: newMintStr, metadataPDA: metadataPDA.toBase58() }),
+      }).then(res => res.json()).then(result => {
+        if (result.success) {
+          console.log(`[MigrationService] Collection verified for ${newMintStr}: ${result.signature}`);
+        } else {
+          console.warn(`[MigrationService] Collection verify failed: ${result.error}`);
+        }
+      }).catch(err => console.warn('[MigrationService] Collection verify request failed:', err));
+    } catch (err) {
+      console.warn('[MigrationService] Failed to request collection verification:', err);
+    }
+
     return {
       signature,
-      newMint: newMintAddress.toBase58(),
+      newMint: newMintStr,
       success: true,
     };
   } catch (err: any) {
