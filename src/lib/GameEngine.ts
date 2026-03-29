@@ -49,6 +49,12 @@ export class GameEngine {
   // Raycasting for input
   private raycaster = new THREE.Raycaster();
 
+  // Rain event state (visual rendering handled by RainOverlay component)
+  private _isRaining = false;
+  private rainTimer = 0;
+  private nextRainEvent = 30 + Math.random() * 60; // first rain in 30-90s
+  private onRainChange?: (raining: boolean) => void;
+
   // Reusable object for syncing transforms (avoids per-frame allocation)
   private dummy = new THREE.Object3D();
 
@@ -581,6 +587,7 @@ export class GameEngine {
 
     this.spawnInitialCoins();
     this.updateGameState();
+    this.initRain();
   }
 
   private startLoop() {
@@ -619,6 +626,7 @@ export class GameEngine {
     }
 
     this.syncGraphics();
+    this.updateRain(dt);
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -709,10 +717,42 @@ export class GameEngine {
     }
   }
 
+  // ─── Rain Effect (event-based, visual rendering in RainOverlay) ──────
+
+  public setRainCallback(cb: (raining: boolean) => void) {
+    this.onRainChange = cb;
+  }
+
+  private initRain() {
+    // Timer is already initialized in field declaration
+  }
+
+  private updateRain(dt: number) {
+    this.rainTimer += dt;
+
+    if (this.rainTimer >= this.nextRainEvent) {
+      this.rainTimer = 0;
+      this._isRaining = !this._isRaining;
+
+      if (this._isRaining) {
+        this.nextRainEvent = 15 + Math.random() * 30; // rain lasts 15-45s
+        soundManager.play('rain_start');
+      } else {
+        this.nextRainEvent = 45 + Math.random() * 75; // next rain in 45-120s
+        soundManager.play('rain_stop');
+      }
+
+      this.onRainChange?.(this._isRaining);
+    }
+  }
+
   public cleanup() {
     this.isDisposed = true;
     if (this.requestAnimationId) {
       cancelAnimationFrame(this.requestAnimationId);
+    }
+    if (this._isRaining) {
+      soundManager.play('rain_stop');
     }
     this.renderer?.dispose();
     this.world?.free();

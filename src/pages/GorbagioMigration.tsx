@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { ArrowRight, CheckCircle, AlertCircle, Loader, RefreshCw, Shield, Trash2, Wrench, VolumeX, Volume2 } from 'lucide-react';
+import { ArrowRight, CheckCircle, AlertCircle, Loader, RefreshCw, Shield, Trash2, Wrench, VolumeX, Volume2, Grid, ExternalLink } from 'lucide-react';
 import { audioManager } from '../lib/audioManager';
 import MigrateAnimation from '../components/MigrateAnimation';
-import type { LegacyGorbagio, MigratedGorbagioNeedingFix } from '../services/migrationService';
+import type { LegacyGorbagio, MigratedGorbagioNeedingFix, MigratedGorbagio } from '../services/migrationService';
 
 type MigrationStatus = 'idle' | 'loading' | 'migrating' | 'success' | 'error';
 
@@ -55,6 +55,28 @@ const GorbagioMigration: React.FC = () => {
     message: '',
     signature: '',
   });
+
+  // Gallery state — all migrated Gorbagios on-chain
+  const [gallery, setGallery] = useState<MigratedGorbagio[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(true);
+  const [galleryHover, setGalleryHover] = useState<string | null>(null);
+
+  const loadGallery = useCallback(async () => {
+    setGalleryLoading(true);
+    try {
+      const { fetchAllMigratedGorbagios } = await import('../services/migrationService');
+      const nfts = await fetchAllMigratedGorbagios(connection);
+      setGallery(nfts);
+    } catch (err) {
+      console.error('[Migration] Error loading gallery:', err);
+    } finally {
+      setGalleryLoading(false);
+    }
+  }, [connection]);
+
+  useEffect(() => {
+    loadGallery();
+  }, [loadGallery]);
 
   const loadNFTs = useCallback(async () => {
     if (!connected || !publicKey) return;
@@ -488,6 +510,113 @@ const GorbagioMigration: React.FC = () => {
             )}
           </>
         )}
+
+        {/* ── Migrated Collection Gallery ─────────────────────────── */}
+        <div className="mt-12 border border-[#39FF14]/30 bg-black/80 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-mono text-sm text-[#39FF14] flex items-center gap-2">
+              <Grid className="w-4 h-4" />
+              MIGRATED COLLECTION
+              {gallery.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] text-xs">
+                  {gallery.length}
+                </span>
+              )}
+            </h2>
+            <button
+              onClick={loadGallery}
+              disabled={galleryLoading}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#39FF14] font-mono transition-colors"
+            >
+              <RefreshCw className={`w-3 h-3 ${galleryLoading ? 'animate-spin' : ''}`} /> REFRESH
+            </button>
+          </div>
+
+          <p className="text-gray-500 text-xs font-mono mb-6">
+            All Gorbagio NFTs successfully migrated to Metaplex standard on the Gorbagana blockchain.
+          </p>
+
+          {galleryLoading && gallery.length === 0 && (
+            <div className="flex items-center justify-center py-16">
+              <Loader className="w-6 h-6 text-[#39FF14] animate-spin mr-3" />
+              <span className="font-mono text-sm text-gray-400">Loading collection from chain...</span>
+            </div>
+          )}
+
+          {!galleryLoading && gallery.length === 0 && (
+            <div className="text-center py-12">
+              <Trash2 className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+              <p className="font-mono text-sm text-gray-500">No migrated Gorbagios found yet.</p>
+            </div>
+          )}
+
+          {gallery.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {gallery.map((nft) => (
+                <div
+                  key={nft.mint}
+                  className="group relative border border-gray-800 bg-gray-900/50 transition-all duration-200 hover:border-[#39FF14]/50 hover:shadow-[0_0_15px_rgba(57,255,20,0.15)]"
+                  onMouseEnter={() => setGalleryHover(nft.mint)}
+                  onMouseLeave={() => setGalleryHover(null)}
+                >
+                  {/* Image */}
+                  <div className="aspect-square bg-gray-900 overflow-hidden">
+                    {nft.image ? (
+                      <img
+                        src={nft.image}
+                        alt={nft.name}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-700">
+                        <Trash2 className="w-8 h-8" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="p-2">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="font-mono text-xs text-white truncate">{nft.name}</p>
+                      {nft.collectionVerified && (
+                        <CheckCircle className="w-3 h-3 text-[#39FF14] flex-shrink-0" />
+                      )}
+                    </div>
+                    {nft.owner && (
+                      <p className="font-mono text-[10px] text-gray-600 truncate">
+                        {nft.owner.slice(0, 4)}...{nft.owner.slice(-4)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Hover overlay */}
+                  {galleryHover === nft.mint && (
+                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-3 pointer-events-none">
+                      <p className="font-mono text-xs text-[#39FF14] mb-1 text-center">{nft.name}</p>
+                      <p className="font-mono text-[10px] text-gray-400 mb-2">
+                        {nft.mint.slice(0, 8)}...{nft.mint.slice(-4)}
+                      </p>
+                      {nft.owner && (
+                        <p className="font-mono text-[10px] text-gray-500">
+                          Owner: {nft.owner.slice(0, 4)}...{nft.owner.slice(-4)}
+                        </p>
+                      )}
+                      <a
+                        href={`https://explorer.gorbagana.wtf/address/${nft.mint}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 flex items-center gap-1 text-[10px] font-mono text-[#39FF14]/70 hover:text-[#39FF14] pointer-events-auto"
+                      >
+                        <ExternalLink className="w-3 h-3" /> View on Trashscan
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       </div>
     </div>

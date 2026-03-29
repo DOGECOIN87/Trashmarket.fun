@@ -3,6 +3,7 @@ import { useConnection } from '@solana/wallet-adapter-react';
 import { GameEngine } from '../../lib/GameEngine';
 import { Overlay } from './Overlay';
 import AudioPlayer from './AudioPlayer';
+import RainOverlay from './RainOverlay';
 import { GameState } from '../../lib/types';
 import { useGameWallet } from './WalletAdapter';
 import { useJunkPusherOnChain } from '../../lib/useJunkPusherOnChain';
@@ -21,6 +22,8 @@ const JunkPusherGame: React.FC = () => {
 
     // On-chain integration hook
     const onChain = useJunkPusherOnChain();
+
+    const [isRaining, setIsRaining] = useState(false);
 
     const [gameState, setGameState] = useState<GameState>({
         score: 0,
@@ -161,6 +164,8 @@ const JunkPusherGame: React.FC = () => {
                     const r = recoveredRef.current;
                     engine.restoreState(r.balance, r.score, r.netProfit);
                 }
+                // Wire up rain events
+                engine.setRainCallback(setIsRaining);
                 // Force a resize after init to ensure correct aspect ratio
                 const dims = updateDimensions();
                 engine.resize(dims.width, dims.height);
@@ -320,6 +325,9 @@ const JunkPusherGame: React.FC = () => {
                 className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                 style={{ objectPosition: 'center 10%' }}
             />
+
+            {/* Rain overlay — renders over background, behind game */}
+            <RainOverlay active={isRaining} />
 
             {/* On-chain status indicator */}
             {wallet.isConnected && (

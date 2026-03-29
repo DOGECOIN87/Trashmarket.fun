@@ -781,3 +781,104 @@ export async function executeSetCollection(
     return { signature: '', success: false, error: errorMessage };
   }
 }
+
+// ─── Fetch All Migrated Gorbagios (Global Gallery) ────────────────────
+
+export interface MigratedGorbagio {
+  mint: string;
+  name: string;
+  symbol: string;
+  uri: string;
+  image: string;
+  owner: string;
+  collectionVerified: boolean;
+}
+
+/**
+ * Fetch all migrated Gorbagio NFTs from the Gorbagana blockchain.
+ * Queries all Metaplex metadata accounts and filters for those in the Gorbagio collection.
+ */
+export async function fetchAllMigratedGorbagios(
+  connection: Connection,
+): Promise<MigratedGorbagio[]> {
+  try {
+    const allMetadata = await connection.getProgramAccounts(
+      METAPLEX_METADATA_PROGRAM_ID,
+      { filters: [{ dataSize: 607 }] },
+    );
+
+    const results: MigratedGorbagio[] = [];
+
+    for (const account of allMetadata) {
+      const parsed = parseMetaplexMetadata(Buffer.from(account.account.data));
+      if (!parsed) continue;
+
+      if (!parsed.hasCollection || !parsed.collectionKey?.equals(GORBAGIO_COLLECTION_MINT)) continue;
+      if (parsed.mint.equals(GORBAGIO_COLLECTION_MINT)) continue;
+
+      results.push({
+        mint: parsed.mint.toBase58(),
+        name: parsed.name,
+        symbol: parsed.symbol,
+        uri: parsed.uri,
+        image: '',
+        owner: '',
+        collectionVerified: parsed.collectionVerified,
+      });
+    }
+
+    // Fetch owners
+    const BATCH = 100;
+    for (let i = 0; i < results.length; i += BATCH) {
+      const batch = results.slice(i, i + BATCH);
+      await Promise.all(
+        batch.map(async (g) => {
+          try {
+            const resp = await connection.getTokenLargestAccounts(new PublicKey(g.mint));
+            const largest = resp.value.find((v) => Number(v.amount) > 0);
+            if (largest) {
+              const accInfo = await connection.getParsedAccountInfo(largest.address);
+              const data = (accInfo.value?.data as any)?.parsed?.info;
+              if (data?.owner) g.owner = data.owner;
+            }
+          } catch { /* skip */ }
+        }),
+      );
+    }
+
+    // Fetch images
+    await Promise.all(
+      results.map(async (g) => {
+        if (!g.uri) return;
+        const uris = [g.uri];
+        const ipfsMatch = g.uri.match(/\/ipfs\/(.+)$/);
+        if (ipfsMatch) uris.push(`https://ipfs.io/ipfs/${ipfsMatch[1]}`);
+        for (const uri of uris) {
+          try {
+            const resp = await fetch(uri, { signal: AbortSignal.timeout(15000) });
+            const json = await resp.json();
+            if (json.image) {
+              let imageUrl = json.image;
+              if (imageUrl.startsWith('ipfs://')) {
+                imageUrl = imageUrl.replace('ipfs://', 'https://plum-far-bobcat-940.mypinata.cloud/ipfs/');
+              } else {
+                const imgIpfsMatch = imageUrl.match(/\/ipfs\/(.+)$/);
+                if (imgIpfsMatch) {
+                  imageUrl = `https://plum-far-bobcat-940.mypinata.cloud/ipfs/${imgIpfsMatch[1]}`;
+                }
+              }
+              g.image = imageUrl;
+              return;
+            }
+          } catch { /* try next */ }
+        }
+      }),
+    );
+
+    results.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    return results;
+  } catch (err) {
+    console.error('[MigrationService] Error fetching all migrated Gorbagios:', err);
+    return [];
+  }
+}

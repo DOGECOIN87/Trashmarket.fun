@@ -15,7 +15,9 @@ export type SoundType =
   | 'game_over'
   | 'ui_open'
   | 'ui_close'
-  | 'out_of_tokens';
+  | 'out_of_tokens'
+  | 'rain_start'
+  | 'rain_stop';
 
 class SoundManager {
   private audioContext: AudioContext | null = null;
@@ -23,6 +25,8 @@ class SoundManager {
   private isMuted = false;
   private isInitialized = false;
   private outOfTokensBuffer: AudioBuffer | null = null;
+  private rainNoiseSource: AudioBufferSourceNode | null = null;
+  private rainGainNode: GainNode | null = null;
 
   /**
    * Initialize audio context (must be called after user interaction)
@@ -87,6 +91,12 @@ class SoundManager {
         break;
       case 'out_of_tokens':
         this.playOutOfTokens();
+        break;
+      case 'rain_start':
+        this.startRainSound();
+        break;
+      case 'rain_stop':
+        this.stopRainSound();
         break;
     }
   }
@@ -390,6 +400,72 @@ class SoundManager {
     source.connect(gain);
     gain.connect(this.audioContext.destination);
     source.start();
+  }
+
+  /**
+   * Rain ambience — looping filtered noise
+   */
+  private startRainSound(): void {
+    if (!this.audioContext || this.rainNoiseSource) return;
+
+    // Create a long noise buffer (2 seconds, looped)
+    const sampleRate = this.audioContext.sampleRate;
+    const length = sampleRate * 2;
+    const buffer = this.audioContext.createBuffer(2, length, sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = buffer.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+    }
+
+    const source = this.audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    // Bandpass filter to shape noise into rain
+    const bandpass = this.audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 800;
+    bandpass.Q.value = 0.5;
+
+    // Highpass to remove rumble
+    const highpass = this.audioContext.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = 300;
+
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(this.masterVolume * 0.25, this.audioContext.currentTime + 2);
+
+    source.connect(bandpass);
+    bandpass.connect(highpass);
+    highpass.connect(gain);
+    gain.connect(this.audioContext.destination);
+
+    source.start();
+    this.rainNoiseSource = source;
+    this.rainGainNode = gain;
+  }
+
+  private stopRainSound(): void {
+    if (!this.audioContext) return;
+
+    if (this.rainGainNode) {
+      const now = this.audioContext.currentTime;
+      this.rainGainNode.gain.linearRampToValueAtTime(0, now + 2);
+    }
+
+    // Stop source after fade out
+    const source = this.rainNoiseSource;
+    if (source) {
+      setTimeout(() => {
+        try { source.stop(); } catch { /* already stopped */ }
+      }, 2500);
+    }
+
+    this.rainNoiseSource = null;
+    this.rainGainNode = null;
   }
 
   /**
