@@ -32,6 +32,7 @@ export const Overlay: React.FC<OverlayProps> = ({
     const [txStatus, setTxStatus] = useState<'idle' | 'signing' | 'broadcasting' | 'confirmed' | 'error'>('idle');
     const [depositBtnStatus, setDepositBtnStatus] = useState<'idle' | 'signing' | 'broadcasting' | 'confirmed' | 'error'>('idle');
     const [withdrawBtnStatus, setWithdrawBtnStatus] = useState<'idle' | 'signing' | 'broadcasting' | 'confirmed' | 'error'>('idle');
+    const [withdrawAmount, setWithdrawAmount] = useState('');
     const [showHighScores, setShowHighScores] = useState(false);
 
     useEffect(() => {
@@ -95,20 +96,24 @@ export const Overlay: React.FC<OverlayProps> = ({
         await doDeposit(setDepositBtnStatus);
     };
 
-    const WITHDRAW_AMOUNT = 100;
+    const MAX_WITHDRAW = 250_000;
     const handleWithdrawClick = async () => {
         if (withdrawBtnStatus !== 'idle') return;
         if (!wallet.isConnected) {
             setShowWalletMenu(true);
             return;
         }
-        const amount = Math.min(WITHDRAW_AMOUNT, gameState.balance);
+        const maxBalance = Math.min(Math.floor(gameState.balance), MAX_WITHDRAW);
+        const parsed = parseInt(withdrawAmount, 10);
+        // Sanitize: must be a positive integer, capped at balance and max withdraw limit
+        const amount = (!parsed || parsed <= 0) ? maxBalance : Math.min(parsed, maxBalance);
         if (amount <= 0) return;
 
         try {
             setWithdrawBtnStatus('signing');
             const sig = await onWithdraw(amount);
             if (sig) {
+                setWithdrawAmount('');
                 setWithdrawBtnStatus('confirmed');
                 setTimeout(() => setWithdrawBtnStatus('idle'), 1500);
             } else {
@@ -373,40 +378,63 @@ export const Overlay: React.FC<OverlayProps> = ({
                             </button>
                         )}
 
-                        {/* Withdraw Button */}
+                        {/* Withdraw Controls */}
                         {wallet.isConnected && gameState.balance > 0 && (
-                            <button
-                                onClick={() => {
-                                    soundManager.initialize();
-                                    soundManager.play('button_click');
-                                    handleWithdrawClick();
-                                }}
-                                disabled={withdrawBtnStatus !== 'idle' || gameState.balance <= 0}
-                                className={`group h-9 sm:h-12 min-w-[72px] sm:min-w-[120px] transition-all skew-x-[-15deg] backdrop-blur-sm ${withdrawBtnStatus === 'idle' ? 'bg-amber-950/30 border border-amber-500/30 hover:bg-amber-900/50 hover:border-amber-400' : withdrawBtnStatus === 'confirmed' ? 'bg-amber-900/50 border border-amber-400' : withdrawBtnStatus === 'error' ? 'bg-red-950/30 border border-red-500/30' : 'bg-black/50 border border-amber-500/30 cursor-wait'}`}
-                            >
-                                <div className="skew-x-[15deg] flex flex-col items-center justify-center h-full px-2 sm:px-0">
-                                    {withdrawBtnStatus === 'idle' && (
-                                        <>
-                                            <span className="font-heading text-[8px] sm:text-[10px] text-amber-200 font-bold tracking-[0.15em] sm:tracking-[0.2em] group-hover:text-white group-hover:drop-shadow-[0_0_5px_#ffaa00] uppercase">
-                                                Withdraw
-                                            </span>
-                                            <span className="text-[7px] sm:text-[8px] text-amber-400/60 font-mono">{Math.min(WITHDRAW_AMOUNT, gameState.balance)} DEBRIS</span>
-                                        </>
-                                    )}
-                                    {(withdrawBtnStatus === 'signing' || withdrawBtnStatus === 'broadcasting') && (
-                                        <svg className="animate-spin h-3 w-3 sm:h-4 sm:w-4 text-amber-300" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                    )}
-                                    {withdrawBtnStatus === 'confirmed' && (
-                                        <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                    )}
-                                    {withdrawBtnStatus === 'error' && (
-                                        <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                    )}
+                            <>
+                                <div className="skew-x-[-15deg]">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={Math.min(Math.floor(gameState.balance), MAX_WITHDRAW)}
+                                        value={withdrawAmount}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/[^0-9]/g, '');
+                                            const num = parseInt(val, 10);
+                                            const cap = Math.min(Math.floor(gameState.balance), MAX_WITHDRAW);
+                                            if (val === '' || (num > 0 && num <= cap)) {
+                                                setWithdrawAmount(val);
+                                            } else if (num > cap) {
+                                                setWithdrawAmount(String(cap));
+                                            }
+                                        }}
+                                        placeholder={String(Math.min(Math.floor(gameState.balance), MAX_WITHDRAW))}
+                                        className="h-9 sm:h-12 w-[60px] sm:w-[80px] bg-black/60 border border-amber-500/30 text-amber-200 text-center font-mono text-[10px] sm:text-xs outline-none focus:border-amber-400 placeholder:text-amber-500/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        disabled={withdrawBtnStatus !== 'idle'}
+                                    />
                                 </div>
-                            </button>
+                                <button
+                                    onClick={() => {
+                                        soundManager.initialize();
+                                        soundManager.play('button_click');
+                                        handleWithdrawClick();
+                                    }}
+                                    disabled={withdrawBtnStatus !== 'idle' || gameState.balance <= 0}
+                                    className={`group h-9 sm:h-12 min-w-[72px] sm:min-w-[120px] transition-all skew-x-[-15deg] backdrop-blur-sm ${withdrawBtnStatus === 'idle' ? 'bg-amber-950/30 border border-amber-500/30 hover:bg-amber-900/50 hover:border-amber-400' : withdrawBtnStatus === 'confirmed' ? 'bg-amber-900/50 border border-amber-400' : withdrawBtnStatus === 'error' ? 'bg-red-950/30 border border-red-500/30' : 'bg-black/50 border border-amber-500/30 cursor-wait'}`}
+                                >
+                                    <div className="skew-x-[15deg] flex flex-col items-center justify-center h-full px-2 sm:px-0">
+                                        {withdrawBtnStatus === 'idle' && (
+                                            <>
+                                                <span className="font-heading text-[8px] sm:text-[10px] text-amber-200 font-bold tracking-[0.15em] sm:tracking-[0.2em] group-hover:text-white group-hover:drop-shadow-[0_0_5px_#ffaa00] uppercase">
+                                                    Withdraw
+                                                </span>
+                                                <span className="text-[7px] sm:text-[8px] text-amber-400/60 font-mono">{withdrawAmount || Math.min(Math.floor(gameState.balance), MAX_WITHDRAW)} DEBRIS</span>
+                                            </>
+                                        )}
+                                        {(withdrawBtnStatus === 'signing' || withdrawBtnStatus === 'broadcasting') && (
+                                            <svg className="animate-spin h-3 w-3 sm:h-4 sm:w-4 text-amber-300" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        )}
+                                        {withdrawBtnStatus === 'confirmed' && (
+                                            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        )}
+                                        {withdrawBtnStatus === 'error' && (
+                                            <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        )}
+                                    </div>
+                                </button>
+                            </>
                         )}
 
                         {/* Bump Button */}

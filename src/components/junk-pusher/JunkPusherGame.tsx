@@ -263,12 +263,13 @@ const JunkPusherGame: React.FC = () => {
         return null;
     }, [wallet.isConnected]);
 
+    const MAX_WITHDRAW = 250_000;
     const handleWithdraw = useCallback(async (amount: number): Promise<string | null> => {
         if (txInFlightRef.current) return null; // double-click guard
         const oc = onChainRef.current;
         const currentBalance = gameStateRef.current.balance;
         if (!oc.isProgramReady || !wallet.isConnected) return null;
-        if (amount <= 0 || amount > currentBalance) return null;
+        if (amount <= 0 || amount > currentBalance || amount > MAX_WITHDRAW) return null;
 
         txInFlightRef.current = true;
         try {
