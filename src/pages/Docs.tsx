@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, Download, Hash, Terminal, Type, LayoutTemplate, Palette, Coins } from 'lucide-react';
+import { Copy, Check, Download, Hash, Terminal, Type, LayoutTemplate, Palette, Coins, Gamepad2, PieChart } from 'lucide-react';
 
 const COLORS = [
   { name: 'Magic Green', hex: '#adff02', class: 'bg-magic-green text-black' },
@@ -15,6 +15,8 @@ const SECTIONS = [
   { id: 'manifesto', label: 'Manifesto' },
   { id: 'ui', label: 'UI_Components' },
   { id: 'token', label: 'Token' },
+  { id: 'skill-game', label: 'Skill_Game' },
+  { id: 'tokenomics', label: 'Tokenomics' },
 ];
 
 const Docs: React.FC = () => {
@@ -143,18 +145,45 @@ const Docs: React.FC = () => {
                   <LayoutTemplate className="w-5 h-5" />
                   <h2 className="text-xl font-bold uppercase tracking-widest">Logomark</h2>
                 </div>
-                <div className="flex justify-center mb-12">
-                  <div className="border border-white/20 bg-black p-8 flex flex-col items-center justify-center gap-4 group w-full max-w-md">
-                    <div className="relative w-32 h-32 transition-transform group-hover:scale-105">
-                      <img src="/assets/enhanced_logo_v6.svg" alt="Official Logomark" className="w-full h-full object-contain" />
-                      <div className="absolute inset-0 bg-magic-green/10 blur-xl rounded-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                {/* Primary Logo */}
+                <div className="mb-8">
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest px-1 mb-6">Primary_Logo</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="border border-white/20 bg-black p-12 flex flex-col items-center justify-center gap-4 group">
+                      <div className="relative w-40 h-40 transition-transform group-hover:scale-105">
+                        <img src="/logo.svg" alt="Trashmarket Logo — Dark" className="w-full h-full object-contain" />
+                        <div className="absolute inset-0 bg-magic-green/10 blur-xl rounded-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+                      <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">On_Dark</div>
                     </div>
-                    <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Official_SVG_Variant</div>
+                    <div className="border border-white/20 bg-white p-12 flex flex-col items-center justify-center gap-4 group">
+                      <div className="relative w-40 h-40 transition-transform group-hover:scale-105">
+                        <img src="/logo.svg" alt="Trashmarket Logo — Light" className="w-full h-full object-contain" />
+                        <div className="absolute inset-0 bg-magic-green/10 blur-xl rounded-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+                      <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">On_Light</div>
+                    </div>
                   </div>
                 </div>
 
+                {/* Enhanced Variant */}
+                <div className="mb-8">
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest px-1 mb-6">Enhanced_Variant</h3>
+                  <div className="flex justify-center">
+                    <div className="border border-white/20 bg-black p-8 flex flex-col items-center justify-center gap-4 group w-full max-w-md">
+                      <div className="relative w-32 h-32 transition-transform group-hover:scale-105">
+                        <img src="/assets/enhanced_logo_v6.svg" alt="Enhanced Logomark" className="w-full h-full object-contain" />
+                        <div className="absolute inset-0 bg-magic-green/10 blur-xl rounded-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+                      <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Gold_SVG_Variant</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Wordmarks */}
                 <div className="space-y-6 mb-8">
-                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest px-1">Original_Wordmarks</h3>
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest px-1">Wordmarks</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="border border-white/20 bg-black p-12 flex items-center justify-center group">
                       <div className="text-2xl font-bold text-white tracking-tighter transition-transform group-hover:scale-110">
@@ -169,12 +198,12 @@ const Docs: React.FC = () => {
                   </div>
                 </div>
                 <div className="mt-4 flex gap-4">
-                  <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase text-white border border-white/20 transition-colors">
+                  <a href="/logo.svg" download="trashmarket-logo.svg" className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase text-white border border-white/20 transition-colors">
                     <Download className="w-4 h-4" /> Download SVG
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase text-white border border-white/20 transition-colors">
-                    <Download className="w-4 h-4" /> Download PNG
-                  </button>
+                  </a>
+                  <a href="/assets/enhanced_logo_v6.svg" download="trashmarket-enhanced.svg" className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase text-white border border-white/20 transition-colors">
+                    <Download className="w-4 h-4" /> Enhanced SVG
+                  </a>
                 </div>
               </section>
 
@@ -241,36 +270,293 @@ const Docs: React.FC = () => {
 
           {/* TOKEN SECTION */}
           {activeSection === 'token' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[60vh] flex flex-col items-center justify-center p-8 bg-gradient-to-br from-magic-green/15 via-white/5 to-magic-pink/10 border border-white/20 rounded-2xl backdrop-blur-md shadow-2xl relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
-
-              <div className="relative group mb-12">
-                <div className="absolute inset-0 bg-magic-green/30 blur-[80px] rounded-full scale-125 opacity-40 group-hover:opacity-100 transition-opacity duration-1000"></div>
-                <div className="flex flex-col md:flex-row gap-8 items-center">
-                  <img
-                    src="/assets/grok_image_1772074136993.jpg"
-                    alt="Trashmarket Token"
-                    className="w-56 h-56 relative z-10 transition-transform duration-1000 group-hover:scale-105 drop-shadow-[0_0_20px_rgba(173,255,2,0.4)] rounded-full"
-                  />
-                  <img
-                    src="/assets/Debri-Intro2.jpg"
-                    alt="Debris Intro"
-                    className="w-full max-w-md relative z-10 transition-transform duration-1000 group-hover:scale-105 drop-shadow-[0_0_20px_rgba(173,255,2,0.4)] rounded-lg"
-                  />
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-12">
+              <div className="min-h-[40vh] flex flex-col items-center justify-center p-8 bg-gradient-to-br from-magic-green/15 via-white/5 to-magic-pink/10 border border-white/20 backdrop-blur-md relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+                <div className="relative group mb-12">
+                  <div className="absolute inset-0 bg-magic-green/30 blur-[80px] rounded-full scale-125 opacity-40 group-hover:opacity-100 transition-opacity duration-1000"></div>
+                  <div className="flex flex-col md:flex-row gap-8 items-center">
+                    <img src="/assets/grok_image_1772074136993.jpg" alt="DEBRIS Token" className="w-56 h-56 relative z-10 transition-transform duration-1000 group-hover:scale-105 drop-shadow-[0_0_20px_rgba(173,255,2,0.4)] rounded-full" />
+                    <img src="/assets/Debri-Intro2.jpg" alt="DEBRIS Intro" className="w-full max-w-md relative z-10 transition-transform duration-1000 group-hover:scale-105 drop-shadow-[0_0_20px_rgba(173,255,2,0.4)] rounded-lg" />
+                  </div>
+                </div>
+                <div className="text-center relative z-10">
+                  <h2 className="text-4xl md:text-5xl font-heading text-white uppercase tracking-tight mb-4">DEBRIS Token</h2>
+                  <p className="text-gray-300 font-mono text-sm max-w-lg mx-auto opacity-80 leading-relaxed mb-2">
+                    The utility token powering games, rewards, and platform activity on the Gorbagana L2 network.
+                  </p>
                 </div>
               </div>
 
-              <div className="text-center relative z-10">
-                <h2 className="text-4xl md:text-5xl font-heading text-white uppercase tracking-tight mb-8">
-                  Trashmarket.fun Token
-                </h2>
-                <p className="text-gray-300 font-heading text-lg md:text-xl max-w-md mx-auto opacity-80 leading-relaxed uppercase tracking-widest mb-8">
-                  To Be Announced
+              {/* Token Details */}
+              <section>
+                <div className="flex items-center gap-2 mb-6 text-magic-green">
+                  <Coins className="w-5 h-5" />
+                  <h2 className="text-xl font-bold uppercase tracking-widest">Token_Details</h2>
+                </div>
+                <div className="border border-white/20 bg-[#050505] p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[
+                      { label: 'Token Name', value: 'DEBRIS' },
+                      { label: 'Network', value: 'Gorbagana (SVM L2)' },
+                      { label: 'Total Supply', value: '1,000,000,000' },
+                      { label: 'Decimals', value: '9' },
+                    ].map((item) => (
+                      <div key={item.label} className="border-b border-white/10 pb-4">
+                        <span className="text-gray-500 text-xs uppercase tracking-widest block mb-1">{item.label}</span>
+                        <span className="text-white font-mono text-lg">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-6 border-t border-white/10 pt-4">
+                    <span className="text-gray-500 text-xs uppercase tracking-widest block mb-1">Contract Address</span>
+                    <button onClick={() => copyToClipboard('DebrikgCUTkxMGSxnBoVuwqpW4zivMrUfUP6kUeNUMwy')} className="flex items-center gap-2 text-magic-green font-mono text-sm hover:text-white transition-colors">
+                      DebrikgCUTkxMGSxnBoVuwqpW4zivMrUfUP6kUeNUMwy
+                      {copiedHex === 'DebrikgCUTkxMGSxnBoVuwqpW4zivMrUfUP6kUeNUMwy' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              {/* Allocation Overview */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">Allocation_Overview</h3>
+                <div className="border border-white/20 bg-[#050505] overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/20 text-left">
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase">Category</th>
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase text-right">Allocation</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono">
+                      {[
+                        { cat: 'Game Liquidity — Junk Pusher', pct: '25.0%' },
+                        { cat: 'Community Airdrop', pct: '16.0%' },
+                        { cat: 'Platform Operations', pct: '15.0%' },
+                        { cat: 'Game Liquidity — Slots', pct: '14.9%' },
+                        { cat: 'DEX Liquidity', pct: '14.9%' },
+                        { cat: 'NFT Marketplace', pct: '5.7%' },
+                        { cat: 'Reserve', pct: '5.5%' },
+                        { cat: 'In Circulation', pct: '3.0%' },
+                      ].map((row) => (
+                        <tr key={row.cat} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-4 text-gray-300">{row.cat}</td>
+                          <td className="p-4 text-magic-green text-right">{row.pct}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* SKILL GAME SECTION */}
+          {activeSection === 'skill-game' && (
+            <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <section>
+                <div className="flex items-center gap-2 mb-6 text-magic-green">
+                  <Gamepad2 className="w-5 h-5" />
+                  <h2 className="text-xl font-bold uppercase tracking-widest">Skill_Game</h2>
+                </div>
+                <p className="text-gray-400 font-mono text-sm mb-8 max-w-2xl">
+                  An arcade-style slots game where your decisions matter. Place your WILD symbol strategically to maximize your winnings.
                 </p>
-                <p className="text-gray-300 font-heading text-sm md:text-base max-w-md mx-auto opacity-70 leading-relaxed uppercase tracking-widest">
-                  The ultimate garbage-powered economy. Ready to dump soon.
+              </section>
+
+              {/* How To Play */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">How_To_Play</h3>
+                <div className="border border-white/20 bg-[#050505] p-8 space-y-6 font-mono text-sm text-gray-300">
+                  <div className="flex gap-4">
+                    <span className="text-magic-green font-bold w-6 shrink-0">01</span>
+                    <div><span className="text-white font-bold">Connect your wallet</span> — You'll need a Gorbagana-compatible wallet</div>
+                  </div>
+                  <div className="flex gap-4">
+                    <span className="text-magic-green font-bold w-6 shrink-0">02</span>
+                    <div><span className="text-white font-bold">Deposit DEBRIS</span> — Transfer tokens from your wallet into the game</div>
+                  </div>
+                  <div className="flex gap-4">
+                    <span className="text-magic-green font-bold w-6 shrink-0">03</span>
+                    <div><span className="text-white font-bold">Choose a Play Level</span> — Select your wager: 10 to 9,999 DEBRIS per spin</div>
+                  </div>
+                  <div className="flex gap-4">
+                    <span className="text-magic-green font-bold w-6 shrink-0">04</span>
+                    <div><span className="text-white font-bold">Preview (optional)</span> — Scout the grid before committing</div>
+                  </div>
+                  <div className="flex gap-4">
+                    <span className="text-magic-green font-bold w-6 shrink-0">05</span>
+                    <div><span className="text-white font-bold">Play</span> — Spin the reels, then place your WILD to complete the best match</div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Payouts */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">Payout_Table</h3>
+                <div className="border border-white/20 bg-[#050505] overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/20 text-left">
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase">Symbol</th>
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase">Rarity</th>
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase text-right">Multiplier</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono">
+                      {[
+                        { sym: 'Alon', rarity: 'Legendary', mult: '25x', color: 'text-yellow-400' },
+                        { sym: 'Oscar', rarity: 'Epic', mult: '8x', color: 'text-purple-400' },
+                        { sym: 'Sky Garbage', rarity: 'Rare', mult: '4x', color: 'text-blue-400' },
+                        { sym: 'Shredder', rarity: 'Rare', mult: '2.5x', color: 'text-blue-400' },
+                        { sym: 'Gorbios', rarity: 'Uncommon', mult: '1.5x', color: 'text-green-400' },
+                        { sym: 'Pump Pill', rarity: 'Common', mult: '1.0x', color: 'text-gray-400' },
+                        { sym: 'Digibin', rarity: 'Common', mult: '0.7x', color: 'text-gray-400' },
+                        { sym: 'Box', rarity: 'Common', mult: '0.4x', color: 'text-gray-400' },
+                        { sym: 'Mattress', rarity: 'Common', mult: '0.2x', color: 'text-gray-400' },
+                      ].map((row) => (
+                        <tr key={row.sym} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-4 text-white">{row.sym}</td>
+                          <td className={`p-4 ${row.color}`}>{row.rarity}</td>
+                          <td className="p-4 text-magic-green text-right">{row.mult}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              {/* Winning Lines */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">Winning_Lines</h3>
+                <div className="border border-white/20 bg-[#050505] p-8 font-mono text-sm text-gray-300 space-y-3">
+                  <p className="text-white font-bold mb-4">8 possible winning lines on the 3x3 grid:</p>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-2"><span className="text-magic-green">—</span> 3 horizontal rows</li>
+                    <li className="flex items-center gap-2"><span className="text-magic-green">|</span> 3 vertical columns</li>
+                    <li className="flex items-center gap-2"><span className="text-magic-green">\</span> 2 diagonals</li>
+                  </ul>
+                  <p className="text-gray-500 mt-4 text-xs">Only the best single line pays out per spin. The center cell appears on 4 lines — making it the most powerful WILD placement.</p>
+                </div>
+              </section>
+
+              {/* Fairness */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">Fairness</h3>
+                <div className="border border-white/20 bg-[#050505] p-8 font-mono text-sm text-gray-300 space-y-3">
+                  <div className="flex items-baseline gap-3"><span className="text-magic-green text-lg font-bold">~91%</span> <span>Return-To-Player (RTP) with optimal WILD placement</span></div>
+                  <div className="flex items-baseline gap-3"><span className="text-magic-green text-lg font-bold">~1:4</span> <span>Approximately 1 in 4 spins returns a profit</span></div>
+                  <div className="flex items-baseline gap-3"><span className="text-magic-green text-lg font-bold">25x</span> <span>Maximum payout multiplier on a single spin</span></div>
+                  <p className="text-gray-500 text-xs mt-4">All deposits, withdrawals, and game results are recorded on the Gorbagana blockchain. A 2.5% platform fee applies on deposits.</p>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* TOKENOMICS SECTION */}
+          {activeSection === 'tokenomics' && (
+            <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <section>
+                <div className="flex items-center gap-2 mb-6 text-magic-green">
+                  <PieChart className="w-5 h-5" />
+                  <h2 className="text-xl font-bold uppercase tracking-widest">Tokenomics</h2>
+                </div>
+                <p className="text-gray-400 font-mono text-sm mb-8 max-w-2xl">
+                  Full breakdown of DEBRIS token allocation, distribution, and ecosystem wallets.
                 </p>
-              </div>
+              </section>
+
+              {/* Allocation */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">Token_Allocation</h3>
+                <div className="border border-white/20 bg-[#050505] overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/20 text-left">
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase">Category</th>
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase text-right">%</th>
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase text-right hidden md:table-cell">Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono">
+                      {[
+                        { cat: 'Game Liquidity — Junk Pusher', pct: '25.0%', bal: '249,975,990' },
+                        { cat: 'Community Airdrop', pct: '16.0%', bal: '159,987,056' },
+                        { cat: 'Platform Operations', pct: '15.0%', bal: '149,985,000' },
+                        { cat: 'Game Liquidity — Slots', pct: '14.9%', bal: '148,500,000' },
+                        { cat: 'DEX Liquidity', pct: '14.9%', bal: '148,500,000' },
+                        { cat: 'NFT Marketplace', pct: '5.7%', bal: '57,420,031' },
+                        { cat: 'Reserve', pct: '5.5%', bal: '54,614,114' },
+                        { cat: 'In Circulation', pct: '3.0%', bal: '~31,017,809' },
+                      ].map((row) => (
+                        <tr key={row.cat} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-4 text-gray-300">{row.cat}</td>
+                          <td className="p-4 text-magic-green text-right">{row.pct}</td>
+                          <td className="p-4 text-gray-500 text-right hidden md:table-cell">{row.bal}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              {/* Airdrop */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">Community_Airdrop</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="border border-white/20 bg-[#050505] p-6">
+                    <span className="text-gray-500 text-xs uppercase tracking-widest block mb-2">Standard Tier</span>
+                    <span className="text-white font-mono text-2xl font-bold block mb-1">1,000,000</span>
+                    <span className="text-gray-500 font-mono text-xs">DEBRIS per user (0.1% of supply)</span>
+                  </div>
+                  <div className="border border-magic-green/30 bg-[#050505] p-6">
+                    <span className="text-magic-green text-xs uppercase tracking-widest block mb-2">VIP Tier</span>
+                    <span className="text-white font-mono text-2xl font-bold block mb-1">10,000,000</span>
+                    <span className="text-gray-500 font-mono text-xs">DEBRIS per user (1% of supply) — max 6 recipients</span>
+                  </div>
+                </div>
+              </section>
+
+              {/* Key Addresses */}
+              <section>
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">Key_Addresses</h3>
+                <div className="border border-white/20 bg-[#050505] overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/20 text-left">
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase">Role</th>
+                        <th className="p-4 text-gray-500 font-mono text-xs uppercase">Address</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono text-xs">
+                      {[
+                        { role: 'DEBRIS Contract', addr: 'DebrikgCUTkxMGSxnBoVuwqpW4zivMrUfUP6kUeNUMwy' },
+                        { role: 'Junk Pusher Treasury', addr: '8iKCvwz3tyUp4hzxcyLYtPQghiwiEhiLDd38MEQBF6kR' },
+                        { role: 'Airdrop Pool', addr: 'Hn1i7bLb7oHpAL5AoyGvkn7YgwmWrVTbVsjXA1LYnELo' },
+                        { role: 'Platform Operations', addr: 'Drn1GXZoBpER3gUPFCZJTNGEghXvEyFYmtfB7ycoiMAJ' },
+                        { role: 'Slots Treasury', addr: 'Eyu7XqQ6WR7czNsGHWbiyYWpniikMYctsAHrvUCXcqtU' },
+                        { role: 'DEX Liquidity', addr: 'CdaobFF9Sgr6eN1pKMWfx3hZxkf6qqLUut15vVBb2wG6' },
+                        { role: 'NFT Marketplace', addr: '77hDeRmTFa7WVPqTvDtD9qg9D73DdqU3WeaHTxUnQ8wb' },
+                        { role: 'Reserve', addr: '7qrxa4jsxVWrNRmuFNPv5ekCScjdk8gPeFg7xDdEdHzU' },
+                      ].map((row) => (
+                        <tr key={row.role} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-4 text-gray-300 whitespace-nowrap">{row.role}</td>
+                          <td className="p-4">
+                            <button onClick={() => copyToClipboard(row.addr)} className="flex items-center gap-2 text-gray-500 hover:text-magic-green transition-colors">
+                              <span className="truncate max-w-[200px] md:max-w-none">{row.addr}</span>
+                              {copiedHex === row.addr ? <Check className="w-3 h-3 shrink-0 text-magic-green" /> : <Copy className="w-3 h-3 shrink-0" />}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-gray-600 font-mono text-xs mt-4 px-1">
+                  All balances verifiable on the <a href="https://explorer.gorbagana.wtf" target="_blank" rel="noopener noreferrer" className="text-magic-green hover:underline">Gorbagana Explorer</a>
+                </p>
+              </section>
             </div>
           )}
 
