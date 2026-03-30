@@ -494,6 +494,14 @@ export class GameEngine {
     this.spawnCoin(normalizedX, 4, z);
   }
 
+  /** Drop a bonus coin that does NOT deduct from the player's balance */
+  public dropBonusCoin() {
+    const x = (Math.random() - 0.5) * 6;
+    const z = -DIMENSIONS.PLAYFIELD_LENGTH / 2 + 1 + (Math.random() - 0.5) * 2;
+    this.spawnCoin(x, 4 + Math.random() * 2, z);
+    soundManager.play('coin_drop');
+  }
+
   public dropCoinAtRaycast(ndcX: number, ndcY: number) {
     this.raycaster.setFromCamera({ x: ndcX, y: ndcY }, this.camera);
     const dropPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -3);

@@ -14,6 +14,8 @@ import { soundManager } from '../../lib/soundManager';
 import { pushGameEvent } from '../../services/activityService';
 import { PublicKey } from '@solana/web3.js';
 
+type MascotPhase = 'hidden' | 'rising' | 'visible' | 'falling';
+
 const JunkPusherGame: React.FC = () => {
     const gameCanvasRef = useRef<HTMLCanvasElement>(null);
     const engineRef = useRef<GameEngine | null>(null);
@@ -24,6 +26,59 @@ const JunkPusherGame: React.FC = () => {
     const onChain = useJunkPusherOnChain();
 
     const [isRaining, setIsRaining] = useState(false);
+
+    // Mascot random event state
+    const [mascotPhase, setMascotPhase] = useState<MascotPhase>('hidden');
+    const mascotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const mascotActiveRef = useRef(false);
+
+    // Mascot animation sequence — uses a ref to avoid circular useCallback deps
+    const runMascotSequence = useRef<() => void>(null as any);
+    runMascotSequence.current = () => {
+        if (mascotActiveRef.current) return;
+        mascotActiveRef.current = true;
+        setMascotPhase('rising');
+
+        // Drop a random bonus rain of 25–150 coins spread over ~4 seconds
+        const bonusCount = 25 + Math.floor(Math.random() * 126);
+        const dropInterval = 4000 / bonusCount;
+        let dropped = 0;
+        const coinRainInterval = setInterval(() => {
+            if (dropped >= bonusCount || !engineRef.current) {
+                clearInterval(coinRainInterval);
+                return;
+            }
+            engineRef.current.dropBonusCoin();
+            dropped++;
+        }, dropInterval);
+
+        // After rise animation (3s), hold visible for 20s
+        mascotTimerRef.current = setTimeout(() => {
+            setMascotPhase('visible');
+
+            mascotTimerRef.current = setTimeout(() => {
+                setMascotPhase('falling');
+
+                // After fall (3s), reset and schedule next random event
+                mascotTimerRef.current = setTimeout(() => {
+                    setMascotPhase('hidden');
+                    mascotActiveRef.current = false;
+                    // Schedule next rare occurrence: 5–12 minutes from now
+                    const delay = 300000 + Math.random() * 420000;
+                    mascotTimerRef.current = setTimeout(() => runMascotSequence.current(), delay);
+                }, 3000);
+            }, 20000);
+        }, 3000);
+    };
+
+    useEffect(() => {
+        // Rare event: first trigger between 5–12 minutes
+        const initialDelay = 300000 + Math.random() * 420000;
+        mascotTimerRef.current = setTimeout(() => runMascotSequence.current(), initialDelay);
+        return () => {
+            if (mascotTimerRef.current) clearTimeout(mascotTimerRef.current);
+        };
+    }, []);
 
     const [gameState, setGameState] = useState<GameState>({
         score: 0,
@@ -339,6 +394,25 @@ const JunkPusherGame: React.FC = () => {
             {/* Rain overlay — renders over background, behind game */}
             <RainOverlay active={isRaining} />
 
+            {/* Mascot random event — rises from below behind the 3D canvas */}
+            <img
+                src="/assets/Tm-mascot.png"
+                alt=""
+                className="absolute left-1/2 pointer-events-none select-none"
+                style={{
+                    bottom: '30%',
+                    width: '48%',
+                    maxWidth: '580px',
+                    transform: `translateX(-50%) translateY(${
+                        mascotPhase === 'hidden' || mascotPhase === 'falling' ? '110%' : '0%'
+                    })`,
+                    transition: mascotPhase === 'falling'
+                        ? 'transform 3s cubic-bezier(0.64, 0, 0.78, 0)'
+                        : 'transform 3s cubic-bezier(0.22, 0.61, 0.36, 1)',
+                    zIndex: 1,
+                }}
+            />
+
             {/* On-chain status indicator */}
             {wallet.isConnected && (
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
@@ -445,18 +519,35 @@ const JunkPusherGame: React.FC = () => {
                 ref={gameCanvasRef}
                 onClick={handleCanvasClick}
                 className="absolute inset-0 w-full h-full"
-                style={{ cursor: 'crosshair' }}
+                style={{ cursor: 'crosshair', zIndex: 2 }}
             />
-            <Overlay
-                gameState={gameState}
-                onDropCoin={handleDropCoin}
-                onBump={handleBump}
-                onReset={handleReset}
-                onDeposit={handleDeposit}
-                onWithdraw={handleWithdraw}
-                onPauseToggle={handlePauseToggle}
-                wallet={wallet}
+
+            {/* Mascot event: dim overlay with spotlight cutout over the pusher surface */}
+            <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                    zIndex: 3,
+                    background: 'radial-gradient(ellipse 52% 65% at 50% 54%, transparent 0%, rgba(0,0,0,0.0) 45%, rgba(0,0,0,0.85) 72%)',
+                    opacity: mascotPhase === 'hidden' ? 0 : mascotPhase === 'falling' ? 0 : 1,
+                    transition: mascotPhase === 'rising'
+                        ? 'opacity 2s ease-in'
+                        : mascotPhase === 'falling'
+                        ? 'opacity 2s ease-out'
+                        : 'none',
+                }}
             />
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+                <Overlay
+                    gameState={gameState}
+                    onDropCoin={handleDropCoin}
+                    onBump={handleBump}
+                    onReset={handleReset}
+                    onDeposit={handleDeposit}
+                    onWithdraw={handleWithdraw}
+                    onPauseToggle={handlePauseToggle}
+                    wallet={wallet}
+                />
+            </div>
             <AudioPlayer src="/audio/bg-music.mp3" autoPlay={true} />
         </div>
     );
