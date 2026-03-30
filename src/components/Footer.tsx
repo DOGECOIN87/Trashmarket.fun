@@ -49,6 +49,7 @@ const Footer: React.FC = () => {
                             <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/official-docs">Docs</Link></li>
                             <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/docs">Brand Kit</Link></li>
                             <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/airdrop">Airdrop</Link></li>
+                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/submit">Launchpad</Link></li>
                         </ul>
                     </div>
 

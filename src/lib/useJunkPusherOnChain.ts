@@ -15,9 +15,12 @@ import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { JunkPusherClient, PROGRAM_ID } from './JunkPusherClient';
 import { getDebrisBalance, TokenBalance } from './tokenService';
-import { getHighScores, getPlayerRank, HighScoreEntry } from './highScoreService';
+import { getHighScores, getPlayerRank, getPlayerGameBalance, HighScoreEntry } from './highScoreService';
 import { TOKEN_CONFIG } from './tokenConfig';
 import { parseTransactionError } from '../utils/errorMessages';
+
+/** Max balance delta the backend accepts per sync call */
+const SYNC_MAX_DELTA = 250_000;
 
 export type TxLabel = 'Deposit DEBRIS' | 'Withdraw DEBRIS' | 'Initialize Game' | 'Record Score' | 'Bump' | '';
 
@@ -356,6 +359,87 @@ export function useJunkPusherOnChain() {
     [publicKey, signTransaction, signMessage, connection, refreshBalances, createAuthPayload],
   );
 
+  // ─── Sync & withdraw helpers ─────────────────────────────────────────
+
+  /** Read the player's current on-chain game balance */
+  const getOnChainGameBalance = useCallback(async (): Promise<number | null> => {
+    if (!publicKey || !connection) return null;
+    return getPlayerGameBalance(connection, PROGRAM_ID, publicKey);
+  }, [publicKey, connection]);
+
+  /**
+   * Sync local game balance to on-chain, then withdraw.
+   * Reads the on-chain balance first; if it's already >= requested amount, skips the sync.
+   * If the delta exceeds SYNC_MAX_DELTA, chunks into multiple sync calls.
+   */
+  const syncAndWithdraw = useCallback(
+    async (amount: number, localBalance: number): Promise<string | null> => {
+      if (!publicKey || !connection) return null;
+
+      const intAmount = Math.floor(amount);
+      const intBalance = Math.floor(localBalance);
+
+      // 1. Read current on-chain balance
+      let onChainBal = await getOnChainGameBalance();
+      if (onChainBal === null) {
+        // Game state might not exist yet — try initializing
+        await ensureInitialized();
+        onChainBal = await getOnChainGameBalance();
+      }
+      const currentOnChain = onChainBal ?? 0;
+
+      // 2. If on-chain balance already covers the withdrawal, skip sync
+      if (currentOnChain >= intAmount) {
+        return withdrawBalance(intAmount, currentOnChain, currentOnChain);
+      }
+
+      // 3. Sync local balance to on-chain (chunk if delta > SYNC_MAX_DELTA)
+      let target = intBalance;
+      let cursor = currentOnChain;
+      while (cursor < target) {
+        const step = Math.min(target, cursor + SYNC_MAX_DELTA);
+        const delta = step - cursor;
+        const sig = await updateBalance(step, 0);
+        if (!sig) {
+          console.warn(`[OnChain] Sync chunk failed at ${cursor} → ${step}`);
+          break;
+        }
+        cursor = step;
+        // Small delay between chunks to respect backend cooldown
+        if (cursor < target) {
+          await new Promise((r) => setTimeout(r, 3500));
+        }
+      }
+
+      // 4. Withdraw (use the synced balance, or whatever we reached)
+      const finalBalance = Math.max(cursor, currentOnChain);
+      return withdrawBalance(intAmount, finalBalance, finalBalance);
+    },
+    [publicKey, connection, getOnChainGameBalance, ensureInitialized, updateBalance, withdrawBalance],
+  );
+
+  /**
+   * Sync local balance to on-chain without withdrawing (fire-and-forget).
+   * Call this periodically during gameplay to keep on-chain state fresh.
+   */
+  const syncBalance = useCallback(
+    async (localBalance: number): Promise<string | null> => {
+      if (!publicKey || !connection) return null;
+      const intBalance = Math.floor(localBalance);
+      const onChainBal = await getOnChainGameBalance();
+      if (onChainBal === null) return null;
+      const delta = intBalance - onChainBal;
+      // Only sync if local is ahead of on-chain and delta is meaningful
+      if (delta <= 0) return null;
+      if (delta > SYNC_MAX_DELTA) {
+        // Sync up to max delta toward local balance
+        return updateBalance(onChainBal + SYNC_MAX_DELTA, 0);
+      }
+      return updateBalance(intBalance, 0);
+    },
+    [publicKey, connection, getOnChainGameBalance, updateBalance],
+  );
+
   // ─── High scores ─────────────────────────────────────────────────────
 
   const fetchHighScores = useCallback(
@@ -390,6 +474,9 @@ export function useJunkPusherOnChain() {
     depositBalance,
     withdrawBalance,
     updateBalance,
+    syncBalance,
+    syncAndWithdraw,
+    getOnChainGameBalance,
     fetchHighScores,
     fetchPlayerRank,
   };

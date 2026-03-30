@@ -187,7 +187,7 @@ const Submit: React.FC = () => {
   const hasReachedLimit = submissionCount !== null && submissionCount >= MAX_SUBMISSIONS_PER_WALLET;
 
   return (
-    <div className="min-h-screen bg-black pt-12 pb-20">
+    <div className="min-h-screen bg-black pt-12 pb-20" style={{ backgroundImage: 'url(/images/tm-background.png)', backgroundSize: 'cover', backgroundPosition: 'top center', backgroundRepeat: 'no-repeat', backgroundAttachment: 'fixed' }}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}

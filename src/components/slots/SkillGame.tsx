@@ -283,6 +283,8 @@ export default function SkillGame() {
   const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const balanceRestoredRef = useRef(false);
+  const lastSyncedBalanceRef = useRef(0);
+  const spinCountRef = useRef(0);
 
   const isAnimating = spinningCells.some(Boolean);
 
@@ -540,10 +542,9 @@ export default function SkillGame() {
     }
 
     setTxPending(true);
-    setTxMessage('Withdrawing DEBRIS...');
+    setTxMessage('Syncing & withdrawing...');
     try {
-      // Allow withdrawal up to full game balance (on-chain program validates against balance)
-      const sig = await onChain.withdrawBalance(intAmount, Math.floor(balance), Math.floor(balance));
+      const sig = await onChain.syncAndWithdraw(intAmount, balance);
       if (sig) {
         setBalance((prev) => prev - intAmount);
         setWithdrawAmount('');
@@ -596,6 +597,17 @@ export default function SkillGame() {
       onChain.recordCoinCollection(won ? winAmount : 0, 0).catch((err) =>
         console.warn('[Slots] On-chain bet record failed:', err)
       );
+
+      // Periodic balance sync: every 5 spins, push local balance on-chain
+      spinCountRef.current += 1;
+      if (spinCountRef.current % 5 === 0) {
+        const currentBal = balance + (won ? winAmount : 0);
+        if (Math.floor(currentBal) !== lastSyncedBalanceRef.current) {
+          onChain.syncBalance(currentBal).then((sig) => {
+            if (sig) lastSyncedBalanceRef.current = Math.floor(currentBal);
+          }).catch((err) => console.warn('[Slots] Periodic sync failed:', err));
+        }
+      }
     }
 
     addTimeout(() => {

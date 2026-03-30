@@ -45,6 +45,7 @@ const JunkPusherGame: React.FC = () => {
     // Guard against double-click on deposit/withdraw
     const txInFlightRef = useRef(false);
     const lastScoreMilestoneRef = useRef(0);
+    const lastSyncScoreRef = useRef(0);
     const handleUpdate = useCallback((partialState: Partial<GameState>) => {
         setGameState(prev => {
             const next = { ...prev, ...partialState };
@@ -53,9 +54,19 @@ const JunkPusherGame: React.FC = () => {
                 lastScoreMilestoneRef.current = Math.floor(next.score / 10);
                 pushGameEvent('WIN', `Player hit ${next.score} coins on Junk Pusher (+${next.netProfit > 0 ? next.netProfit : 0} DEBRIS)`);
             }
+            // Periodic on-chain balance sync every 50 coins
+            if (next.score > 0 && Math.floor(next.score / 50) > lastSyncScoreRef.current) {
+                lastSyncScoreRef.current = Math.floor(next.score / 50);
+                const oc = onChainRef.current;
+                if (oc.isProgramReady && wallet.isConnected) {
+                    oc.syncBalance(next.balance).catch((err: any) =>
+                        console.warn('[JunkPusher] Periodic sync failed:', err)
+                    );
+                }
+            }
             return next;
         });
-    }, []);
+    }, [wallet.isConnected]);
 
     // Silently restore saved state on mount to protect player coins
     // Priority: 1) On-chain PDA balance  2) localStorage fallback
@@ -279,8 +290,7 @@ const JunkPusherGame: React.FC = () => {
         txInFlightRef.current = true;
         try {
             const intAmount = Math.floor(amount);
-            // Allow withdrawal up to full game balance (on-chain program validates against balance)
-            const sig = await oc.withdrawBalance(intAmount, Math.floor(currentBalance), Math.floor(currentBalance));
+            const sig = await oc.syncAndWithdraw(intAmount, currentBalance);
             if (sig) {
                 // Deduct from engine balance
                 if (engineRef.current) {

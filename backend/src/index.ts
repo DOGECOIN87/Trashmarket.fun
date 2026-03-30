@@ -331,12 +331,14 @@ async function handleRpcProxy(request: Request, env: Env): Promise<Response> {
 
 const GAME_PROGRAM_ID = '5gJkp3DsVTtBP6k7WtbiNBjQhAESgGrgu6AJfypMCAwe';
 
-/** Maximum net profit delta allowed per single update call (prevents runaway exploits) */
-const MAX_NET_PROFIT_DELTA_PER_CALL = 500;
+/** Maximum balance delta allowed per single update call.
+ *  Set high enough to cover max single-spin win (25x × 9999 wager ≈ 250k)
+ *  while still capping runaway exploits. Wallet signature auth is the primary guard. */
+const MAX_NET_PROFIT_DELTA_PER_CALL = 250_000;
 
 /** Minimum seconds between update-balance calls for the same player.
  *  Enforced via on-chain last_updated timestamp (survives worker cold starts). */
-const UPDATE_COOLDOWN_SECONDS = 10;
+const UPDATE_COOLDOWN_SECONDS = 3;
 
 /**
  * GameState PDA layout (after 8-byte Anchor discriminator):
