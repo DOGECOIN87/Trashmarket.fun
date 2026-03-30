@@ -8,8 +8,15 @@ import { RPC_ENDPOINTS } from '../lib/rpcConfig';
 import {
   Shield, ShieldOff, Lock, Power, Pause, Play, Eye, Twitter,
   TrendingUp, Users, Coins, LayoutDashboard, RefreshCw,
-  ExternalLink, Wallet, CircleDot, Loader2, LogOut,
+  ExternalLink, Wallet, CircleDot, Loader2, LogOut, Rocket,
+  CheckCircle, XCircle, Clock, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import {
+  subscribeToPendingSubmissions,
+  approveSubmission,
+  rejectSubmission,
+} from '../services/submissionService';
+import { CollectionSubmission } from '../types';
 
 const ADMIN_WALLET = 'Hn1i7bLb7oHpAL5AoyGvkn7YgwmWrVTbVsjXA1LYnELo';
 
@@ -88,6 +95,12 @@ const Admin: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
+  // Submissions state
+  const [pendingSubmissions, setPendingSubmissions] = useState<CollectionSubmission[]>([]);
+  const [expandedSubmission, setExpandedSubmission] = useState<string | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+
   const isWalletAdmin = connected && address === ADMIN_WALLET;
   const isFullyAuthed = isWalletAdmin && firebaseUser !== null;
 
@@ -117,6 +130,39 @@ const Admin: React.FC = () => {
   const handleTwitterLogout = async () => {
     await signOutTwitter();
     setFirebaseUser(null);
+  };
+
+  // Real-time subscription for pending submissions
+  useEffect(() => {
+    if (!isFullyAuthed) return;
+    const unsub = subscribeToPendingSubmissions(setPendingSubmissions);
+    return unsub;
+  }, [isFullyAuthed]);
+
+  const handleApprove = async (id: string) => {
+    if (!address) return;
+    setReviewingId(id);
+    try {
+      await approveSubmission(id, address, reviewNotes[id]);
+      setExpandedSubmission(null);
+    } catch (err) {
+      console.error('[Admin] Approve failed:', err);
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!address) return;
+    setReviewingId(id);
+    try {
+      await rejectSubmission(id, address, reviewNotes[id]);
+      setExpandedSubmission(null);
+    } catch (err) {
+      console.error('[Admin] Reject failed:', err);
+    } finally {
+      setReviewingId(null);
+    }
   };
 
   // Load page statuses from Firestore
@@ -338,6 +384,12 @@ const Admin: React.FC = () => {
           value={airdropCount.toString()}
           accent="text-cyan-400"
         />
+        <StatCard
+          icon={<Rocket className="w-5 h-5" />}
+          label="Pending Drops"
+          value={pendingSubmissions.length.toString()}
+          accent={pendingSubmissions.length > 0 ? 'text-amber-400' : 'text-gray-500'}
+        />
       </div>
 
       {/* Treasury Section */}
@@ -395,6 +447,140 @@ const Admin: React.FC = () => {
             description="Junk Pusher & Slots treasury accumulation"
           />
         </div>
+      </div>
+
+      {/* Launchpad Submissions */}
+      <div className="mb-10">
+        <SectionHeader icon={<Rocket className="w-4 h-4" />} title="Launchpad Submissions" />
+        {pendingSubmissions.length === 0 ? (
+          <div className="border border-white/10 bg-black/50 p-8 text-center">
+            <Clock className="w-6 h-6 text-gray-600 mx-auto mb-2" />
+            <p className="text-gray-500 text-xs font-mono uppercase tracking-wider">No pending submissions</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingSubmissions.map(sub => {
+              const isExpanded = expandedSubmission === sub.id;
+              const isReviewing = reviewingId === sub.id;
+              return (
+                <div key={sub.id} className="border border-amber-500/30 bg-amber-500/5">
+                  {/* Row */}
+                  <button
+                    onClick={() => setExpandedSubmission(isExpanded ? null : sub.id)}
+                    className="w-full flex items-center gap-4 p-4 text-left hover:bg-white/5 transition-colors"
+                  >
+                    {sub.logoUrl ? (
+                      <img src={sub.logoUrl} alt={sub.name} className="w-10 h-10 rounded-full object-cover border border-white/10 flex-shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                        <Rocket className="w-4 h-4 text-amber-400" />
+                      </div>
+                    )}
+                    <div className="flex-grow min-w-0">
+                      <p className="text-white font-bold text-sm truncate">{sub.name} <span className="text-magic-green font-mono text-xs">{sub.symbol}</span></p>
+                      <p className="text-gray-500 text-[10px] font-mono truncate">{sub.submittedBy}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider hidden sm:block">
+                        {new Date(sub.submittedAt).toLocaleDateString()}
+                      </span>
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                    </div>
+                  </button>
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div className="border-t border-white/10 p-4 space-y-4">
+                      {/* Banner */}
+                      {sub.bannerUrl && (
+                        <img src={sub.bannerUrl} alt="banner" className="w-full h-32 object-cover" />
+                      )}
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+                        <Field label="Supply" value={sub.supply?.toLocaleString() ?? '—'} />
+                        <Field label="Mint Price" value={sub.mintPrice ? `${sub.mintPrice} GOR` : 'TBA'} />
+                        <Field label="Royalty" value={sub.royaltyPercentage ? `${sub.royaltyPercentage}%` : '—'} />
+                        <Field label="Mint Date" value={sub.mintDate || 'TBA'} />
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Description</p>
+                        <p className="text-gray-300 text-xs font-mono leading-relaxed">{sub.description}</p>
+                      </div>
+
+                      {sub.utility && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Utility</p>
+                          <p className="text-gray-300 text-xs font-mono leading-relaxed">{sub.utility}</p>
+                        </div>
+                      )}
+
+                      {sub.roadmap && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Roadmap</p>
+                          <p className="text-gray-300 text-xs font-mono leading-relaxed">{sub.roadmap}</p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono">
+                        {sub.website && <Field label="Website" value={sub.website} link={sub.website} />}
+                        {sub.twitter && <Field label="Twitter" value={sub.twitter} />}
+                        {sub.discord && <Field label="Discord" value={sub.discord} />}
+                        {sub.telegram && <Field label="Telegram" value={sub.telegram} />}
+                        {sub.contactEmail && <Field label="Contact" value={sub.contactEmail} />}
+                        {sub.contractAddress && <Field label="Contract" value={`${sub.contractAddress.slice(0, 8)}…`} link={`https://explorer.gorbagana.wtf/address/${sub.contractAddress}`} />}
+                      </div>
+
+                      {/* Sample images */}
+                      {sub.sampleImages?.length > 0 && (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Sample NFTs</p>
+                          <div className="flex gap-2 flex-wrap">
+                            {sub.sampleImages.map((url, i) => (
+                              <img key={i} src={url} alt={`sample-${i}`} className="w-16 h-16 object-cover border border-white/10" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Review notes */}
+                      <div>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Review Notes (optional)</p>
+                        <textarea
+                          rows={2}
+                          value={reviewNotes[sub.id] ?? ''}
+                          onChange={e => setReviewNotes(n => ({ ...n, [sub.id]: e.target.value }))}
+                          placeholder="Add notes for the submitter..."
+                          className="w-full bg-black border border-white/20 text-white text-xs font-mono px-3 py-2 resize-none focus:outline-none focus:border-magic-green/50 placeholder-gray-700"
+                        />
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleApprove(sub.id)}
+                          disabled={isReviewing}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-magic-green text-black font-bold text-xs uppercase tracking-wider hover:bg-[#cbf30c] transition-all disabled:opacity-50"
+                        >
+                          {isReviewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(sub.id)}
+                          disabled={isReviewing}
+                          className="flex items-center gap-2 px-5 py-2.5 border border-red-500/50 text-red-400 font-bold text-xs uppercase tracking-wider hover:bg-red-500/10 transition-all disabled:opacity-50"
+                        >
+                          {isReviewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Pages Control */}
@@ -488,6 +674,21 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
     <div className="flex items-center gap-2 mb-4">
       <span className="text-magic-green">{icon}</span>
       <h2 className="text-sm font-black text-white uppercase tracking-widest">{title}</h2>
+    </div>
+  );
+}
+
+function Field({ label, value, link }: { label: string; value: string; link?: string }) {
+  return (
+    <div>
+      <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-0.5">{label}</p>
+      {link ? (
+        <a href={link} target="_blank" rel="noopener noreferrer" className="text-magic-green hover:underline break-all flex items-center gap-1">
+          {value} <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+        </a>
+      ) : (
+        <p className="text-gray-300 break-all">{value}</p>
+      )}
     </div>
   );
 }

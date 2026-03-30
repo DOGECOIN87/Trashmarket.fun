@@ -22,6 +22,7 @@ import Raffle from './pages/Raffle';
 import GorbagioMigration from './pages/GorbagioMigration';
 import Airdrop from './pages/Airdrop';
 import Admin from './pages/Admin';
+import Launchpad from './pages/Launchpad';
 import Notifications from './components/Notifications';
 
 const App: React.FC = () => {
@@ -65,6 +66,7 @@ const App: React.FC = () => {
                     <Route path="/migrate" element={<GorbagioMigration />} />
                     <Route path="/airdrop" element={<Airdrop />} />
                     <Route path="/admin" element={<Admin />} />
+                    <Route path="/launchpad" element={<Launchpad />} />
                   </Routes>
                 </main>
                 <ActivityTicker />
