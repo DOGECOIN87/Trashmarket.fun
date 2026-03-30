@@ -33,6 +33,10 @@ import {
 
 type Tab = 'browse' | 'my-nfts' | 'my-listings';
 type TxStatus = 'idle' | 'signing' | 'confirming' | 'success' | 'error';
+type CollectionFilter = 'all' | 'gorbagio' | 'gorigins';
+
+const GORBAGIO_PREVIEW = 'https://plum-far-bobcat-940.mypinata.cloud/ipfs/bafybeihkdrontwttwgcaqlpifsav2pvyzyi2m4otl2jeklp4dbdzasdcu4/42.png';
+const GORIGINS_PREVIEW = 'https://gateway.pinata.cloud/ipfs/QmUskKfXWNg7m1vNjjtzHMk5c6XLRnLTkiZ1vKEVkrAyoA';
 
 const GorbagioMarket: React.FC = () => {
   useEffect(() => audioManager.playOnInteraction('page_gorbagio'), []);
@@ -43,6 +47,7 @@ const GorbagioMarket: React.FC = () => {
   // Tab & search
   const [activeTab, setActiveTab] = useState<Tab>('browse');
   const [searchTerm, setSearchTerm] = useState('');
+  const [collectionFilter, setCollectionFilter] = useState<CollectionFilter>('all');
 
   // Data
   const [listings, setListings] = useState<NftListingInfo[]>([]);
@@ -118,16 +123,30 @@ const GorbagioMarket: React.FC = () => {
   // ─── My Listings (filtered from all listings) ───────────────────────
 
   const myListings = publicKey
-    ? listings.filter((l) => l.seller === publicKey.toBase58())
+    ? listings.filter((l) => {
+        if (l.seller !== publicKey.toBase58()) return false;
+        const name = (l.name || '').toLowerCase();
+        if (collectionFilter === 'gorbagio' && !name.includes('gorbagio')) return false;
+        if (collectionFilter === 'gorigins' && !name.includes('gorigin')) return false;
+        return true;
+      })
     : [];
 
   // ─── Filtered Listings ──────────────────────────────────────────────
 
-  const filteredListings = listings.filter(
-    (l) =>
-      (l.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.nftMint.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredListings = listings.filter((l) => {
+    const name = (l.name || '').toLowerCase();
+    if (collectionFilter === 'gorbagio' && !name.includes('gorbagio')) return false;
+    if (collectionFilter === 'gorigins' && !name.includes('gorigin')) return false;
+    return name.includes(searchTerm.toLowerCase()) || l.nftMint.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const filteredWalletNfts = walletNfts.filter((n) => {
+    const name = n.name.toLowerCase();
+    if (collectionFilter === 'gorbagio' && !name.includes('gorbagio')) return false;
+    if (collectionFilter === 'gorigins' && !name.includes('gorigin')) return false;
+    return true;
+  });
 
   // ─── Transaction Helpers ────────────────────────────────────────────
 
@@ -144,12 +163,18 @@ const GorbagioMarket: React.FC = () => {
 
     try {
       const tx = await buildFn();
+
+      // Refresh blockhash immediately before signing so it's fresh when sent
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      tx.recentBlockhash = blockhash;
+      tx.lastValidBlockHeight = lastValidBlockHeight;
+
       const signed = await signTransaction(tx);
       setTxStatus('confirming');
 
       const sig = await connection.sendRawTransaction(signed.serialize(), {
-        skipPreflight: false,
-        maxRetries: 3,
+        skipPreflight: true,
+        maxRetries: 5,
       });
 
       const { confirmTransaction } = await import('../utils/confirmTx');
@@ -196,14 +221,14 @@ const GorbagioMarket: React.FC = () => {
     const price = parseFloat(listPrice);
     if (isNaN(price) || price <= 0) return;
     executeTx(() =>
-      buildListNftTransaction(publicKey, new PublicKey(listingNft.mint), price, connection),
+      buildListNftTransaction(publicKey, new PublicKey(listingNft.mint), price, connection, listingNft.name),
     );
   };
 
   const handleCancel = (listing: NftListingInfo) => {
     if (!publicKey) return;
     executeTx(() =>
-      buildCancelListingTransaction(publicKey, new PublicKey(listing.nftMint), connection),
+      buildCancelListingTransaction(publicKey, new PublicKey(listing.nftMint), connection, listing.programId),
     );
   };
 
@@ -223,6 +248,7 @@ const GorbagioMarket: React.FC = () => {
         new PublicKey(updatePriceTarget.nftMint),
         price,
         connection,
+        updatePriceTarget.programId,
       ),
     );
   };
@@ -288,8 +314,8 @@ const GorbagioMarket: React.FC = () => {
       if (ipfsMatch) {
         const cid = ipfsMatch[1];
         const gateways = [
-          `https://plum-far-bobcat-940.mypinata.cloud/ipfs/${cid}`,
-          `https://cloudflare-ipfs.com/ipfs/${cid}`,
+          `https://gateway.pinata.cloud/ipfs/${cid}`,
+          `https://ipfs.io/ipfs/${cid}`,
           `https://4everland.io/ipfs/${cid}`,
         ];
         const next = gateways.find((g) => !triedRef.current.has(g) && g !== imgSrc);
@@ -320,28 +346,120 @@ const GorbagioMarket: React.FC = () => {
     >
       <div className="max-w-[1600px] mx-auto">
         {/* Header */}
-        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold font-heading">GORBAGIO NFT MARKET</h1>
-            <p className="text-gray-400 text-sm">Trade Gorbagio &amp; Gorigin NFTs on Gorbagana</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search NFTs..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-gray-900 border border-magic-green/30 text-white placeholder-gray-500 focus:outline-none focus:border-magic-green"
-              />
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+            <div>
+              <h1 className="text-2xl font-bold font-heading">NFT MARKET</h1>
+              <p className="text-gray-400 text-sm">Trade Gorbagio &amp; Gorigin NFTs on Gorbagana</p>
             </div>
+            <div className="flex items-center gap-2">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search NFTs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-gray-900 border border-magic-green/30 text-white placeholder-gray-500 focus:outline-none focus:border-magic-green"
+                />
+              </div>
+              <button
+                onClick={() => loadListings()}
+                className="p-2 border border-magic-green/30 hover:bg-magic-green/10 transition-colors"
+                title="Refresh"
+              >
+                <RefreshCw className="w-4 h-4 text-magic-green" />
+              </button>
+            </div>
+          </div>
+
+          {/* Collection Picker */}
+          <div className="grid grid-cols-3 gap-3">
+            {/* All */}
             <button
-              onClick={() => loadListings()}
-              className="p-2 border border-magic-green/30 hover:bg-magic-green/10 transition-colors"
-              title="Refresh"
+              onClick={() => setCollectionFilter('all')}
+              className={`relative overflow-hidden border transition-all duration-200 group ${
+                collectionFilter === 'all'
+                  ? 'border-magic-green bg-magic-green/10'
+                  : 'border-white/10 bg-gray-900/50 hover:border-white/30'
+              }`}
             >
-              <RefreshCw className="w-4 h-4 text-magic-green" />
+              <div className="flex items-center justify-between px-4 py-3 sm:py-4">
+                <div className="text-left">
+                  <div className={`text-xs font-mono uppercase tracking-widest mb-0.5 ${collectionFilter === 'all' ? 'text-magic-green' : 'text-gray-500'}`}>
+                    Filter
+                  </div>
+                  <div className="text-base sm:text-lg font-black uppercase tracking-tight">All Collections</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{listings.length} listings</div>
+                </div>
+                <div className="flex -space-x-3 ml-2">
+                  <img src={GORBAGIO_PREVIEW} alt="Gorbagio" className="w-10 h-10 sm:w-12 sm:h-12 object-cover border-2 border-black rounded-full" />
+                  <img src={GORIGINS_PREVIEW} alt="Gorigins" className="w-10 h-10 sm:w-12 sm:h-12 object-cover border-2 border-black rounded-full" />
+                </div>
+              </div>
+              {collectionFilter === 'all' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-magic-green" />
+              )}
+            </button>
+
+            {/* Gorbagio */}
+            <button
+              onClick={() => setCollectionFilter(collectionFilter === 'gorbagio' ? 'all' : 'gorbagio')}
+              className={`relative overflow-hidden border transition-all duration-200 group ${
+                collectionFilter === 'gorbagio'
+                  ? 'border-magic-green bg-magic-green/10'
+                  : 'border-white/10 hover:border-white/30'
+              }`}
+            >
+              <div
+                className="absolute inset-0 bg-cover bg-center opacity-10 group-hover:opacity-15 transition-opacity"
+                style={{ backgroundImage: `url(${GORBAGIO_PREVIEW})` }}
+              />
+              <div className="relative flex items-center justify-between px-4 py-3 sm:py-4">
+                <div className="text-left">
+                  <div className={`text-xs font-mono uppercase tracking-widest mb-0.5 ${collectionFilter === 'gorbagio' ? 'text-magic-green' : 'text-gray-500'}`}>
+                    Collection
+                  </div>
+                  <div className="text-base sm:text-lg font-black uppercase tracking-tight">Gorbagio</div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {listings.filter(l => (l.name || '').toLowerCase().includes('gorbagio')).length} listed
+                  </div>
+                </div>
+                <img src={GORBAGIO_PREVIEW} alt="Gorbagio" className="w-12 h-12 sm:w-16 sm:h-16 object-cover border border-white/10 rounded" />
+              </div>
+              {collectionFilter === 'gorbagio' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-magic-green" />
+              )}
+            </button>
+
+            {/* Gorigins */}
+            <button
+              onClick={() => setCollectionFilter(collectionFilter === 'gorigins' ? 'all' : 'gorigins')}
+              className={`relative overflow-hidden border transition-all duration-200 group ${
+                collectionFilter === 'gorigins'
+                  ? 'border-magic-green bg-magic-green/10'
+                  : 'border-white/10 hover:border-white/30'
+              }`}
+            >
+              <div
+                className="absolute inset-0 bg-cover bg-center opacity-10 group-hover:opacity-15 transition-opacity"
+                style={{ backgroundImage: `url(${GORIGINS_PREVIEW})` }}
+              />
+              <div className="relative flex items-center justify-between px-4 py-3 sm:py-4">
+                <div className="text-left">
+                  <div className={`text-xs font-mono uppercase tracking-widest mb-0.5 ${collectionFilter === 'gorigins' ? 'text-magic-green' : 'text-gray-500'}`}>
+                    Collection
+                  </div>
+                  <div className="text-base sm:text-lg font-black uppercase tracking-tight">Gorigins</div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {listings.filter(l => (l.name || '').toLowerCase().includes('gorigin')).length} listed
+                  </div>
+                </div>
+                <img src={GORIGINS_PREVIEW} alt="Gorigins" className="w-12 h-12 sm:w-16 sm:h-16 object-cover border border-white/10 rounded" />
+              </div>
+              {collectionFilter === 'gorigins' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-magic-green" />
+              )}
             </button>
           </div>
         </div>
@@ -446,11 +564,11 @@ const GorbagioMarket: React.FC = () => {
             ) : (
               <>
                 <p className="text-gray-400 text-sm mb-3">
-                  {walletNfts.length} unlisted NFT{walletNfts.length !== 1 ? 's' : ''}
+                  {filteredWalletNfts.length} unlisted NFT{filteredWalletNfts.length !== 1 ? 's' : ''}
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {walletNfts.length > 0 ? (
-                    walletNfts.map((nft) => (
+                  {filteredWalletNfts.length > 0 ? (
+                    filteredWalletNfts.map((nft) => (
                       <div
                         key={nft.mint}
                         className="bg-gray-900 border border-white/10 overflow-hidden"

@@ -62,20 +62,18 @@ pub struct ListNft<'info> {
 pub fn handler(ctx: Context<ListNft>, price: u64) -> Result<()> {
     require!(price > 0, MarketplaceError::InvalidPrice);
 
-    // --- Collection verification ---
-    // Deserialize Metaplex metadata and verify collection key matches
+    // --- Metadata verification ---
+    // Deserialize Metaplex metadata and verify the account is valid
     let metadata_info = &ctx.accounts.metadata_account;
     let metadata = Metadata::safe_deserialize(&metadata_info.data.borrow())
         .map_err(|_| MarketplaceError::InvalidMetadata)?;
 
+    // Require the NFT belongs to a verified collection (any verified collection)
     let collection = metadata
         .collection
         .ok_or(MarketplaceError::InvalidCollection)?;
 
-    require!(
-        collection.key == ctx.accounts.marketplace_config.collection_mint,
-        MarketplaceError::InvalidCollection
-    );
+    require!(collection.verified, MarketplaceError::InvalidCollection);
 
     // Verify metadata account is derived from the correct mint
     let (expected_metadata, _) = Pubkey::find_program_address(

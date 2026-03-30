@@ -28,10 +28,24 @@ const GOR_DIVISOR = 1_000_000_000;
 
 // ─── Program Constants ──────────────────────────────────────────────────────
 
-const MARKETPLACE_PROGRAM_ID = new PublicKey('DohoM3SvQzfcHVWH1r6BVTWdcNgYQxsxsTqxeZWBmL2E');
+/** Gorbagio marketplace program (deployed) */
+const GORBAGIO_PROGRAM_ID = new PublicKey('DohoM3SvQzfcHVWH1r6BVTWdcNgYQxsxsTqxeZWBmL2E');
+
+/**
+ * Gorigins marketplace program — deploy the same program binary with a new
+ * program ID and call initialize() with the Gorigins collection mint.
+ * Replace this placeholder once deployed.
+ */
+const GORIGINS_PROGRAM_ID: PublicKey | null = null;
 
 /** Gorbagio collection mint on Gorbagana */
 const GORBAGIO_COLLECTION_MINT = new PublicKey('FBJ47AgQSzSWVQVzsspoUzcFVeEf8a6xihZKZgmRuno1');
+
+/**
+ * Gorigins collection mint — set once known.
+ * Find it by reading the `collection.key` field from any Gorigin's on-chain metadata.
+ */
+export const GORIGINS_COLLECTION_MINT: PublicKey | null = null;
 
 /** Treasury wallet for marketplace fees */
 const TREASURY = new PublicKey('77hDeRmTFa7WVPqTvDtD9qg9D73DdqU3WeaHTxUnQ8wb');
@@ -74,6 +88,8 @@ export interface NftListingInfo {
   name?: string;
   /** NFT image URL */
   image?: string;
+  /** Which marketplace program owns this listing */
+  programId: string;
 }
 
 export interface WalletNft {
@@ -83,33 +99,51 @@ export interface WalletNft {
   owner: string;
 }
 
+// ─── Program Routing ────────────────────────────────────────────────────────
+
+/**
+ * Resolve which deployed marketplace program to use for a given NFT.
+ * Returns null for Gorigins until GORIGINS_PROGRAM_ID is set.
+ */
+export function resolveMarketplaceProgramId(nftName: string): PublicKey | null {
+  if (nftName.toLowerCase().includes('gorigin')) {
+    return GORIGINS_PROGRAM_ID;
+  }
+  return GORBAGIO_PROGRAM_ID;
+}
+
+/** Returns true if the Gorigins marketplace is ready for use. */
+export function isGoriginsMarketplaceDeployed(): boolean {
+  return GORIGINS_PROGRAM_ID !== null;
+}
+
 // ─── PDA Derivation ─────────────────────────────────────────────────────────
 
-export function getMarketplaceConfigPDA(): [PublicKey, number] {
+export function getMarketplaceConfigPDA(programId: PublicKey = GORBAGIO_PROGRAM_ID): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('marketplace_config')],
-    MARKETPLACE_PROGRAM_ID,
+    programId,
   );
 }
 
-export function getListingPDA(nftMint: PublicKey): [PublicKey, number] {
+export function getListingPDA(nftMint: PublicKey, programId: PublicKey = GORBAGIO_PROGRAM_ID): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('listing'), nftMint.toBuffer()],
-    MARKETPLACE_PROGRAM_ID,
+    programId,
   );
 }
 
-export function getEscrowNftPDA(nftMint: PublicKey): [PublicKey, number] {
+export function getEscrowNftPDA(nftMint: PublicKey, programId: PublicKey = GORBAGIO_PROGRAM_ID): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('escrow_nft'), nftMint.toBuffer()],
-    MARKETPLACE_PROGRAM_ID,
+    programId,
   );
 }
 
-export function getEscrowAuthorityPDA(): [PublicKey, number] {
+export function getEscrowAuthorityPDA(programId: PublicKey = GORBAGIO_PROGRAM_ID): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('marketplace_authority')],
-    MARKETPLACE_PROGRAM_ID,
+    programId,
   );
 }
 
@@ -192,43 +226,66 @@ export function calculateMarketplaceFees(priceGor: number) {
 // ─── Read: Fetch Listings (On-Chain) ────────────────────────────────────────
 
 /**
- * Fetch all active listings from on-chain program accounts.
+ * Fetch all active listings from a single marketplace program.
  * Layout: disc(8) + seller(32) + nft_mint(32) + price(8) + created_at(8) + bump(1) = 89
+ */
+async function fetchListingsFromProgram(
+  programId: PublicKey,
+  c: Connection,
+  listingDiscriminator: Uint8Array,
+): Promise<NftListingInfo[]> {
+  const accounts = await c.getProgramAccounts(programId, {
+    filters: [{ dataSize: 8 + 81 }], // 89 bytes
+  });
+
+  const listings: NftListingInfo[] = [];
+
+  for (const { pubkey, account } of accounts) {
+    const data = new Uint8Array(account.data);
+    const disc = data.slice(0, 8);
+
+    if (!disc.every((b, i) => b === listingDiscriminator[i])) continue;
+
+    const seller = new PublicKey(data.slice(8, 40));
+    const nftMint = new PublicKey(data.slice(40, 72));
+    const priceLamports = decodeU64(data.slice(72, 80));
+    const createdAt = decodeI64(data.slice(80, 88));
+
+    listings.push({
+      listingAddress: pubkey.toBase58(),
+      seller: seller.toBase58(),
+      nftMint: nftMint.toBase58(),
+      price: lamportsToGor(priceLamports),
+      priceLamports,
+      listedAt: Number(createdAt) * 1000,
+      programId: programId.toBase58(),
+    });
+  }
+
+  return listings;
+}
+
+/**
+ * Fetch all active listings from all deployed marketplace programs.
+ * Queries Gorbagio program always; Gorigins program once GORIGINS_PROGRAM_ID is set.
  */
 export async function fetchAllListings(conn?: Connection): Promise<NftListingInfo[]> {
   const c = conn || getConnection();
   try {
     const listingDiscriminator = await computeAccountDiscriminator('Listing');
 
-    const accounts = await c.getProgramAccounts(MARKETPLACE_PROGRAM_ID, {
-      filters: [{ dataSize: 8 + 81 }], // 89 bytes
-    });
+    const fetches: Promise<NftListingInfo[]>[] = [
+      fetchListingsFromProgram(GORBAGIO_PROGRAM_ID, c, listingDiscriminator),
+    ];
 
-    const listings: NftListingInfo[] = [];
-
-    for (const { pubkey, account } of accounts) {
-      const data = new Uint8Array(account.data);
-      const disc = data.slice(0, 8);
-
-      // Verify discriminator
-      if (!disc.every((b, i) => b === listingDiscriminator[i])) continue;
-
-      const seller = new PublicKey(data.slice(8, 40));
-      const nftMint = new PublicKey(data.slice(40, 72));
-      const priceLamports = decodeU64(data.slice(72, 80));
-      const createdAt = decodeI64(data.slice(80, 88));
-
-      listings.push({
-        listingAddress: pubkey.toBase58(),
-        seller: seller.toBase58(),
-        nftMint: nftMint.toBase58(),
-        price: lamportsToGor(priceLamports),
-        priceLamports,
-        listedAt: Number(createdAt) * 1000,
-      });
+    if (GORIGINS_PROGRAM_ID) {
+      fetches.push(fetchListingsFromProgram(GORIGINS_PROGRAM_ID, c, listingDiscriminator));
     }
 
-    return listings.sort((a, b) => a.price - b.price);
+    const results = await Promise.all(fetches);
+    const all = results.flat();
+
+    return all.sort((a, b) => a.price - b.price);
   } catch (error) {
     console.error('[NFT Marketplace] Error fetching listings:', error);
     return [];
@@ -313,7 +370,7 @@ export async function loadGoriginImageMap(): Promise<void> {
 
   goriginMapLoading = (async () => {
     try {
-      const resp = await fetch('data/gorigin-images.json');
+      const resp = await fetch('/data/gorigin-images.json');
       if (resp.ok) {
         goriginImageMap = await resp.json();
       } else {
@@ -345,7 +402,7 @@ export function resolveNftImageDirect(name: string, symbol: string): string {
   if (symbol === 'GORI' && goriginImageMap) {
     const cid = goriginImageMap[num];
     if (cid) {
-      return `https://plum-far-bobcat-940.mypinata.cloud/ipfs/${cid}`;
+      return `https://gateway.pinata.cloud/ipfs/${cid}`;
     }
   }
 
@@ -474,21 +531,24 @@ export async function fetchNftMetadata(
 // ─── Write: Transaction Builders ────────────────────────────────────────────
 
 /**
- * Build a transaction to list an NFT on the marketplace.
+ * Build a transaction to list an NFT on the correct marketplace program.
+ * nftName is used to route to the Gorbagio or Gorigins program.
  */
 export async function buildListNftTransaction(
   seller: PublicKey,
   nftMint: PublicKey,
   priceGor: number,
   conn?: Connection,
+  nftName = '',
 ): Promise<Transaction> {
   const c = conn || getConnection();
+  const programId = resolveMarketplaceProgramId(nftName) ?? GORBAGIO_PROGRAM_ID;
   const priceLamports = gorToLamports(priceGor);
 
-  const [marketplaceConfigPDA] = getMarketplaceConfigPDA();
-  const [listingPDA] = getListingPDA(nftMint);
-  const [escrowNftPDA] = getEscrowNftPDA(nftMint);
-  const [escrowAuthority] = getEscrowAuthorityPDA();
+  const [marketplaceConfigPDA] = getMarketplaceConfigPDA(programId);
+  const [listingPDA] = getListingPDA(nftMint, programId);
+  const [escrowNftPDA] = getEscrowNftPDA(nftMint, programId);
+  const [escrowAuthority] = getEscrowAuthorityPDA(programId);
   const metadataPDA = getMetadataPDA(nftMint);
   const sellerAta = await getAssociatedTokenAddress(nftMint, seller);
 
@@ -496,7 +556,7 @@ export async function buildListNftTransaction(
   const data = new Uint8Array([...disc, ...encodeU64(priceLamports)]);
 
   const instruction = new TransactionInstruction({
-    programId: MARKETPLACE_PROGRAM_ID,
+    programId,
     keys: [
       { pubkey: seller, isSigner: true, isWritable: true },
       { pubkey: marketplaceConfigPDA, isSigner: false, isWritable: false },
@@ -524,6 +584,7 @@ export async function buildListNftTransaction(
 
 /**
  * Build a transaction to buy a listed NFT.
+ * Uses listing.programId to target the correct marketplace program.
  */
 export async function buildBuyNftTransaction(
   buyer: PublicKey,
@@ -531,13 +592,14 @@ export async function buildBuyNftTransaction(
   conn?: Connection,
 ): Promise<Transaction> {
   const c = conn || getConnection();
+  const programId = new PublicKey(listing.programId);
   const nftMint = new PublicKey(listing.nftMint);
   const sellerPubkey = new PublicKey(listing.seller);
 
-  const [marketplaceConfigPDA] = getMarketplaceConfigPDA();
-  const [listingPDA] = getListingPDA(nftMint);
-  const [escrowNftPDA] = getEscrowNftPDA(nftMint);
-  const [escrowAuthority] = getEscrowAuthorityPDA();
+  const [marketplaceConfigPDA] = getMarketplaceConfigPDA(programId);
+  const [listingPDA] = getListingPDA(nftMint, programId);
+  const [escrowNftPDA] = getEscrowNftPDA(nftMint, programId);
+  const [escrowAuthority] = getEscrowAuthorityPDA(programId);
   const buyerAta = await getAssociatedTokenAddress(nftMint, buyer);
 
   const disc = await computeDiscriminator('buy_nft');
@@ -553,7 +615,7 @@ export async function buildBuyNftTransaction(
   }
 
   const instruction = new TransactionInstruction({
-    programId: MARKETPLACE_PROGRAM_ID,
+    programId,
     keys: [
       { pubkey: buyer, isSigner: true, isWritable: true },
       { pubkey: sellerPubkey, isSigner: false, isWritable: true },
@@ -583,23 +645,26 @@ export async function buildBuyNftTransaction(
 
 /**
  * Build a transaction to cancel a listing and return NFT to seller.
+ * Uses listing.programId to target the correct marketplace program.
  */
 export async function buildCancelListingTransaction(
   seller: PublicKey,
   nftMint: PublicKey,
   conn?: Connection,
+  listingProgramId?: string,
 ): Promise<Transaction> {
   const c = conn || getConnection();
+  const programId = listingProgramId ? new PublicKey(listingProgramId) : GORBAGIO_PROGRAM_ID;
 
-  const [listingPDA] = getListingPDA(nftMint);
-  const [escrowNftPDA] = getEscrowNftPDA(nftMint);
-  const [escrowAuthority] = getEscrowAuthorityPDA();
+  const [listingPDA] = getListingPDA(nftMint, programId);
+  const [escrowNftPDA] = getEscrowNftPDA(nftMint, programId);
+  const [escrowAuthority] = getEscrowAuthorityPDA(programId);
   const sellerAta = await getAssociatedTokenAddress(nftMint, seller);
 
   const disc = await computeDiscriminator('cancel_listing');
 
   const instruction = new TransactionInstruction({
-    programId: MARKETPLACE_PROGRAM_ID,
+    programId,
     keys: [
       { pubkey: seller, isSigner: true, isWritable: true },
       { pubkey: listingPDA, isSigner: false, isWritable: true },
@@ -623,23 +688,26 @@ export async function buildCancelListingTransaction(
 
 /**
  * Build a transaction to update listing price.
+ * Uses listing.programId to target the correct marketplace program.
  */
 export async function buildUpdatePriceTransaction(
   seller: PublicKey,
   nftMint: PublicKey,
   newPriceGor: number,
   conn?: Connection,
+  listingProgramId?: string,
 ): Promise<Transaction> {
   const c = conn || getConnection();
+  const programId = listingProgramId ? new PublicKey(listingProgramId) : GORBAGIO_PROGRAM_ID;
   const newPriceLamports = gorToLamports(newPriceGor);
 
-  const [listingPDA] = getListingPDA(nftMint);
+  const [listingPDA] = getListingPDA(nftMint, programId);
 
   const disc = await computeDiscriminator('update_price');
   const data = new Uint8Array([...disc, ...encodeU64(newPriceLamports)]);
 
   const instruction = new TransactionInstruction({
-    programId: MARKETPLACE_PROGRAM_ID,
+    programId,
     keys: [
       { pubkey: seller, isSigner: true, isWritable: false },
       { pubkey: listingPDA, isSigner: false, isWritable: true },
