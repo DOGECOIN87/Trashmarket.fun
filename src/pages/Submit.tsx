@@ -4,6 +4,8 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useNetwork } from '../contexts/NetworkContext';
 import { submitCollection, getSubmissionCount } from '../services/submissionService';
 import { CollectionSubmission, SubmissionStatus } from '../types';
+import { signInAnonymously } from 'firebase/auth';
+import { auth } from '../firebase.config';
 import {
   ArrowLeft,
   ArrowRight,
@@ -95,11 +97,19 @@ const Submit: React.FC = () => {
   // Format public key for display
   const address = publicKey?.toBase58() || null;
 
+  // Ensure the user has an anonymous Firebase Auth session so Firestore rules pass
+  const ensureFirebaseAuth = useCallback(async () => {
+    if (!auth.currentUser) {
+      await signInAnonymously(auth);
+    }
+  }, []);
+
   // Load submission count when wallet connects
   const loadSubmissionCount = useCallback(async () => {
     if (address) {
       setIsLoading(true);
       try {
+        await ensureFirebaseAuth();
         const count = await getSubmissionCount(address);
         setSubmissionCount(count);
       } catch (error) {
@@ -108,7 +118,7 @@ const Submit: React.FC = () => {
         setIsLoading(false);
       }
     }
-  }, [address]);
+  }, [address, ensureFirebaseAuth]);
 
   useEffect(() => {
     if (connected && address) {
@@ -136,6 +146,7 @@ const Submit: React.FC = () => {
     setSubmitError(null);
 
     try {
+      await ensureFirebaseAuth();
       const submissionId = await submitCollection(
         {
           name: formData.name,

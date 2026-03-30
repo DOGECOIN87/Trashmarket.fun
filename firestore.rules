@@ -1,14 +1,8 @@
 rules_version = '2';
 
-// Trashmarket.fun Firestore Security Rules (SEC-04)
+// Trashmarket.fun Firestore Security Rules
 //
-// Deploy with: firebase deploy --only firestore:rules
-//
-// These rules lock down the database so that:
-//  - Only authenticated users can create submissions (max 3 per wallet)
-//  - Only admin wallets can approve/reject/delete submissions
-//  - Public can read approved submissions only
-//  - No one can modify core fields after creation
+// Deploy with: firebase deploy --only firestore:rules,firestore:indexes
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -16,72 +10,56 @@ service cloud.firestore {
     // ─── Collection Submissions ──────────────────────────────────────────
     match /submissions/{submissionId} {
 
-      // Anyone can read approved submissions (for the public gallery)
-      allow read: if resource == null
-                  || resource.data.status == 'approved'
+      // Public can read approved submissions.
+      // Submitters can read their own (any status).
+      // Admins can read everything.
+      allow read: if resource.data.status == 'approved'
                   || isSubmitter()
                   || isAdmin();
 
-      // Authenticated users can create submissions
-      // - Must include required fields
-      // - Status must start as 'pending'
-      // - submissionCount must be <= 3
+      // Any user (including anonymous Firebase auth) can create a submission.
+      // Status must start as 'pending' and submissionCount <= 3.
       allow create: if request.auth != null
                     && request.resource.data.status == 'pending'
                     && request.resource.data.submittedBy is string
                     && request.resource.data.name is string
                     && request.resource.data.submissionCount <= 3;
 
-      // Only admins can update (approve/reject)
-      // Submitters cannot modify their own submissions after creation
+      // Only admin can approve/reject (update status)
       allow update: if isAdmin();
 
-      // Only admins can delete
+      // Only admin can delete
       allow delete: if isAdmin();
     }
 
     // ─── Helper functions ────────────────────────────────────────────────
 
-    // Check if the requesting user is the original submitter
     function isSubmitter() {
       return request.auth != null
              && resource.data.submittedBy == request.auth.token.wallet;
     }
 
-    // Check if the requesting user is an admin
-    // Admin wallets are stored in a config document
+    // Admin identified by their Firebase Twitter Auth UID
     function isAdmin() {
       return request.auth != null
-             && exists(/databases/$(database)/documents/config/admins)
-             && request.auth.token.wallet in get(/databases/$(database)/documents/config/admins).data.wallets;
-    }
-
-    // ─── Config collection (admin-only) ──────────────────────────────────
-    match /config/{docId} {
-      allow read: if isAdmin();
-      allow write: if false; // Only modifiable via Firebase console or backend
+             && request.auth.uid == 'CxRiZEpdmahmAFId6aLEYMHt7uJ3';
     }
 
     // ─── Site config (admin dashboard controls) ─────────────────────────
     match /site_config/{docId} {
       allow read: if true;
-      allow write: if request.auth != null
-                   && request.auth.uid == 'CxRiZEpdmahmAFId6aLEYMHt7uJ3';
+      allow write: if isAdmin();
     }
 
-    // ─── Gorbagio NFT Marketplace Listings ────────────────────────────────
+    // ─── Gorbagio NFT Marketplace Listings ──────────────────────────────
     match /gorbagio_listings/{mintAddress} {
-
-      // Anyone can read active listings
       allow read: if true;
 
-      // Authenticated users can create listings (must be the seller)
       allow create: if request.auth != null
                     && request.resource.data.seller is string
                     && request.resource.data.priceSol > 0
                     && request.resource.data.active == true;
 
-      // Only the original seller can update/delete their listing
       allow update: if request.auth != null
                     && resource.data.seller == request.auth.token.wallet;
 
@@ -91,12 +69,9 @@ service cloud.firestore {
 
     // ─── Airdrop Registrations ──────────────────────────────────────────
     match /airdrop_registrations/{twitterUid} {
-
-      // Users can only read their own registration
       allow read: if request.auth != null
                   && request.auth.uid == twitterUid;
 
-      // Authenticated users can create their own registration (one per Twitter account)
       allow create: if request.auth != null
                     && request.auth.uid == twitterUid
                     && request.resource.data.twitterUid == twitterUid
@@ -104,7 +79,6 @@ service cloud.firestore {
                     && request.resource.data.walletAddress.size() >= 32
                     && request.resource.data.walletAddress.size() <= 44;
 
-      // No updates or deletes — registration is permanent
       allow update, delete: if false;
     }
 
