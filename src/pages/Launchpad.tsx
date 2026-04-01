@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Rocket, Twitter, Globe, MessageCircle, Send, ArrowRight, Loader2, Inbox } from 'lucide-react';
+import { ExternalLink, Rocket, Twitter, Globe, MessageCircle, Send, ArrowRight, Loader2, Inbox, Zap } from 'lucide-react';
 import { getPendingSubmissions, getSubmissionsByWallet } from '../services/submissionService';
 import { CollectionSubmission, SubmissionStatus } from '../types';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
@@ -59,6 +59,33 @@ const Launchpad: React.FC = () => {
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
+      </div>
+
+      {/* Featured: Just Aliens */}
+      <div className="max-w-7xl mx-auto px-4 py-8 border-b border-white/10">
+        <p className="text-[10px] font-bold text-magic-green uppercase tracking-widest mb-4">Featured Drop</p>
+        <Link
+          to="/launchpad/just-aliens"
+          className="flex flex-col sm:flex-row items-start sm:items-center gap-5 border border-magic-green/30 bg-[#080808] p-5 hover:border-magic-green/60 hover:bg-[#0a0a0a] transition-all group"
+        >
+          <div className="w-16 h-16 bg-magic-green/10 border border-magic-green/20 flex items-center justify-center flex-shrink-0 text-3xl">
+            👽
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-white font-black text-lg">BRUH, IT'S JUST ALIENS</h3>
+              <span className="px-1.5 py-0.5 bg-gray-800 text-gray-400 text-[9px] font-black uppercase tracking-widest">COMING SOON</span>
+            </div>
+            <p className="text-gray-500 text-xs font-mono line-clamp-2">
+              10,000 unique aliens on Gorbagana. 200 GOR per mint. Dude relax.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-magic-green text-xs font-black uppercase tracking-wider group-hover:gap-3 transition-all flex-shrink-0">
+            <Zap className="w-3.5 h-3.5" />
+            View Drop
+            <ArrowRight className="w-3.5 h-3.5" />
+          </div>
+        </Link>
       </div>
 
       {/* Collections Grid */}

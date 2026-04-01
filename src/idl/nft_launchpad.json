@@ -1,0 +1,126 @@
+{
+  "address": "9CzjUboaFZtUhtkqVN2wgWEunDasdorwo6CJfYrJWngj",
+  "metadata": {
+    "name": "nft_launchpad",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "NFT Launchpad for BRUH IT'S JUST ALIENS collection on Gorbagana"
+  },
+  "instructions": [
+    {
+      "name": "initialize",
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
+      "accounts": [
+        { "name": "authority", "writable": true, "signer": true },
+        { "name": "config", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } },
+        { "name": "systemProgram", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "baseUri", "type": "string" },
+        { "name": "treasury", "type": "pubkey" },
+        { "name": "goLiveTimestamp", "type": "i64" }
+      ]
+    },
+    {
+      "name": "setLive",
+      "discriminator": [103, 63, 233, 59, 197, 174, 47, 171],
+      "accounts": [
+        { "name": "authority", "writable": true, "signer": true },
+        { "name": "config", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } }
+      ],
+      "args": [{ "name": "isLive", "type": "bool" }]
+    },
+    {
+      "name": "updateBaseUri",
+      "discriminator": [124, 52, 206, 52, 58, 207, 42, 158],
+      "accounts": [
+        { "name": "authority", "writable": true, "signer": true },
+        { "name": "config", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } }
+      ],
+      "args": [{ "name": "baseUri", "type": "string" }]
+    },
+    {
+      "name": "updatePrice",
+      "discriminator": [61, 34, 117, 155, 75, 34, 123, 208],
+      "accounts": [
+        { "name": "authority", "writable": true, "signer": true },
+        { "name": "config", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } }
+      ],
+      "args": [{ "name": "newPrice", "type": "u64" }]
+    },
+    {
+      "name": "updateGoLive",
+      "discriminator": [28, 162, 178, 97, 193, 17, 43, 136],
+      "accounts": [
+        { "name": "authority", "writable": true, "signer": true },
+        { "name": "config", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } }
+      ],
+      "args": [{ "name": "goLiveTimestamp", "type": "i64" }]
+    },
+    {
+      "name": "mintNft",
+      "discriminator": [211, 57, 6, 167, 15, 219, 35, 251],
+      "accounts": [
+        { "name": "minter", "writable": true, "signer": true },
+        { "name": "config", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } },
+        { "name": "treasury", "writable": true },
+        { "name": "nftMint", "writable": true, "signer": true },
+        { "name": "minterAta", "writable": true },
+        { "name": "metadata", "writable": true },
+        { "name": "masterEdition", "writable": true },
+        { "name": "tokenMetadataProgram", "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s" },
+        { "name": "tokenProgram", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "associatedTokenProgram", "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1qnq" },
+        { "name": "systemProgram", "address": "11111111111111111111111111111111" },
+        { "name": "rent", "address": "SysvarRent111111111111111111111111111111111" }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [183, 18, 70, 156, 148, 109, 161, 34],
+      "accounts": [
+        { "name": "authority", "writable": true, "signer": true },
+        { "name": "config", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } },
+        { "name": "treasury", "writable": true },
+        { "name": "systemProgram", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [{ "name": "amount", "type": "u64" }]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "LaunchpadConfig",
+      "discriminator": [205, 61, 113, 174, 159, 51, 248, 24]
+    }
+  ],
+  "events": [],
+  "errors": [
+    { "code": 6000, "name": "MintingNotLive", "msg": "Minting is not live yet" },
+    { "code": 6001, "name": "SoldOut", "msg": "Collection is sold out" },
+    { "code": 6002, "name": "Unauthorized", "msg": "Unauthorized — only the admin can perform this action" },
+    { "code": 6003, "name": "InvalidTreasury", "msg": "Invalid treasury account" },
+    { "code": 6004, "name": "Overflow", "msg": "Arithmetic overflow" },
+    { "code": 6005, "name": "UriTooLong", "msg": "URI too long (max 200 chars)" },
+    { "code": 6006, "name": "InvalidPrice", "msg": "Invalid price — must be greater than 0" }
+  ],
+  "types": [
+    {
+      "name": "LaunchpadConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "authority", "type": "pubkey" },
+          { "name": "treasury", "type": "pubkey" },
+          { "name": "baseUri", "type": "string" },
+          { "name": "itemsMinted", "type": "u64" },
+          { "name": "maxSupply", "type": "u64" },
+          { "name": "mintPrice", "type": "u64" },
+          { "name": "isLive", "type": "bool" },
+          { "name": "goLiveTimestamp", "type": "i64" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    }
+  ]
+}

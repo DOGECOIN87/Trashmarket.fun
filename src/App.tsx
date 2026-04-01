@@ -23,6 +23,7 @@ import GorbagioMigration from './pages/GorbagioMigration';
 import Airdrop from './pages/Airdrop';
 import Admin from './pages/Admin';
 import Launchpad from './pages/Launchpad';
+import JustAliensMint from './pages/JustAliensMint';
 import Notifications from './components/Notifications';
 
 const App: React.FC = () => {
@@ -67,6 +68,7 @@ const App: React.FC = () => {
                     <Route path="/airdrop" element={<Airdrop />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/launchpad" element={<Launchpad />} />
+                    <Route path="/launchpad/just-aliens" element={<JustAliensMint />} />
                   </Routes>
                 </main>
                 <ActivityTicker />

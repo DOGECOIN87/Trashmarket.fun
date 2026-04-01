@@ -4,6 +4,7 @@ members = [
     "programs/gorbagio-marketplace",
     "programs/goraffle",
     "programs/junkpusher",
+    "programs/nft-launchpad",
 ]
 resolver = "2"
 
