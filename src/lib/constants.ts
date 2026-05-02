@@ -21,8 +21,8 @@ export const DIMENSIONS = {
 
 
 export const COLORS = {
-  COIN: 0x111111, // Black — New base color
-  COIN_EMISSIVE: 0x00ff00, // Neon Green accent
+  COIN: 0xD4A574, // Cookie golden brown
+  COIN_EMISSIVE: 0x8B6F47, // Cookie edge brown
   FLOOR: 0x1a2a1a, // Dark green-tinted floor
   PUSHER: 0x4a5a4a, // Grey-green pusher
   CABINET: 0x1a3a2a, // Deep green cabinet walls

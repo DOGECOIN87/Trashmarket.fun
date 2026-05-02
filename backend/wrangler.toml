@@ -1,7 +1,7 @@
 name = "trashmarket-api"
 account_id = "edb092dd191771c72cc81aebc335ab63"
 main = "src/index.ts"
-compatibility_date = "2024-02-08"
+compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 # KV namespace for session tokens and rate limiting

@@ -571,6 +571,28 @@
   color: #000;
 }
 
+/* Bonus Round trigger button */
+.skill-bonus-trigger-btn {
+  background: linear-gradient(to bottom, #1a0a00, #0d0500) !important;
+  border-color: #ff6b35 !important;
+  color: #ff6b35 !important;
+  font-weight: 900;
+  letter-spacing: 1px;
+  animation: bonus-btn-glow 2s ease-in-out infinite alternate;
+}
+
+.skill-bonus-trigger-btn:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #ff6b35, #cc4a20) !important;
+  border-color: #ff6b35 !important;
+  color: #000 !important;
+  box-shadow: 0 0 20px rgba(255, 107, 53, 0.8), 0 4px 0 #000 !important;
+}
+
+@keyframes bonus-btn-glow {
+  from { box-shadow: 0 0 6px rgba(255, 107, 53, 0.4), 0 4px 0 #000; }
+  to   { box-shadow: 0 0 18px rgba(255, 107, 53, 0.8), 0 4px 0 #000; }
+}
+
 .skill-footer {
   display: flex;
   justify-content: space-between;
@@ -819,6 +841,17 @@
     border-width: 1px;
   }
 
+  /* Bigger symbols on mobile */
+  .skill-cell-symbol {
+    padding: 2%;
+  }
+
+  .skill-cell-symbol img {
+    width: 88%;
+    height: 88%;
+    object-fit: contain;
+  }
+
   .skill-level-bar {
     padding: 4px 12px;
   }
@@ -986,6 +1019,16 @@
     font-size: 10px;
   }
 
+  /* Bigger symbols on small phones */
+  .skill-cell-symbol {
+    padding: 1.5%;
+  }
+
+  .skill-cell-symbol img {
+    width: 90%;
+    height: 90%;
+  }
+
   .skill-status-label {
     font-size: 11px;
   }
@@ -999,4 +1042,91 @@
     font-size: 9px;
     padding: 3px 8px;
   }
+}
+
+/* ─── Jackpot Tier Bar (main game) ─────────────────────────────────────── */
+.skill-jackpot-bar {
+  display: flex;
+  align-items: stretch;
+  background: #060606;
+  border-bottom: 2px solid #222;
+  flex-shrink: 0;
+}
+
+.skill-jp-tier {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px 8px;
+  border-right: 1px solid #1a1a1a;
+  gap: 2px;
+  transition: background 0.3s;
+}
+.skill-jp-tier:last-child { border-right: none; }
+
+.skill-jp-grand {
+  flex: 1.8;
+  background: #090909;
+  border-left: 2px solid #222;
+  border-right: 2px solid #222;
+}
+
+.skill-jp-flashing {
+  animation: jp-flash 0.35s ease-in-out 5 alternate;
+  background: rgba(255,215,0,0.12) !important;
+}
+
+@keyframes jp-flash {
+  from { background: rgba(255,215,0,0.06); }
+  to   { background: rgba(255,215,0,0.22); box-shadow: inset 0 0 30px rgba(255,215,0,0.3); }
+}
+
+.skill-jp-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(7px, 0.9vw, 10px);
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+.skill-jp-grand .skill-jp-name { font-size: clamp(8px, 1vw, 11px); color: #666; }
+
+.skill-jp-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(12px, 1.6vw, 20px);
+  font-weight: 900;
+  text-shadow: 0 0 8px currentColor;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.skill-jp-grand .skill-jp-val {
+  font-size: clamp(18px, 3vw, 36px);
+}
+
+/* ─── Bonus Trigger Cell ───────────────────────────────────────────────── */
+.skill-grid-cell.skill-bonus-cell {
+  background: rgba(255,215,0,0.12) !important;
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 30px rgba(255,215,0,0.7) !important;
+  animation: bonus-cell-pulse 0.4s ease-in-out infinite alternate !important;
+}
+
+@keyframes bonus-cell-pulse {
+  from { box-shadow: 0 0 15px rgba(255,215,0,0.5); }
+  to   { box-shadow: 0 0 40px rgba(255,215,0,0.9), 0 0 80px rgba(255,215,0,0.4); }
+}
+
+.skill-bonus-symbol {
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
+  animation: bonus-symbol-spin 1.5s linear infinite;
+  filter: drop-shadow(0 0 10px #ffd700);
+}
+
+@keyframes bonus-symbol-spin {
+  from { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.1); }
+  to   { transform: rotate(360deg) scale(1); }
 }

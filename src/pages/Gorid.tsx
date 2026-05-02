@@ -297,14 +297,14 @@ const Gorid: React.FC = () => {
   }, [connected, address, publicKey, signTransaction, connection, listedDomainsMap]);
 
   // Styling
-  const btnPrimary = 'bg-magic-green text-black hover:bg-white hover:text-black';
-  const borderFocus = 'focus:border-magic-green';
+  const btnPrimary = 'bg-magic-blue text-black hover:bg-white hover:text-black';
+  const borderFocus = 'focus:border-magic-blue';
 
   return (
     <div className="min-h-screen">
       {/* Success Toast */}
       {buySuccess && (
-        <div className="fixed top-20 right-4 z-50 bg-magic-green text-black p-4 border border-magic-green max-w-sm animate-in slide-in-from-right">
+        <div className="fixed top-20 right-4 z-50 bg-magic-blue text-black p-4 border border-magic-blue max-w-sm animate-in slide-in-from-right">
           <div className="flex items-center gap-2 mb-1">
             <Zap className="w-4 h-4" />
             <span className="font-bold uppercase text-sm">Purchase Successful!</span>
@@ -328,7 +328,7 @@ const Gorid: React.FC = () => {
 
       {/* Cancel Success Toast */}
       {cancelSuccess && (
-        <div className="fixed top-20 right-4 z-50 bg-magic-green text-black p-4 border border-magic-green max-w-sm animate-in slide-in-from-right">
+        <div className="fixed top-20 right-4 z-50 bg-magic-blue text-black p-4 border border-magic-blue max-w-sm animate-in slide-in-from-right">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
             <span className="font-bold uppercase text-sm">{cancelSuccess}</span>
@@ -359,16 +359,16 @@ const Gorid: React.FC = () => {
       )}
 
       {/* Hero Section */}
-      <div className="border-b border-white/20 bg-gradient-to-b from-magic-green/5 to-transparent">
+      <div className="border-b border-white/20 bg-gradient-to-b from-magic-blue/5 to-transparent">
         <div className="max-w-[1600px] mx-auto px-4 py-8 md:py-12">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <div className="bg-magic-green text-black p-2">
+                <div className="bg-magic-blue text-black p-2">
                   <Tag className="w-6 h-6" />
                 </div>
                 <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight">
-                  GorID<span className="text-magic-green">.gor</span>
+                  GorID<span className="text-magic-blue">.gor</span>
                 </h1>
               </div>
               <p className="text-gray-400 text-sm md:text-base font-mono max-w-xl">
@@ -378,7 +378,7 @@ const Gorid: React.FC = () => {
                 href="https://gorid.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-magic-green text-sm font-bold mt-3 hover:text-white transition-colors"
+                className="inline-flex items-center gap-2 text-magic-blue text-sm font-bold mt-3 hover:text-white transition-colors"
               >
                 Register at GorID.com <ExternalLink className="w-4 h-4" />
               </a>
@@ -388,7 +388,7 @@ const Gorid: React.FC = () => {
             <div className="grid grid-cols-3 gap-px bg-white/20 border border-white/20 w-full md:w-auto">
               <div className="bg-black p-4 hover:bg-white/5 transition-colors">
                 <div className="text-gray-500 text-[10px] uppercase font-bold mb-1">Floor</div>
-                <div className="text-magic-green font-mono font-bold text-lg md:text-xl">
+                <div className="text-magic-blue font-mono font-bold text-lg md:text-xl">
                   {floorPrice > 0 ? `${currency} ${floorPrice}` : '—'}
                 </div>
               </div>
@@ -441,7 +441,7 @@ const Gorid: React.FC = () => {
           {lookupResult && (
             <div className="mt-3 p-3 bg-black border border-white/20 font-mono text-sm">
               <span className="text-gray-500">Result: </span>
-              <span className={lookupResult === 'Not found' || lookupResult === 'Error looking up domain' ? 'text-red-400' : 'text-magic-green'}>
+              <span className={lookupResult === 'Not found' || lookupResult === 'Error looking up domain' ? 'text-red-400' : 'text-magic-blue'}>
                 {lookupResult}
               </span>
             </div>
@@ -515,7 +515,7 @@ const Gorid: React.FC = () => {
               {isLoading ? (
                 <div className="flex items-center justify-center py-20">
                   <div className="text-center">
-                    <div className="w-8 h-8 border-2 border-magic-green border-t-transparent animate-spin mx-auto mb-4" />
+                    <div className="w-8 h-8 border-2 border-magic-blue border-t-transparent animate-spin mx-auto mb-4" />
                     <p className="text-gray-500 font-mono text-sm uppercase">Loading domains...</p>
                   </div>
                 </div>
@@ -526,22 +526,22 @@ const Gorid: React.FC = () => {
                     <div
                       key={listing.domainKey}
                       onClick={() => setSelectedDomain(listing)}
-                      className="bg-magic-card border border-white/10 hover:border-magic-green/50 transition-all cursor-pointer group"
+                      className="bg-magic-card border border-white/10 hover:border-magic-blue/50 transition-all cursor-pointer group"
                     >
                       <div className="p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <div className="bg-magic-green/10 text-magic-green px-2 py-1 text-[10px] font-bold uppercase">
+                          <div className="bg-magic-blue/10 text-magic-blue px-2 py-1 text-[10px] font-bold uppercase">
                             {GORID_CONFIG.tld}
                           </div>
-                          <Zap className="w-4 h-4 text-gray-600 group-hover:text-magic-green transition-colors" />
+                          <Zap className="w-4 h-4 text-gray-600 group-hover:text-magic-blue transition-colors" />
                         </div>
-                        <h3 className="text-xl font-black text-white mb-2 group-hover:text-magic-green transition-colors break-all">
+                        <h3 className="text-xl font-black text-white mb-2 group-hover:text-magic-blue transition-colors break-all">
                           {listing.name}
                         </h3>
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="text-[10px] text-gray-500 uppercase font-bold">Price</div>
-                            <div className="text-magic-green font-mono font-bold">
+                            <div className="text-magic-blue font-mono font-bold">
                               {currency} {listing.price}
                             </div>
                           </div>
@@ -556,7 +556,7 @@ const Gorid: React.FC = () => {
                           <Clock className="w-3 h-3 inline mr-1" />
                           {formatTimeAgo(listing.listedAt)}
                         </span>
-                        <button className="text-magic-green text-xs font-bold uppercase hover:text-white transition-colors flex items-center gap-1">
+                        <button className="text-magic-blue text-xs font-bold uppercase hover:text-white transition-colors flex items-center gap-1">
                           Buy <ArrowRight className="w-3 h-3" />
                         </button>
                       </div>
@@ -590,18 +590,18 @@ const Gorid: React.FC = () => {
                           <tr key={sale.txSignature} className="hover:bg-white/5 transition-colors">
                             <td className="p-3">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-magic-green/10 border border-magic-green/30 flex items-center justify-center">
-                                  <Tag className="w-4 h-4 text-magic-green" />
+                                <div className="w-8 h-8 bg-magic-blue/10 border border-magic-blue/30 flex items-center justify-center">
+                                  <Tag className="w-4 h-4 text-magic-blue" />
                                 </div>
                                 <div className="flex flex-col">
                                   <span className="font-bold text-white">{sale.name}</span>
-                                  <span className="text-[9px] w-fit px-1 border border-magic-green text-magic-green uppercase">
+                                  <span className="text-[9px] w-fit px-1 border border-magic-blue text-magic-blue uppercase">
                                     sale
                                   </span>
                                 </div>
                               </div>
                             </td>
-                            <td className="p-3 text-right text-magic-green font-bold">
+                            <td className="p-3 text-right text-magic-blue font-bold">
                               {currency} {sale.price}
                             </td>
                             <td className="p-3 text-right text-gray-400">{sale.from}</td>
@@ -644,13 +644,13 @@ const Gorid: React.FC = () => {
                       {myDomains.map((domain) => (
                         <div
                           key={domain.domainKey}
-                          className="bg-magic-card border border-magic-green/30 p-4"
+                          className="bg-magic-card border border-magic-blue/30 p-4"
                         >
                           <div className="flex items-center justify-between mb-3">
-                            <div className="bg-magic-green/10 text-magic-green px-2 py-1 text-[10px] font-bold uppercase">
+                            <div className="bg-magic-blue/10 text-magic-blue px-2 py-1 text-[10px] font-bold uppercase">
                               owned
                             </div>
-                            <Zap className="w-4 h-4 text-magic-green" />
+                            <Zap className="w-4 h-4 text-magic-blue" />
                           </div>
                           <h3 className="text-xl font-black text-white mb-4">{domain.name}</h3>
                           <div className="flex gap-2">
@@ -697,7 +697,7 @@ const Gorid: React.FC = () => {
             <div className="sticky top-16">
               <div className="p-4 border-b border-white/20 bg-white/5">
                 <h3 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                  <TrendingUp className="w-3 h-3 text-magic-green" /> Recent Sales
+                  <TrendingUp className="w-3 h-3 text-magic-blue" /> Recent Sales
                 </h3>
               </div>
               <div className="divide-y divide-white/10 max-h-[calc(100vh-8rem)] overflow-y-auto">
@@ -705,13 +705,13 @@ const Gorid: React.FC = () => {
                   recentSales.map((sale) => (
                     <div key={sale.txSignature} className="p-3 hover:bg-white/5 transition-colors cursor-pointer">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-magic-green/10 border border-magic-green/30 flex items-center justify-center flex-shrink-0">
-                          <Tag className="w-4 h-4 text-magic-green" />
+                        <div className="w-10 h-10 bg-magic-blue/10 border border-magic-blue/30 flex items-center justify-center flex-shrink-0">
+                          <Tag className="w-4 h-4 text-magic-blue" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-baseline mb-1">
                             <span className="text-sm font-bold text-white truncate">{sale.name}</span>
-                            <span className="text-magic-green font-mono text-sm">
+                            <span className="text-magic-blue font-mono text-sm">
                               {currency}{sale.price}
                             </span>
                           </div>
@@ -741,7 +741,7 @@ const Gorid: React.FC = () => {
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => { setSelectedDomain(null); setBuyError(null); }}
           />
-          <div className="relative bg-magic-dark border border-magic-green/30 p-6 max-w-md w-full animate-in zoom-in-95">
+          <div className="relative bg-magic-dark border border-magic-blue/30 p-6 max-w-md w-full animate-in zoom-in-95">
             <button
               onClick={() => { setSelectedDomain(null); setBuyError(null); }}
               className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl"
@@ -750,7 +750,7 @@ const Gorid: React.FC = () => {
             </button>
 
             <div className="flex items-center gap-3 mb-6">
-              <div className="bg-magic-green text-black p-2">
+              <div className="bg-magic-blue text-black p-2">
                 <Tag className="w-6 h-6" />
               </div>
               <div>
@@ -762,7 +762,7 @@ const Gorid: React.FC = () => {
             <div className="space-y-4 mb-6">
               <div className="flex justify-between items-center py-3 border-b border-white/10">
                 <span className="text-gray-500 text-sm uppercase">Price</span>
-                <span className="text-magic-green font-mono font-bold text-xl">
+                <span className="text-magic-blue font-mono font-bold text-xl">
                   {currency} {selectedDomain.price}
                 </span>
               </div>
@@ -834,7 +834,7 @@ const Gorid: React.FC = () => {
                 href={`https://gorid.com/${selectedDomain.name.replace('.gor', '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-magic-green text-xs font-bold hover:text-white transition-colors inline-flex items-center gap-1"
+                className="text-magic-blue text-xs font-bold hover:text-white transition-colors inline-flex items-center gap-1"
               >
                 View on GorID.com <ExternalLink className="w-3 h-3" />
               </a>
@@ -850,7 +850,7 @@ const Gorid: React.FC = () => {
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => { setListingDomain(null); setListError(null); }}
           />
-          <div className="relative bg-magic-dark border border-magic-green/30 p-6 max-w-md w-full animate-in zoom-in-95">
+          <div className="relative bg-magic-dark border border-magic-blue/30 p-6 max-w-md w-full animate-in zoom-in-95">
             <button
               onClick={() => { setListingDomain(null); setListError(null); }}
               className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl"
@@ -859,7 +859,7 @@ const Gorid: React.FC = () => {
             </button>
 
             <div className="flex items-center gap-3 mb-6">
-              <div className="bg-magic-green text-black p-2">
+              <div className="bg-magic-blue text-black p-2">
                 <Tag className="w-6 h-6" />
               </div>
               <div>
@@ -910,7 +910,7 @@ const Gorid: React.FC = () => {
                   </div>
                   <div className="flex justify-between border-t border-white/10 pt-1 mt-1">
                     <span className="text-gray-400 font-bold">Net Proceeds</span>
-                    <span className="text-magic-green font-bold">{currency} {feePreview.sellerReceives.toFixed(3)}</span>
+                    <span className="text-magic-blue font-bold">{currency} {feePreview.sellerReceives.toFixed(3)}</span>
                   </div>
                 </div>
               </div>

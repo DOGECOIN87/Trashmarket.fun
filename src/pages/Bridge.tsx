@@ -456,11 +456,11 @@ const Bridge: React.FC = () => {
   };
 
   // --- STYLING HELPERS ---
-  const btnClass = (active: boolean) => `px-4 py-2 text-xs font-bold uppercase tracking-widest border transition-all duration-200 ${active ? 'bg-magic-green text-black border-magic-green' : 'text-gray-400 border-white/10 hover:border-white/40 hover:text-white'
+  const btnClass = (active: boolean) => `px-4 py-2 text-xs font-bold uppercase tracking-widest border transition-all duration-200 ${active ? 'bg-magic-blue text-black border-magic-blue' : 'text-gray-400 border-white/10 hover:border-white/40 hover:text-white'
     }`;
 
   return (
-    <div className="relative min-h-screen bg-black text-white font-mono">
+    <div className="relative min-h-screen text-white font-mono">
       {/* Status Banner - Only show on devnet */}
       {isDevnet && (
         <div className="bg-blue-500/20 border-b border-blue-500/50 animate-pulse">
@@ -477,16 +477,16 @@ const Bridge: React.FC = () => {
       )}
 
       {/* Hero / Header */}
-      <div className="border-b border-white/20 bg-gradient-to-b from-magic-green/5 to-transparent">
+      <div className="border-b border-white/20 bg-gradient-to-b from-magic-blue/5 to-transparent">
         <div className="max-w-[1600px] mx-auto px-4 py-8 md:py-12">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <div className="bg-magic-green text-black p-2">
+                <div className="bg-magic-blue text-black p-2">
                   <ArrowLeftRight className="w-6 h-6" />
                 </div>
                 <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight">
-                  GORBAGANA<span className="text-magic-green">_BRIDGE</span>
+                  GORBAGANA<span className="text-magic-blue">_BRIDGE</span>
                 </h1>
               </div>
               <p className="text-gray-400 text-sm md:text-base max-w-xl">
@@ -499,7 +499,7 @@ const Bridge: React.FC = () => {
             <div className="grid grid-cols-2 gap-px bg-white/20 border border-white/20 w-full md:w-auto">
               <div className="bg-black p-4">
                 <div className="text-gray-500 text-[10px] uppercase font-bold mb-1">Active_Offers</div>
-                <div className="text-magic-green font-bold text-xl">{orders.length}</div>
+                <div className="text-magic-blue font-bold text-xl">{orders.length}</div>
               </div>
               <div className="bg-black p-4">
                 <div className="text-gray-500 text-[10px] uppercase font-bold mb-1">Status</div>
@@ -511,33 +511,33 @@ const Bridge: React.FC = () => {
       </div>
 
       {/* Fundraiser CTA */}
-      <div className="border-b border-white/20 bg-gradient-to-b from-magic-green/5 to-transparent">
+      <div className="border-b border-white/20 bg-gradient-to-b from-magic-blue/5 to-transparent">
         <div className="max-w-[1600px] mx-auto px-4 py-8 md:py-12">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2 text-magic-green text-xs font-bold uppercase tracking-widest font-mono">
+            <div className="flex items-center gap-2 text-magic-blue text-xs font-bold uppercase tracking-widest font-mono">
               <Terminal className="w-3 h-3" /> {'>_'} 1:1 P2P BRIDGE FUNDRAISER
             </div>
             <div className="flex items-center gap-2">
-              <Radio className="w-3 h-3 text-magic-green animate-pulse" />
+              <Radio className="w-3 h-3 text-magic-blue animate-pulse" />
               <span className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">LIVE</span>
             </div>
           </div>
 
           {/* Main CTA Block */}
-          <div className="border border-magic-green/30 bg-black relative overflow-hidden">
+          <div className="border border-magic-blue/30 bg-black relative overflow-hidden">
             {/* Corner accents */}
-            <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-magic-green" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-magic-green" />
-            <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-magic-green" />
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-magic-green" />
+            <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-magic-blue" />
+            <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-magic-blue" />
+            <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-magic-blue" />
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-magic-blue" />
 
             <div className="p-6 md:p-8">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 {/* Left side - Amount raised */}
                 <div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-2">Total_Raised</div>
-                  <div className="text-4xl md:text-5xl font-black text-magic-green glow-green tracking-tight">
+                  <div className="text-4xl md:text-5xl font-black text-magic-blue glow-blue tracking-tight">
                     {fundraiserLoading ? (
                       <span className="animate-pulse">LOADING...</span>
                     ) : (
@@ -560,7 +560,7 @@ const Bridge: React.FC = () => {
                 <div className="flex flex-col gap-3 w-full md:w-auto">
                   <button
                     onClick={copyAddress}
-                    className="px-8 py-4 bg-magic-green text-black font-bold uppercase tracking-widest text-sm hover:bg-white transition-colors flex items-center justify-center gap-2"
+                    className="px-8 py-4 bg-magic-blue text-black font-bold uppercase tracking-widest text-sm hover:bg-white transition-colors flex items-center justify-center gap-2"
                   >
                     {copied ? (
                       <>
@@ -574,7 +574,7 @@ const Bridge: React.FC = () => {
                   </button>
                   <button
                     onClick={copyAddress}
-                    className="flex items-center gap-2 text-[10px] text-gray-500 hover:text-magic-green transition-colors font-mono justify-center"
+                    className="flex items-center gap-2 text-[10px] text-gray-500 hover:text-magic-blue transition-colors font-mono justify-center"
                   >
                     <Copy className="w-3 h-3" />
                     {FUNDRAISER_WALLET.slice(0, 12)}...{FUNDRAISER_WALLET.slice(-8)}
@@ -584,7 +584,7 @@ const Bridge: React.FC = () => {
 
               {/* Scan bar visualizer */}
               <div className="mt-6 h-1 bg-white/5 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-magic-green to-transparent animate-scan-bar" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-magic-blue to-transparent animate-scan-bar" />
               </div>
             </div>
           </div>
@@ -617,14 +617,14 @@ const Bridge: React.FC = () => {
                         <td className="p-3">
                           <div className="flex flex-col">
                             {donor.goridName && (
-                              <span className="text-magic-green font-bold text-xs">{donor.goridName}</span>
+                              <span className="text-magic-blue font-bold text-xs">{donor.goridName}</span>
                             )}
                             <span className="text-gray-400 font-mono text-[10px]">
                               {donor.address.slice(0, 8)}...{donor.address.slice(-6)}
                             </span>
                           </div>
                         </td>
-                        <td className="p-3 text-right font-mono font-bold text-magic-green text-xs">
+                        <td className="p-3 text-right font-mono font-bold text-magic-blue text-xs">
                           {formatGOR(donor.totalAmount)}
                         </td>
                         <td className="p-3 text-right font-mono text-gray-500 text-xs">
@@ -635,7 +635,7 @@ const Bridge: React.FC = () => {
                             href={`${GORBAGANA_CONFIG.explorerUrl}/address/${donor.address}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-gray-500 hover:text-magic-green transition-colors inline-flex"
+                            className="text-gray-500 hover:text-magic-blue transition-colors inline-flex"
                           >
                             <ExternalLink className="w-3 h-3" />
                           </a>
@@ -650,7 +650,7 @@ const Bridge: React.FC = () => {
 
           {fundraiserLoading && (
             <div className="mt-6 text-center py-8">
-              <div className="text-magic-green animate-pulse text-xs uppercase tracking-widest font-mono">
+              <div className="text-magic-blue animate-pulse text-xs uppercase tracking-widest font-mono">
                 LOADING DONOR DATA...
               </div>
             </div>
@@ -675,9 +675,9 @@ const Bridge: React.FC = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex gap-2">
-                <button onClick={() => setFilter('all')} className={`px-3 py-1 text-[10px] border ${filter === 'all' ? 'border-magic-green text-magic-green' : 'border-white/10 text-gray-500'}`}>ALL</button>
-                <button onClick={() => setFilter('gGOR')} className={`px-3 py-1 text-[10px] border ${filter === 'gGOR' ? 'border-magic-green text-magic-green' : 'border-white/10 text-gray-500'}`}>gGOR</button>
-                <button onClick={() => setFilter('sGOR')} className={`px-3 py-1 text-[10px] border ${filter === 'sGOR' ? 'border-magic-green text-magic-green' : 'border-white/10 text-gray-500'}`}>sGOR</button>
+                <button onClick={() => setFilter('all')} className={`px-3 py-1 text-[10px] border ${filter === 'all' ? 'border-magic-blue text-magic-blue' : 'border-white/10 text-gray-500'}`}>ALL</button>
+                <button onClick={() => setFilter('gGOR')} className={`px-3 py-1 text-[10px] border ${filter === 'gGOR' ? 'border-magic-blue text-magic-blue' : 'border-white/10 text-gray-500'}`}>gGOR</button>
+                <button onClick={() => setFilter('sGOR')} className={`px-3 py-1 text-[10px] border ${filter === 'sGOR' ? 'border-magic-blue text-magic-blue' : 'border-white/10 text-gray-500'}`}>sGOR</button>
               </div>
               <div className="text-[10px] text-gray-500 uppercase">Live_Market_Feed</div>
             </div>
@@ -704,7 +704,7 @@ const Bridge: React.FC = () => {
 
                       return (
                         <tr key={order.orderPDA.toBase58()} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="p-4 text-magic-green font-mono">{order.maker.toBase58().slice(0, 8)}...</td>
+                          <td className="p-4 text-magic-blue font-mono">{order.maker.toBase58().slice(0, 8)}...</td>
                           <td className="p-4">
                             <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${sell === 'gGOR' ? 'bg-orange-500/20 text-orange-400' : 'bg-purple-500/20 text-purple-400'}`}>
                               {sell}
@@ -715,7 +715,7 @@ const Bridge: React.FC = () => {
                           <td className="p-4">
                             <span className={`text-[10px] px-2 py-1 rounded font-bold ${
                               order.network === 'GORBAGANA'
-                                ? 'bg-magic-green/20 text-magic-green'
+                                ? 'bg-magic-blue/20 text-magic-blue'
                                 : 'bg-purple-500/20 text-purple-400'
                             }`}>
                               {order.network ?? 'UNKNOWN'}
@@ -735,7 +735,7 @@ const Bridge: React.FC = () => {
                               <button
                                 onClick={() => handleTradeClick(order)}
                                 disabled={isProcessing}
-                                className="px-4 py-1 bg-magic-green text-black text-xs font-bold hover:bg-white transition-colors"
+                                className="px-4 py-1 bg-magic-blue text-black text-xs font-bold hover:bg-white transition-colors"
                               >
                                 TRADE
                               </button>
@@ -781,7 +781,7 @@ const Bridge: React.FC = () => {
                   value={isDevnet ? 'sGOR' : createDirection}
                   onChange={(e) => !isDevnet && setCreateDirection(e.target.value as 'gGOR' | 'sGOR')}
                   disabled={isDevnet}
-                  className="w-full bg-black border border-white/20 p-3 text-sm outline-none focus:border-magic-green disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-black border border-white/20 p-3 text-sm outline-none focus:border-magic-blue disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="gGOR">gGOR (Gorbagana)</option>
                   <option value="sGOR">sGOR (Solana{isDevnet ? ' Devnet' : ''})</option>
@@ -799,14 +799,14 @@ const Bridge: React.FC = () => {
                   onChange={(e) => setCreateAmount(e.target.value)}
                   placeholder={isDevnet ? "5.0 (test sGOR)" : "0.00"}
                   step={isDevnet ? "0.000001" : "0.01"}
-                  className="w-full bg-black border border-white/20 p-3 text-sm outline-none focus:border-magic-green"
+                  className="w-full bg-black border border-white/20 p-3 text-sm outline-none focus:border-magic-blue"
                 />
                 {isDevnet && (
                   <p className="text-[10px] text-gray-500 mt-1">Test sGOR has 6 decimals (1 sGOR = 1,000,000 base units)</p>
                 )}
               </div>
-              <div className={`p-4 border rounded ${isDevnet ? 'bg-blue-500/10 border-blue-500/20' : 'bg-magic-green/10 border-magic-green/20'}`}>
-                <div className={`flex gap-2 text-xs ${isDevnet ? 'text-blue-400' : 'text-magic-green'}`}>
+              <div className={`p-4 border rounded ${isDevnet ? 'bg-blue-500/10 border-blue-500/20' : 'bg-magic-blue/10 border-magic-blue/20'}`}>
+                <div className={`flex gap-2 text-xs ${isDevnet ? 'text-blue-400' : 'text-magic-blue'}`}>
                   <Info className="w-4 h-4 flex-shrink-0" />
                   <span>{isDevnet ? 'Test tokens will be locked in escrow on Solana devnet for testing.' : 'Your tokens will be locked in a secure escrow contract until a buyer completes the trade.'}</span>
                 </div>
@@ -814,7 +814,7 @@ const Bridge: React.FC = () => {
               <button
                 onClick={handleCreateOrder}
                 disabled={isProcessing}
-                className="w-full py-4 bg-magic-green text-black font-bold uppercase tracking-widest hover:bg-white transition-colors disabled:opacity-50"
+                className="w-full py-4 bg-magic-blue text-black font-bold uppercase tracking-widest hover:bg-white transition-colors disabled:opacity-50"
               >
                 {isProcessing ? 'PROCESSING...' : 'POST_OFFER'}
               </button>
@@ -827,7 +827,7 @@ const Bridge: React.FC = () => {
       {isTradeModalOpen && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => !isProcessing && setIsTradeModalOpen(false)}></div>
-          <div className="relative bg-magic-dark border border-magic-green/30 p-8 max-w-md w-full">
+          <div className="relative bg-magic-dark border border-magic-blue/30 p-8 max-w-md w-full">
             <h2 className="text-xl font-bold mb-6 uppercase tracking-widest">Confirm_Trade</h2>
 
             <div className="space-y-4 mb-8">
@@ -837,7 +837,7 @@ const Bridge: React.FC = () => {
               </div>
               <div className="flex justify-between text-sm border-b border-white/10 pb-2">
                 <span className="text-gray-500">You Receive</span>
-                <span className="font-bold text-magic-green">{formatAmount(selectedOrder.amount)} {getTokenInfo(selectedOrder.direction).sell}</span>
+                <span className="font-bold text-magic-blue">{formatAmount(selectedOrder.amount)} {getTokenInfo(selectedOrder.direction).sell}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Counterparty</span>
@@ -864,7 +864,7 @@ const Bridge: React.FC = () => {
               <button
                 disabled={isProcessing}
                 onClick={executeTrade}
-                className="flex-1 py-3 bg-magic-green text-black font-bold uppercase tracking-widest hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-magic-blue text-black font-bold uppercase tracking-widest hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isProcessing ? <div className="w-4 h-4 border-2 border-black border-t-transparent animate-spin" /> : 'CONFIRM'}
               </button>

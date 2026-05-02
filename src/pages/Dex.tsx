@@ -199,7 +199,7 @@ const DexPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen text-white font-mono flex items-center justify-center">
-        <div className="text-magic-green animate-pulse uppercase tracking-widest text-lg">
+        <div className="text-magic-blue animate-pulse uppercase tracking-widest text-lg">
           LOADING TRASH DEX...
         </div>
       </div>
@@ -213,7 +213,7 @@ const DexPage: React.FC = () => {
           <div className="text-magic-red text-lg mb-2">{error}</div>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 border border-magic-green text-magic-green hover:bg-magic-green/10 text-sm uppercase"
+            className="px-4 py-2 border border-magic-blue text-magic-blue hover:bg-magic-blue/10 text-sm uppercase"
           >
             RETRY
           </button>
@@ -223,21 +223,21 @@ const DexPage: React.FC = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-black text-white font-mono">
+    <div className="relative min-h-screen text-white font-mono">
       {/* Header */}
       <div className="border-b border-white/10 bg-gradient-to-r from-black via-gray-900 to-black">
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-magic-green tracking-tighter">TRASH_DEX</h1>
+            <h1 className="text-xl font-bold text-magic-blue tracking-tighter">TRASH_DEX</h1>
             <span className="text-[10px] text-gray-500 border border-gray-800 px-2 py-0.5">V1.0</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-[10px] text-gray-500">
-              <span className="w-2 h-2 bg-magic-green rounded-full animate-pulse"></span>
+              <span className="w-2 h-2 bg-magic-blue rounded-full animate-pulse"></span>
               gorapi.trashscan.io
             </div>
             <div className="text-[10px] text-gray-400">
-              GOR: <span className="text-magic-green">${gorUsd.toFixed(6)}</span>
+              GOR: <span className="text-magic-blue">${gorUsd.toFixed(6)}</span>
             </div>
             <div className="text-[10px] text-gray-400">
               {tokens.length} tokens | {markets.length} pools
@@ -253,7 +253,7 @@ const DexPage: React.FC = () => {
             <div key={token.symbol} className="flex items-center gap-2 mx-6 text-[10px]">
               <span className="text-white font-bold">{token.symbol}</span>
               <span className="text-gray-400">${formatPrice(token.priceUsd)}</span>
-              <span className={token.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}>
+              <span className={token.change24h >= 0 ? 'text-magic-blue' : 'text-magic-red'}>
                 {token.change24h >= 0 ? <TrendingUp size={10} className="inline" /> : <TrendingDown size={10} className="inline" />}
                 {' '}{Number(token.change24h || 0).toFixed(1)}%
               </span>
@@ -264,7 +264,7 @@ const DexPage: React.FC = () => {
             <div key={`dup-${token.symbol}`} className="flex items-center gap-2 mx-6 text-[10px]">
               <span className="text-white font-bold">{token.symbol}</span>
               <span className="text-gray-400">${formatPrice(token.priceUsd)}</span>
-              <span className={token.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}>
+              <span className={token.change24h >= 0 ? 'text-magic-blue' : 'text-magic-red'}>
                 {token.change24h >= 0 ? <TrendingUp size={10} className="inline" /> : <TrendingDown size={10} className="inline" />}
                 {' '}{Number(token.change24h || 0).toFixed(1)}%
               </span>
@@ -281,7 +281,7 @@ const DexPage: React.FC = () => {
           {/* Pool Table Header */}
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Droplets className="w-4 h-4 text-magic-green" />
+              <Droplets className="w-4 h-4 text-magic-blue" />
               <span className="text-sm font-bold uppercase tracking-wider">LIQUIDITY_POOLS</span>
               <span className="text-[10px] text-gray-500 border border-gray-800 px-1.5 py-0.5">{markets.length}</span>
             </div>
@@ -306,7 +306,7 @@ const DexPage: React.FC = () => {
                 {markets.map((market, i) => (
                   <tr
                     key={market.marketId}
-                    className={`border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors ${activePool?.marketId === market.marketId ? 'bg-magic-green/5 border-magic-green/20' : ''
+                    className={`border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors ${activePool?.marketId === market.marketId ? 'bg-magic-blue/5 border-magic-blue/20' : ''
                       }`}
                     onClick={() => {
                       // Set pay/receive tokens from this pool
@@ -329,13 +329,13 @@ const DexPage: React.FC = () => {
                     <td className="px-2 py-2.5">
                       <span className={`px-1.5 py-0.5 text-[9px] border ${market.type.includes('DAMM') ? 'border-purple-500/30 text-purple-400' :
                           market.type.includes('SAMM') ? 'border-blue-500/30 text-blue-400' :
-                            'border-magic-green/30 text-magic-green'
+                            'border-magic-blue/30 text-magic-blue'
                         }`}>
                         {market.type}
                       </span>
                     </td>
                     <td className="px-2 py-2.5 text-right">
-                      <span className="text-magic-green font-bold">${formatPrice(market.liquidityUsd)}</span>
+                      <span className="text-magic-blue font-bold">${formatPrice(market.liquidityUsd)}</span>
                     </td>
                     <td className="px-4 py-2.5 text-right text-gray-400">
                       {market.baseToken.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
@@ -360,7 +360,7 @@ const DexPage: React.FC = () => {
                 <button onClick={() => { setPayAmount(''); setReceiveAmount(''); }} className="text-gray-500 hover:text-white transition-colors">
                   <RefreshCw size={14} />
                 </button>
-                <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className={`transition-colors ${isSettingsOpen ? 'text-magic-green' : 'text-gray-500 hover:text-white'}`}>
+                <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className={`transition-colors ${isSettingsOpen ? 'text-magic-blue' : 'text-gray-500 hover:text-white'}`}>
                   <Settings size={14} />
                 </button>
               </div>
@@ -371,14 +371,14 @@ const DexPage: React.FC = () => {
               <div className="mb-4 p-3 border border-gray-700 bg-black/50 text-[10px]">
                 <div className="flex justify-between mb-2 text-gray-400">
                   <span>MAX_SLIPPAGE</span>
-                  <span className="text-magic-green">{slippage}%</span>
+                  <span className="text-magic-blue">{slippage}%</span>
                 </div>
                 <div className="flex gap-2">
                   {['0.1', '0.5', '1.0', '2.5'].map(s => (
                     <button
                       key={s}
                       onClick={() => setSlippage(s)}
-                      className={`flex-1 py-1 border ${slippage === s ? 'border-magic-green text-magic-green bg-magic-green/10' : 'border-gray-700 text-gray-500 hover:border-gray-500'}`}
+                      className={`flex-1 py-1 border ${slippage === s ? 'border-magic-blue text-magic-blue bg-magic-blue/10' : 'border-gray-700 text-gray-500 hover:border-gray-500'}`}
                     >
                       {s}%
                     </button>
@@ -392,7 +392,7 @@ const DexPage: React.FC = () => {
               <div className="flex justify-between text-[10px] text-gray-500 px-1">
                 <span>YOU_PAY</span>
               </div>
-              <div className="bg-black border border-gray-700 p-3 focus-within:border-magic-green transition-colors">
+              <div className="bg-black border border-gray-700 p-3 focus-within:border-magic-blue transition-colors">
                 <div className="flex justify-between items-center">
                   <input
                     type="number"
@@ -421,7 +421,7 @@ const DexPage: React.FC = () => {
             <div className="flex justify-center my-4 relative z-10">
               <button
                 onClick={handleSwapTokens}
-                className="bg-gray-900 border border-gray-700 p-1.5 hover:border-magic-green hover:text-magic-green transition-all active:scale-95"
+                className="bg-gray-900 border border-gray-700 p-1.5 hover:border-magic-blue hover:text-magic-blue transition-all active:scale-95"
               >
                 <ArrowDownUp size={16} className="text-gray-400" />
               </button>
@@ -433,7 +433,7 @@ const DexPage: React.FC = () => {
               <div className="flex justify-between text-[10px] text-gray-500 px-1">
                 <span>YOU_RECEIVE</span>
               </div>
-              <div className="bg-black border border-gray-700 p-3 focus-within:border-magic-green transition-colors">
+              <div className="bg-black border border-gray-700 p-3 focus-within:border-magic-blue transition-colors">
                 <div className="flex justify-between items-center">
                   <input
                     type="number"
@@ -467,7 +467,7 @@ const DexPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">PRICE_IMPACT</span>
-                  <span className={priceImpact > 5 ? 'text-magic-red' : priceImpact > 1 ? 'text-yellow-500' : 'text-magic-green'}>
+                  <span className={priceImpact > 5 ? 'text-magic-red' : priceImpact > 1 ? 'text-yellow-500' : 'text-magic-blue'}>
                     {priceImpact.toFixed(2)}%
                   </span>
                 </div>
@@ -505,7 +505,7 @@ const DexPage: React.FC = () => {
                   href={getExplorerLink('address', activePool.marketId)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-magic-green transition-colors flex items-center gap-1"
+                  className="hover:text-magic-blue transition-colors flex items-center gap-1"
                 >
                   VIEW_POOL_ON_TRASHSCAN <ExternalLink size={10} />
                 </a>
@@ -513,7 +513,7 @@ const DexPage: React.FC = () => {
             )}
 
             <button
-              className="w-full bg-magic-green text-black font-bold py-3 text-sm hover:bg-white transition-colors uppercase tracking-wider"
+              className="w-full bg-magic-blue text-black font-bold py-3 text-sm hover:bg-white transition-colors uppercase tracking-wider"
               disabled={!payAmount || !receiveAmount}
               onClick={() => {
                 alert('Swap execution requires wallet connection. Connect via Backpack or Gorbag Wallet.');
@@ -554,7 +554,7 @@ const DexPage: React.FC = () => {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="SEARCH_TOKEN_OR_PASTE_MINT..."
-                  className="w-full bg-black border border-gray-700 pl-10 pr-3 py-2 text-sm text-white placeholder-gray-600 focus:border-magic-green focus:outline-none font-mono uppercase"
+                  className="w-full bg-black border border-gray-700 pl-10 pr-3 py-2 text-sm text-white placeholder-gray-600 focus:border-magic-blue focus:outline-none font-mono uppercase"
                   autoFocus
                 />
               </div>
@@ -564,7 +564,7 @@ const DexPage: React.FC = () => {
             <div className="px-3 py-2 flex gap-2 flex-wrap border-b border-white/10">
               <button
                 onClick={() => handleSelectToken(GOR_TOKEN)}
-                className="px-3 py-1 text-[10px] font-bold border border-gray-700 hover:border-magic-green hover:text-magic-green transition-colors uppercase"
+                className="px-3 py-1 text-[10px] font-bold border border-gray-700 hover:border-magic-blue hover:text-magic-blue transition-colors uppercase"
               >
                 GOR
               </button>
@@ -572,7 +572,7 @@ const DexPage: React.FC = () => {
                 <button
                   key={t.mint}
                   onClick={() => handleSelectToken(t)}
-                  className="px-3 py-1 text-[10px] font-bold border border-gray-700 hover:border-magic-green hover:text-magic-green transition-colors uppercase"
+                  className="px-3 py-1 text-[10px] font-bold border border-gray-700 hover:border-magic-blue hover:text-magic-blue transition-colors uppercase"
                 >
                   {t.symbol}
                 </button>
@@ -588,7 +588,7 @@ const DexPage: React.FC = () => {
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-magic-green/20 border border-magic-green/30 flex items-center justify-center text-magic-green text-xs font-bold">G</div>
+                    <div className="w-8 h-8 bg-magic-blue/20 border border-magic-blue/30 flex items-center justify-center text-magic-blue text-xs font-bold">G</div>
                     <div className="text-left">
                       <div className="text-sm font-bold text-white">GOR</div>
                       <div className="text-[10px] text-gray-500">Gorbagana (Native)</div>
@@ -629,7 +629,7 @@ const DexPage: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-white">${formatPrice(token.priceUsd)}</div>
-                    <div className={`text-[10px] ${token.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'}`}>
+                    <div className={`text-[10px] ${token.change24h >= 0 ? 'text-magic-blue' : 'text-magic-red'}`}>
                       {token.change24h >= 0 ? '+' : ''}{token.change24h.toFixed(1)}%
                     </div>
                   </div>

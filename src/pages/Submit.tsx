@@ -198,13 +198,13 @@ const Submit: React.FC = () => {
   const hasReachedLimit = submissionCount !== null && submissionCount >= MAX_SUBMISSIONS_PER_WALLET;
 
   return (
-    <div className="min-h-screen bg-black pt-12 pb-20" style={{ backgroundImage: 'url(/images/tm-background.png)', backgroundSize: 'cover', backgroundPosition: 'top center', backgroundRepeat: 'no-repeat', backgroundAttachment: 'fixed' }}>
+    <div className="min-h-screen pt-12 pb-20" style={{ backgroundImage: 'url(/assets/backgrounds/TM-background-2.webp)', backgroundSize: 'cover', backgroundPosition: 'bottom center', backgroundRepeat: 'no-repeat', backgroundAttachment: 'fixed' }}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Trash2 className="w-6 h-6 text-magic-green" />
+            <Trash2 className="w-6 h-6 text-magic-blue" />
             <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">
               SUBMIT_COLLECTION
             </h1>
@@ -217,14 +217,14 @@ const Submit: React.FC = () => {
         {/* Wallet Connection Required */}
         {!connected ? (
           <div className="bg-[#1c1c24] border border-white/20 p-8 text-center">
-            <Wallet className="w-12 h-12 text-magic-green mx-auto mb-4" />
+            <Wallet className="w-12 h-12 text-magic-blue mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2 uppercase">Wallet Required</h2>
             <p className="text-gray-400 mb-6 font-mono">
               Please connect your wallet to submit a collection.
             </p>
             <button
               onClick={handleWalletConnect}
-              className="bg-magic-green text-black px-8 py-3 font-bold uppercase tracking-widest hover:bg-black hover:text-magic-green border border-magic-green transition-all"
+              className="bg-magic-blue text-black px-8 py-3 font-bold uppercase tracking-widest hover:bg-black hover:text-magic-blue border border-magic-blue transition-all"
             >
               Connect Wallet
             </button>
@@ -252,7 +252,7 @@ const Submit: React.FC = () => {
                   >
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 ${step <= currentStep
-                        ? 'bg-magic-green text-black border-magic-green'
+                        ? 'bg-magic-blue text-black border-magic-blue'
                         : 'bg-transparent text-gray-600 border-gray-600'
                         }`}
                     >
@@ -275,7 +275,7 @@ const Submit: React.FC = () => {
               </div>
               <div className="w-full bg-gray-800 h-1">
                 <div
-                  className="bg-magic-green h-1 transition-all duration-500"
+                  className="bg-magic-blue h-1 transition-all duration-500"
                   style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
                 />
               </div>
@@ -288,7 +288,7 @@ const Submit: React.FC = () => {
               </div>
             )}
             {submitSuccess && (
-              <div className="mb-6 p-4 bg-magic-green/10 border border-magic-green/30 text-magic-green font-mono">
+              <div className="mb-6 p-4 bg-magic-blue/10 border border-magic-blue/30 text-magic-blue font-mono">
                 [SUCCESS] {submitSuccess}
               </div>
             )}
@@ -371,7 +371,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
             value={data.name}
             onChange={(e) => updateData({ name: e.target.value })}
             placeholder="e.g., Cool NFT Collection"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
         </div>
 
@@ -385,7 +385,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
             name="symbol"
             onChange={(e) => updateData({ symbol: e.target.value.toUpperCase() })}
             placeholder="e.g., COOL"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono uppercase"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono uppercase"
           />
         </div>
 
@@ -400,7 +400,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
             placeholder="Describe your collection..."
             maxLength={500}
             rows={4}
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono resize-none"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono resize-none"
           />
           <div className="text-right text-xs text-gray-500 mt-1">
             {data.description.length}/500
@@ -418,7 +418,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
             onChange={(e) => updateData({ supply: parseInt(e.target.value) || 0 })}
             placeholder="1000"
             min="1"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
         </div>
 
@@ -434,7 +434,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
             placeholder="0.1"
             min="0"
             step="0.01"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
         </div>
 
@@ -447,7 +447,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
             name="mintDate"
             value={data.mintDate}
             onChange={(e) => updateData({ mintDate: e.target.value })}
-            className="w-full bg-black border border-white/20 p-3 text-white focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white focus:outline-none focus:border-magic-blue font-mono"
           />
         </div>
       </div>
@@ -457,7 +457,7 @@ const Step1: React.FC<StepProps> = ({ data, updateData, onNext }) => {
           onClick={onNext}
           disabled={!isValid}
           className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${isValid
-            ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+            ? 'bg-magic-blue text-black border-magic-blue hover:bg-black hover:text-magic-blue'
             : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
             }`}
         >
@@ -645,7 +645,7 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
                   </div>
                 ))}
                 {data.sampleFiles.length < 5 && (
-                  <label className="cursor-pointer border border-white/20 border-dashed flex flex-col items-center justify-center h-24 hover:border-magic-green">
+                  <label className="cursor-pointer border border-white/20 border-dashed flex flex-col items-center justify-center h-24 hover:border-magic-blue">
                     <Upload className="w-4 h-4 text-gray-600" />
                     <span className="text-xs text-gray-600 mt-1">Add more</span>
                     <input
@@ -687,7 +687,7 @@ const Step2: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           onClick={onNext}
           disabled={!isValid}
           className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${isValid
-            ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+            ? 'bg-magic-blue text-black border-magic-blue hover:bg-black hover:text-magic-blue'
             : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
             }`}
         >
@@ -717,7 +717,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             value={data.contractAddress}
             onChange={(e) => updateData({ contractAddress: e.target.value })}
             placeholder="Gorbagana contract address..."
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
         </div>
 
@@ -734,7 +734,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             min="0"
             max="20"
             step="0.5"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
           <div className="text-xs text-gray-500 mt-1">Max 20%</div>
         </div>
@@ -749,7 +749,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             value={data.website}
             onChange={(e) => updateData({ website: e.target.value })}
             placeholder="https://your-website.com"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
         </div>
 
@@ -763,7 +763,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             value={data.twitter}
             onChange={(e) => updateData({ twitter: e.target.value })}
             placeholder="@your_handle"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
         </div>
 
@@ -777,7 +777,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             value={data.discord}
             onChange={(e) => updateData({ discord: e.target.value })}
             placeholder="https://discord.gg/your-server"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
         </div>
 
@@ -791,7 +791,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             value={data.telegram}
             onChange={(e) => updateData({ telegram: e.target.value })}
             placeholder="https://t.me/your_group"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
         </div>
 
@@ -805,7 +805,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
             value={data.contactEmail}
             onChange={(e) => updateData({ contactEmail: e.target.value })}
             placeholder="contact@yourproject.com"
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono"
           />
           <div className="text-xs text-gray-500 mt-1">For submission updates and notifications</div>
         </div>
@@ -822,7 +822,7 @@ const Step3: React.FC<StepProps> = ({ data, updateData, onNext, onBack }) => {
           onClick={onNext}
           disabled={!isValid}
           className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${isValid
-            ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+            ? 'bg-magic-blue text-black border-magic-blue hover:bg-black hover:text-magic-blue'
             : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
             }`}
         >
@@ -853,7 +853,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
             placeholder="Tell us about your team..."
             maxLength={1000}
             rows={3}
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono resize-none"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono resize-none"
           />
           <div className="text-right text-xs text-gray-500 mt-1">
             {data.teamInfo.length}/1000
@@ -871,7 +871,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
             placeholder="What are your future plans?"
             maxLength={1000}
             rows={3}
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono resize-none"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono resize-none"
           />
           <div className="text-right text-xs text-gray-500 mt-1">
             {data.roadmap.length}/1000
@@ -889,7 +889,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
             placeholder="What does your NFT provide to holders?"
             maxLength={1000}
             rows={3}
-            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-green font-mono resize-none"
+            className="w-full bg-black border border-white/20 p-3 text-white placeholder-gray-700 focus:outline-none focus:border-magic-blue font-mono resize-none"
           />
           <div className="text-right text-xs text-gray-500 mt-1">
             {data.utility.length}/1000
@@ -899,7 +899,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
 
       {/* Preview Section */}
       <div className="mt-8 border-t border-white/20 pt-8">
-        <h3 className="text-xl font-bold text-magic-green mb-4 uppercase">Submission_Preview</h3>
+        <h3 className="text-xl font-bold text-magic-blue mb-4 uppercase">Submission_Preview</h3>
         <div className="bg-black border border-white/10 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -949,7 +949,7 @@ const Step4: React.FC<StepProps> = ({ data, updateData, onSubmit, onBack, isSubm
           onClick={onSubmit}
           disabled={!isValid || isSubmitting}
           className={`px-8 py-3 font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${isValid && !isSubmitting
-            ? 'bg-magic-green text-black border-magic-green hover:bg-black hover:text-magic-green'
+            ? 'bg-magic-blue text-black border-magic-blue hover:bg-black hover:text-magic-blue'
             : 'bg-gray-800 text-gray-600 border-gray-800 cursor-not-allowed'
             }`}
         >

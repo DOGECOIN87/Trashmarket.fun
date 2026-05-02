@@ -16,11 +16,11 @@ const NFTCard: React.FC<NFTCardProps> = ({ nft, collectionName, isSelected, onTo
   const { currency, accentColor } = useNetwork();
 
   // Dynamic classes based on accent color
-  const accentClass = accentColor === 'text-magic-purple' ? 'magic-purple' : 'magic-green';
-  const borderSelected = accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green';
-  const ringSelected = accentColor === 'text-magic-purple' ? 'ring-magic-purple' : 'ring-magic-green';
-  const bgSelected = accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green';
-  const hoverShadow = accentColor === 'text-magic-purple' ? 'hover:shadow-[0_0_20px_rgba(153,69,255,0.15)]' : 'hover:shadow-[0_0_20px_rgba(173,255,2,0.15)]';
+  const accentClass = accentColor === 'text-magic-purple' ? 'magic-purple' : 'magic-blue';
+  const borderSelected = accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-blue';
+  const ringSelected = accentColor === 'text-magic-purple' ? 'ring-magic-purple' : 'ring-magic-blue';
+  const bgSelected = accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-blue';
+  const hoverShadow = accentColor === 'text-magic-purple' ? 'hover:shadow-[0_0_20px_rgba(153,69,255,0.15)]' : 'hover:shadow-[0_0_20px_rgba(0,212,255,0.15)]';
 
   const [imgSrc, setImgSrc] = React.useState(nft.image);
 

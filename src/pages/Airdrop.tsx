@@ -160,7 +160,7 @@ const Airdrop: React.FC = () => {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 text-magic-green animate-spin mx-auto mb-4" />
+          <Loader2 className="w-8 h-8 text-magic-blue animate-spin mx-auto mb-4" />
           <p className="text-gray-500 font-mono uppercase text-sm">Initializing...</p>
         </div>
       </div>
@@ -173,8 +173,8 @@ const Airdrop: React.FC = () => {
       <div className="max-w-2xl mx-auto px-4 py-12 md:py-20">
         {/* Success Header */}
         <div className="text-center mb-12">
-          <CheckCircle2 className="w-20 h-20 text-magic-green mx-auto mb-6" />
-          <h1 className="text-4xl md:text-5xl font-black text-magic-green mb-4 tracking-tight">
+          <CheckCircle2 className="w-20 h-20 text-magic-blue mx-auto mb-6" />
+          <h1 className="text-4xl md:text-5xl font-black text-magic-blue mb-4 tracking-tight">
             REGISTRATION CONFIRMED
           </h1>
           <p className="text-gray-400 text-lg">
@@ -185,23 +185,23 @@ const Airdrop: React.FC = () => {
         {/* Registration Details */}
         <div className="border border-white/10 bg-black/50 p-6 md:p-8 space-y-6 mb-8">
           <div>
-            <p className="text-xs font-bold text-magic-green uppercase tracking-widest mb-2">
+            <p className="text-xs font-bold text-magic-blue uppercase tracking-widest mb-2">
               X.com Account
             </p>
             <p className="text-white text-lg font-mono">@{registration.twitterHandle}</p>
           </div>
 
           <div className="border-t border-white/10 pt-6">
-            <p className="text-xs font-bold text-magic-green uppercase tracking-widest mb-2">
+            <p className="text-xs font-bold text-magic-blue uppercase tracking-widest mb-2">
               Gorbagana Wallet
             </p>
-            <div className="bg-black border border-white/20 p-4 font-mono text-sm text-magic-green break-all">
+            <div className="bg-black border border-white/20 p-4 font-mono text-sm text-magic-blue break-all">
               {registration.walletAddress}
             </div>
           </div>
 
           <div className="border-t border-white/10 pt-6">
-            <p className="text-xs font-bold text-magic-green uppercase tracking-widest mb-2">
+            <p className="text-xs font-bold text-magic-blue uppercase tracking-widest mb-2">
               Registration Date
             </p>
             <p className="text-white font-mono">{formatDate(registration.registeredAt)}</p>
@@ -209,23 +209,23 @@ const Airdrop: React.FC = () => {
         </div>
 
         {/* What's Next */}
-        <div className="border border-white/10 bg-magic-green/5 p-6 mb-8">
-          <h3 className="text-lg font-bold text-magic-green uppercase mb-4">What's Next?</h3>
+        <div className="border border-white/10 bg-magic-blue/5 p-6 mb-8">
+          <h3 className="text-lg font-bold text-magic-blue uppercase mb-4">What's Next?</h3>
           <ol className="space-y-3 text-gray-400 text-sm font-mono">
             <li className="flex gap-3">
-              <span className="text-magic-green font-bold flex-shrink-0">1.</span>
+              <span className="text-magic-blue font-bold flex-shrink-0">1.</span>
               <span>Monitor your wallet for DEBRIS token distribution</span>
             </li>
             <li className="flex gap-3">
-              <span className="text-magic-green font-bold flex-shrink-0">2.</span>
+              <span className="text-magic-blue font-bold flex-shrink-0">2.</span>
               <span>Follow @TrashmarketFun for airdrop announcements</span>
             </li>
             <li className="flex gap-3">
-              <span className="text-magic-green font-bold flex-shrink-0">3.</span>
+              <span className="text-magic-blue font-bold flex-shrink-0">3.</span>
               <span>Explore the Trashmarket ecosystem</span>
             </li>
             <li className="flex gap-3">
-              <span className="text-magic-green font-bold flex-shrink-0">4.</span>
+              <span className="text-magic-blue font-bold flex-shrink-0">4.</span>
               <span>Trade and use DEBRIS on Gorbagana Chain</span>
             </li>
           </ol>
@@ -237,7 +237,7 @@ const Airdrop: React.FC = () => {
             href="https://trashscan.io"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-6 py-3 border border-white/20 bg-black text-white font-bold text-sm uppercase tracking-wider hover:border-magic-green hover:text-magic-green transition-colors"
+            className="flex items-center justify-center gap-2 px-6 py-3 border border-white/20 bg-black text-white font-bold text-sm uppercase tracking-wider hover:border-magic-blue hover:text-magic-blue transition-colors"
           >
             <ExternalLink className="w-4 h-4" />
             View on Explorer
@@ -260,7 +260,7 @@ const Airdrop: React.FC = () => {
       <div className="max-w-2xl mx-auto px-4 py-12 md:py-20">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-black text-magic-green mb-4 tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-black text-magic-blue mb-4 tracking-tight">
             WELCOME, {(twitterHandle || 'USER').toUpperCase()}
           </h1>
           <p className="text-gray-400 text-lg">
@@ -273,7 +273,7 @@ const Airdrop: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Wallet Input */}
             <div>
-              <label className="block text-sm font-bold text-magic-green uppercase tracking-widest mb-4">
+              <label className="block text-sm font-bold text-magic-blue uppercase tracking-widest mb-4">
                 Gorbagana Wallet Address
               </label>
               <div className="flex gap-2">
@@ -282,14 +282,14 @@ const Airdrop: React.FC = () => {
                   value={walletInput}
                   onChange={(e) => setWalletInput(e.target.value)}
                   placeholder="Enter your Gorbagana wallet address"
-                  className="flex-1 bg-black border border-white/20 text-white px-4 py-3 font-mono text-sm placeholder-gray-600 focus:outline-none focus:border-magic-green focus:ring-1 focus:ring-magic-green transition-colors"
+                  className="flex-1 bg-black border border-white/20 text-white px-4 py-3 font-mono text-sm placeholder-gray-600 focus:outline-none focus:border-magic-blue focus:ring-1 focus:ring-magic-blue transition-colors"
                   disabled={isSubmitting}
                 />
                 {connected && publicKey && (
                   <button
                     type="button"
                     onClick={() => setWalletInput(publicKey.toBase58())}
-                    className="px-4 py-3 border border-white/20 bg-black text-gray-400 hover:text-magic-green hover:border-magic-green transition-colors text-xs font-bold uppercase"
+                    className="px-4 py-3 border border-white/20 bg-black text-gray-400 hover:text-magic-blue hover:border-magic-blue transition-colors text-xs font-bold uppercase"
                     title="Use connected wallet"
                   >
                     <Wallet className="w-4 h-4" />
@@ -310,8 +310,8 @@ const Airdrop: React.FC = () => {
             )}
 
             {/* Info Box */}
-            <div className="border border-white/10 bg-magic-green/5 p-5 text-sm">
-              <p className="font-bold text-magic-green uppercase mb-3">Important</p>
+            <div className="border border-white/10 bg-magic-blue/5 p-5 text-sm">
+              <p className="font-bold text-magic-blue uppercase mb-3">Important</p>
               <ul className="space-y-2 text-gray-400 list-disc list-inside font-mono text-xs">
                 <li>Only register with a wallet you control</li>
                 <li>One registration per X.com account</li>
@@ -324,7 +324,7 @@ const Airdrop: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 bg-magic-green text-black font-bold text-lg uppercase tracking-wider hover:bg-[#cbf30c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-magic-blue text-black font-bold text-lg uppercase tracking-wider hover:bg-[#cbf30c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -340,7 +340,7 @@ const Airdrop: React.FC = () => {
 
         {/* Signed in info */}
         <div className="flex items-center justify-between text-xs text-gray-600 font-mono uppercase tracking-widest">
-          <p>Signed in as: <span className="text-magic-green">@{twitterHandle}</span></p>
+          <p>Signed in as: <span className="text-magic-blue">@{twitterHandle}</span></p>
           <button
             onClick={handleTwitterLogout}
             className="text-gray-500 hover:text-red-400 transition-colors"
@@ -357,7 +357,7 @@ const Airdrop: React.FC = () => {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 text-magic-green animate-spin mx-auto mb-4" />
+          <Loader2 className="w-8 h-8 text-magic-blue animate-spin mx-auto mb-4" />
           <p className="text-gray-500 font-mono uppercase text-sm">Checking registration...</p>
         </div>
       </div>
@@ -370,7 +370,7 @@ const Airdrop: React.FC = () => {
       <div className="flex flex-col items-center text-center">
         {/* Hero */}
         <div className="mb-12">
-          <h1 className="text-5xl md:text-7xl font-black text-magic-green mb-6 tracking-tight leading-tight">
+          <h1 className="text-5xl md:text-7xl font-black text-magic-blue mb-6 tracking-tight leading-tight">
             DEBRIS<br />AIRDROP
           </h1>
           <p className="text-gray-400 text-base md:text-lg leading-relaxed max-w-xl mx-auto">
@@ -382,21 +382,21 @@ const Airdrop: React.FC = () => {
         {/* Steps */}
         <div className="w-full max-w-md space-y-4 mb-12">
           <div className="flex items-start gap-4 text-left">
-            <span className="text-magic-green font-black text-xl flex-shrink-0 w-8">01</span>
+            <span className="text-magic-blue font-black text-xl flex-shrink-0 w-8">01</span>
             <div>
               <h3 className="font-bold text-white mb-1">Authenticate with X.com</h3>
               <p className="text-sm text-gray-500 font-mono">Verify your identity using your X account</p>
             </div>
           </div>
           <div className="flex items-start gap-4 text-left">
-            <span className="text-magic-green font-black text-xl flex-shrink-0 w-8">02</span>
+            <span className="text-magic-blue font-black text-xl flex-shrink-0 w-8">02</span>
             <div>
               <h3 className="font-bold text-white mb-1">Submit Wallet Address</h3>
               <p className="text-sm text-gray-500 font-mono">Provide your Gorbagana wallet for distribution</p>
             </div>
           </div>
           <div className="flex items-start gap-4 text-left">
-            <span className="text-magic-green font-black text-xl flex-shrink-0 w-8">03</span>
+            <span className="text-magic-blue font-black text-xl flex-shrink-0 w-8">03</span>
             <div>
               <h3 className="font-bold text-white mb-1">Receive DEBRIS</h3>
               <p className="text-sm text-gray-500 font-mono">Get your DEBRIS tokens on Gorbagana Chain</p>
@@ -407,7 +407,7 @@ const Airdrop: React.FC = () => {
         {/* CTA Button */}
         <button
           onClick={handleTwitterLogin}
-          className="flex items-center justify-center gap-3 px-12 py-4 bg-magic-green text-black font-bold text-lg uppercase tracking-wider hover:bg-[#cbf30c] transition-all duration-200 hover:scale-105 active:scale-95 mb-6"
+          className="flex items-center justify-center gap-3 px-12 py-4 bg-magic-blue text-black font-bold text-lg uppercase tracking-wider hover:bg-[#cbf30c] transition-all duration-200 hover:scale-105 active:scale-95 mb-6"
         >
           <Twitter className="w-5 h-5" />
           SIGN IN WITH X.COM

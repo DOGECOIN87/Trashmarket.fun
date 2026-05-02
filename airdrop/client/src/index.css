@@ -183,9 +183,9 @@
   --magic-dark: #000000;
   --magic-card: #080808;
   --magic-hover: #111111;
-  --magic-green: #adff02;
-  --logo-green: #cbf30c;
-  --glow-green: #00ff00;
+  --magic-blue: #00d4ff;
+  --logo-blue: #00e6ff;
+  --glow-blue: #0099ff;
 }
 
 body {
@@ -258,9 +258,9 @@ input, textarea, select {
   color: #666666;
 }
 
-.text-glow-green {
-  color: #adff02;
-  text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
+.text-glow-blue {
+  color: #00d4ff;
+  text-shadow: 0 0 10px #0099ff, 0 0 20px #0099ff, 0 0 30px #0099ff;
 }
 
 .animated-bg {

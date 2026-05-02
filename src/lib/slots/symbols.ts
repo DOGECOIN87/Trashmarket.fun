@@ -16,7 +16,7 @@ export const SYMBOLS: Symbol[] = [
   {
     id: 1,
     name: 'Alon',
-    image: '/symbols/alon.png',
+    image: '/symbols/alon.webp',
     rarity: 9,
     weight: 15,
     payout: 1.5,
@@ -24,7 +24,7 @@ export const SYMBOLS: Symbol[] = [
   {
     id: 2,
     name: 'Box',
-    image: '/symbols/box.png',
+    image: '/symbols/box.webp',
     rarity: 8,
     weight: 12,
     payout: 2,
@@ -32,7 +32,7 @@ export const SYMBOLS: Symbol[] = [
   {
     id: 3,
     name: 'Digibin',
-    image: '/symbols/digibin.png',
+    image: '/symbols/digibin.webp',
     rarity: 1, // HIGHEST RARITY
     weight: 2,
     payout: 50, // Highest payout
@@ -40,7 +40,7 @@ export const SYMBOLS: Symbol[] = [
   {
     id: 4,
     name: 'Gorbios',
-    image: '/symbols/gorbios.png',
+    image: '/symbols/gorbios.webp',
     rarity: 2, // SECOND TIER
     weight: 4,
     payout: 25,
@@ -48,7 +48,7 @@ export const SYMBOLS: Symbol[] = [
   {
     id: 5,
     name: 'Matress',
-    image: '/symbols/matress.png',
+    image: '/symbols/matress.webp',
     rarity: 2, // SECOND TIER
     weight: 4,
     payout: 25,
@@ -56,7 +56,7 @@ export const SYMBOLS: Symbol[] = [
   {
     id: 6,
     name: 'Oscar',
-    image: '/symbols/oscar.png',
+    image: '/symbols/oscar.webp',
     rarity: 5,
     weight: 8,
     payout: 8,
@@ -64,7 +64,7 @@ export const SYMBOLS: Symbol[] = [
   {
     id: 7,
     name: 'Pump Pill',
-    image: '/symbols/pump-pill.png',
+    image: '/symbols/pump-pill.webp',
     rarity: 2, // SECOND TIER
     weight: 4,
     payout: 25,
@@ -72,7 +72,7 @@ export const SYMBOLS: Symbol[] = [
   {
     id: 8,
     name: 'Shredder',
-    image: '/symbols/shredder.png',
+    image: '/symbols/shredder.webp',
     rarity: 6,
     weight: 7,
     payout: 5,
@@ -80,7 +80,7 @@ export const SYMBOLS: Symbol[] = [
   {
     id: 9,
     name: 'Sky Garbage',
-    image: '/symbols/sky-garbage.png',
+    image: '/symbols/sky-garbage.webp',
     rarity: 7,
     weight: 10,
     payout: 3,

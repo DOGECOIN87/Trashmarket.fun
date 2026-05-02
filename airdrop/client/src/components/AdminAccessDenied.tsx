@@ -28,7 +28,7 @@ export default function AdminAccessDenied({ onLogout }: AdminAccessDeniedProps) 
                 className="w-12 h-12"
               />
               <div>
-                <h1 className="text-2xl text-glow-green">{BRAND.NAME}</h1>
+                <h1 className="text-2xl text-glow-blue">{BRAND.NAME}</h1>
                 <p className="text-xs text-[#666666] uppercase tracking-widest">AIRDROP REGISTRATION</p>
               </div>
             </div>

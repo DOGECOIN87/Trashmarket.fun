@@ -111,7 +111,7 @@ const Navbar: React.FC = () => {
   }, []);
 
   const getNetworkStatus = (currentGps: number) => {
-    if (currentGps > 8000) return { label: 'DUMPING', color: 'text-magic-green', bg: 'bg-magic-green' };
+    if (currentGps > 8000) return { label: 'DUMPING', color: 'text-magic-blue', bg: 'bg-magic-blue' };
     if (currentGps > 7000) return { label: 'FLOWING', color: 'text-yellow-500', bg: 'bg-yellow-500' };
     return { label: 'CLOGGED', color: 'text-magic-red', bg: 'bg-magic-red' };
   };
@@ -158,11 +158,11 @@ const Navbar: React.FC = () => {
                     alt="Trash Market Logo"
                     className="w-full h-full object-contain rounded-sm"
                   />
-                  <div className="absolute inset-0 bg-magic-green/20 blur-md rounded-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute inset-0 bg-magic-blue/20 blur-md rounded-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xl font-black text-white tracking-tighter leading-none">
-                    TRASHMARKET<span className="text-magic-green">.FUN</span>
+                    TRASHMARKET<span className="text-magic-blue">.FUN</span>
                   </span>
                   <div className="flex justify-between w-full -mt-0.5">
                     {"NFT-DEFI-GAME-TOOL-DEX".split('').map((char, i) => (
@@ -179,12 +179,12 @@ const Navbar: React.FC = () => {
             <div className="hidden xl:flex flex-1 max-w-lg mx-8">
               <div className="relative w-full group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-gray-500 group-hover:text-magic-green" />
+                  <Search className="h-4 w-4 text-gray-500 group-hover:text-magic-blue" />
                 </div>
                 <input
                   type="text"
                   name="search"
-                  className="block w-full pl-10 pr-3 py-2 border border-white/20 leading-5 bg-black text-white placeholder-gray-600 focus:outline-none focus:border-magic-green focus:ring-1 focus:ring-magic-green sm:text-sm transition-all duration-150 font-mono uppercase focus:text-magic-green"
+                  className="block w-full pl-10 pr-3 py-2 border border-white/20 leading-5 bg-black text-white placeholder-gray-600 focus:outline-none focus:border-magic-blue focus:ring-1 focus:ring-magic-blue sm:text-sm transition-all duration-150 font-mono uppercase focus:text-magic-blue"
                   placeholder="SEARCH_TRASH..."
                 />
               </div>
@@ -198,7 +198,7 @@ const Navbar: React.FC = () => {
                   <Link
                     key={link.name}
                     to={link.path}
-                    className={`text-sm font-bold uppercase tracking-wide transition-colors hover:text-magic-green whitespace-nowrap ${location.pathname === link.path ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400'
+                    className={`text-sm font-bold uppercase tracking-wide transition-colors hover:text-magic-blue whitespace-nowrap ${location.pathname === link.path ? 'text-magic-blue underline decoration-2 underline-offset-4' : 'text-gray-400'
                       }`}
                   >
                     {link.name}
@@ -209,7 +209,7 @@ const Navbar: React.FC = () => {
                 <div className="relative">
                   <button
                     onClick={() => setIsGamesMenuOpen(!isGamesMenuOpen)}
-                    className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${isGamesActive ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400 hover:text-magic-green'
+                    className={`flex items-center gap-2 text-sm font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${isGamesActive ? 'text-magic-blue underline decoration-2 underline-offset-4' : 'text-gray-400 hover:text-magic-blue'
                       }`}
                   >
                     <Gamepad2 className="w-4 h-4" />
@@ -226,15 +226,26 @@ const Navbar: React.FC = () => {
                             key={link.name}
                             to={link.path}
                             onClick={() => setIsGamesMenuOpen(false)}
-                            className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${location.pathname === link.path ? 'bg-magic-green/10 border border-magic-green/30' : 'border border-transparent'
+                            className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${location.pathname === link.path ? 'bg-magic-blue/10 border border-magic-blue/30' : 'border border-transparent'
                               }`}
                           >
                             <span className="text-white font-mono uppercase">{link.name}</span>
                             {location.pathname === link.path && (
-                              <span className="w-2 h-2 rounded-full bg-magic-green animate-pulse"></span>
+                              <span className="w-2 h-2 rounded-full bg-magic-blue animate-pulse"></span>
                             )}
                           </Link>
                         ))}
+                        {/* Scratch Ticket */}
+                        <button
+                          onClick={() => {
+                            setIsGamesMenuOpen(false);
+                            window.dispatchEvent(new CustomEvent('open-scratch-ticket'));
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors border border-transparent hover:border-magic-blue/20"
+                        >
+                          <span className="text-white font-mono uppercase">Scratch Ticket</span>
+                          <span className="text-[9px] font-mono text-magic-blue border border-magic-blue/40 px-1">500 GOR</span>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -261,7 +272,7 @@ const Navbar: React.FC = () => {
                     }`}
                 >
                   <Globe className="w-4 h-4" />
-                  <span className={`text-xs font-bold uppercase tracking-wider font-mono ${currentNetwork === 'GORBAGANA' ? 'text-magic-green' :
+                  <span className={`text-xs font-bold uppercase tracking-wider font-mono ${currentNetwork === 'GORBAGANA' ? 'text-magic-blue' :
                     isDevnet ? 'text-blue-400' : 'text-purple-400'
                     }`}>
                     {currentNetwork === 'GORBAGANA' ? '🗑️ GOR' :
@@ -279,15 +290,15 @@ const Navbar: React.FC = () => {
                           setNetwork('GORBAGANA');
                           setIsNetworkMenuOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${currentNetwork === 'GORBAGANA' ? 'bg-magic-green/10 border border-magic-green/30' : 'border border-transparent'
+                        className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${currentNetwork === 'GORBAGANA' ? 'bg-magic-blue/10 border border-magic-blue/30' : 'border border-transparent'
                           }`}
                       >
                         <span className="flex items-center gap-2">
-                          <span className="text-magic-green font-bold">🗑️</span>
+                          <span className="text-magic-blue font-bold">🗑️</span>
                           <span className="text-white font-mono">Gorbagana</span>
                         </span>
                         {currentNetwork === 'GORBAGANA' && (
-                          <span className="w-2 h-2 rounded-full bg-magic-green animate-pulse"></span>
+                          <span className="w-2 h-2 rounded-full bg-magic-blue animate-pulse"></span>
                         )}
                       </button>
 
@@ -334,8 +345,8 @@ const Navbar: React.FC = () => {
               <button
                 onClick={handleWalletClick}
                 className={`flex items-center gap-2 px-6 py-2 border font-bold text-sm transition-all duration-200 uppercase tracking-wider ${connected
-                  ? 'bg-black border-magic-green text-magic-green hover:bg-white/10'
-                  : 'bg-magic-green border-magic-green text-black hover:bg-black hover:text-magic-green'
+                  ? 'bg-black border-magic-blue text-magic-blue hover:bg-white/10'
+                  : 'bg-magic-blue border-magic-blue text-black hover:bg-black hover:text-magic-blue'
                   }`}
               >
                 <Wallet className="w-4 h-4" />
@@ -351,7 +362,7 @@ const Navbar: React.FC = () => {
             <div className="md:hidden flex items-center">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="inline-flex items-center justify-center p-2 text-magic-green hover:text-white hover:bg-white/10 focus:outline-none"
+                className="inline-flex items-center justify-center p-2 text-magic-blue hover:text-white hover:bg-white/10 focus:outline-none"
               >
                 {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
@@ -367,7 +378,7 @@ const Navbar: React.FC = () => {
                 <Link
                   key={link.name}
                   to={link.path}
-                  className={`text-xs font-bold uppercase tracking-wide transition-colors hover:text-magic-green whitespace-nowrap ${location.pathname === link.path ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400'
+                  className={`text-xs font-bold uppercase tracking-wide transition-colors hover:text-magic-blue whitespace-nowrap ${location.pathname === link.path ? 'text-magic-blue underline decoration-2 underline-offset-4' : 'text-gray-400'
                     }`}
                 >
                   {link.name}
@@ -378,7 +389,7 @@ const Navbar: React.FC = () => {
               <div className="relative">
                 <button
                   onClick={() => setIsGamesMenuOpen(!isGamesMenuOpen)}
-                  className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${isGamesActive ? 'text-magic-green underline decoration-2 underline-offset-4' : 'text-gray-400 hover:text-magic-green'
+                  className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap ${isGamesActive ? 'text-magic-blue underline decoration-2 underline-offset-4' : 'text-gray-400 hover:text-magic-blue'
                     }`}
                 >
                   <Gamepad2 className="w-4 h-4" />
@@ -395,12 +406,12 @@ const Navbar: React.FC = () => {
                           key={link.name}
                           to={link.path}
                           onClick={() => setIsGamesMenuOpen(false)}
-                          className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${location.pathname === link.path ? 'bg-magic-green/10 border border-magic-green/30' : 'border border-transparent'
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5 transition-colors ${location.pathname === link.path ? 'bg-magic-blue/10 border border-magic-blue/30' : 'border border-transparent'
                             }`}
                         >
                           <span className="text-white font-mono uppercase">{link.name}</span>
                           {location.pathname === link.path && (
-                            <span className="w-2 h-2 rounded-full bg-magic-green animate-pulse"></span>
+                            <span className="w-2 h-2 rounded-full bg-magic-blue animate-pulse"></span>
                           )}
                         </Link>
                       ))}
@@ -424,10 +435,10 @@ const Navbar: React.FC = () => {
                 className="flex items-center justify-between px-3 py-3 border-b border-white/10 mb-2 bg-white/5 active:bg-white/10"
               >
                 <div className="flex items-center gap-2">
-                  <Trash2 className="w-4 h-4 text-magic-green" />
+                  <Trash2 className="w-4 h-4 text-magic-blue" />
                   <div className="flex flex-col">
                     <span className="text-xs font-mono text-gray-400 uppercase">Network</span>
-                    <span className="text-[10px] font-bold uppercase text-magic-green">{networkName}</span>
+                    <span className="text-[10px] font-bold uppercase text-magic-blue">{networkName}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -446,7 +457,7 @@ const Navbar: React.FC = () => {
                   key={link.name}
                   to={link.path}
                   onClick={() => setIsMenuOpen(false)}
-                  className="block px-3 py-2 text-base font-bold text-gray-300 hover:text-magic-green hover:bg-white/5 uppercase font-mono"
+                  className="block px-3 py-2 text-base font-bold text-gray-300 hover:text-magic-blue hover:bg-white/5 uppercase font-mono"
                 >
                   {link.name}
                 </Link>
@@ -454,13 +465,13 @@ const Navbar: React.FC = () => {
 
               {/* Mobile Games Links */}
               <div className="border-t border-white/10 pt-2 mt-2">
-                <div className="px-3 py-2 text-base font-bold text-magic-green uppercase font-mono">GAMES</div>
+                <div className="px-3 py-2 text-base font-bold text-magic-blue uppercase font-mono">GAMES</div>
                 {gameLinks.map((link) => (
                   <Link
                     key={link.name}
                     to={link.path}
                     onClick={() => setIsMenuOpen(false)}
-                    className="block px-6 py-2 text-base font-bold text-gray-300 hover:text-magic-green hover:bg-white/5 uppercase font-mono"
+                    className="block px-6 py-2 text-base font-bold text-gray-300 hover:text-magic-blue hover:bg-white/5 uppercase font-mono"
                   >
                     {link.name}
                   </Link>
@@ -471,13 +482,13 @@ const Navbar: React.FC = () => {
               {connected && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-black border border-white/10 mt-2">
                   <Globe className="w-4 h-4" />
-                  <span className={`text-xs font-bold uppercase tracking-widest font-mono ${detectedNetwork === 'gorbagana' ? 'text-magic-green' :
+                  <span className={`text-xs font-bold uppercase tracking-widest font-mono ${detectedNetwork === 'gorbagana' ? 'text-magic-blue' :
                     detectedNetwork === 'solana' ? 'text-purple-400' : 'text-gray-500'
                     }`}>
                     {detectedNetwork === 'gorbagana' ? '🗑️ GORBAGANA' :
                       detectedNetwork === 'solana' ? '◎ SOLANA' : 'DETECTING...'}
                   </span>
-                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${detectedNetwork === 'gorbagana' ? 'bg-magic-green' :
+                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${detectedNetwork === 'gorbagana' ? 'bg-magic-blue' :
                     detectedNetwork === 'solana' ? 'bg-purple-400' : 'bg-gray-500'
                     }`}></span>
                 </div>
@@ -488,7 +499,7 @@ const Navbar: React.FC = () => {
                   setIsMenuOpen(false);
                   handleWalletClick();
                 }}
-                className="w-full text-left mt-4 block px-3 py-2 text-base font-bold bg-magic-green text-black uppercase font-mono"
+                className="w-full text-left mt-4 block px-3 py-2 text-base font-bold bg-magic-blue text-black uppercase font-mono"
               >
                 {connected && address ? formatAddress(address) : 'Connect Wallet'}
               </button>

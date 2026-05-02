@@ -1,16 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Github, Twitter, Send } from 'lucide-react';
-import LotteryTickets from './LotteryTickets';
 
-const Footer: React.FC = () => {
+interface FooterProps {
+    onOpenScratchTicket?: () => void;
+}
+
+const Footer: React.FC<FooterProps> = ({ onOpenScratchTicket }) => {
     return (
         <footer className="relative bg-magic-dark border-t border-white/10 pt-8 md:pt-16 pb-4 md:pb-8 overflow-hidden">
             {/* Animated SVG Background */}
             <div 
                 className="absolute inset-0 pointer-events-none opacity-30 z-0"
                 style={{
-                    backgroundImage: 'url("/assets/enhanced_logo_v6.svg")',
+                    backgroundImage: 'url("/slow_spinning_cookies.svg")',
                     backgroundSize: '350px 350px',
                     backgroundPosition: '0 0',
                     backgroundRepeat: 'repeat'
@@ -24,11 +27,11 @@ const Footer: React.FC = () => {
                         <div className="flex items-center gap-3 mb-6">
                             <img src="/assets/logo.svg" alt="Logo" className="w-8 h-8" />
                             <span className="text-xl font-black text-white tracking-tighter">
-                                TRASHMARKET<span className="text-magic-green">.FUN</span>
+                                TRASHMARKET<span className="text-magic-blue">.FUN</span>
                             </span>
                         </div>
                         <p className="text-gray-500 text-sm font-mono leading-relaxed max-w-xs">
-                            The rawest NFT marketplace on Solana. No filler, just trash.
+                            The rawest NFT marketplace on Gorbagana. No filler, just trash.
                         </p>
                     </div>
 
@@ -36,27 +39,34 @@ const Footer: React.FC = () => {
                     <div>
                         <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs px-1">Marketplace</h4>
                         <ul className="space-y-2 text-gray-500 text-xs font-mono uppercase tracking-wider">
-                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/">Trending</Link></li>
-                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/">New Trash</Link></li>
-                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/">Auctions</Link></li>
-                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/nft">NFT Market</Link></li>
+                            <li className="hover:text-magic-blue cursor-pointer transition-colors"><Link to="/">Trending</Link></li>
+                            <li className="hover:text-magic-blue cursor-pointer transition-colors"><Link to="/">New Trash</Link></li>
+                            <li className="hover:text-magic-blue cursor-pointer transition-colors"><Link to="/">Auctions</Link></li>
+                            <li className="hover:text-magic-blue cursor-pointer transition-colors"><Link to="/nft">NFT Market</Link></li>
                         </ul>
                     </div>
 
                     <div>
                         <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs px-1">Resources</h4>
                         <ul className="space-y-2 text-gray-500 text-xs font-mono uppercase tracking-wider">
-                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/official-docs">Docs</Link></li>
-                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/docs">Brand Kit</Link></li>
-                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/airdrop">Airdrop</Link></li>
-                            <li className="hover:text-magic-green cursor-pointer transition-colors"><Link to="/launchpad">Launchpad</Link></li>
+                            <li className="hover:text-magic-blue cursor-pointer transition-colors"><Link to="/official-docs">Docs</Link></li>
+                            <li className="hover:text-magic-blue cursor-pointer transition-colors"><Link to="/docs">Brand Kit</Link></li>
+                            <li className="hover:text-magic-blue cursor-pointer transition-colors"><Link to="/airdrop">Airdrop</Link></li>
+                            <li className="hover:text-magic-blue cursor-pointer transition-colors"><Link to="/launchpad">Launchpad</Link></li>
                         </ul>
                     </div>
 
-                    {/* Lottery Section - New Modal Trigger */}
+                    {/* Scratch Ticket Section */}
                     <div className="md:col-span-1 flex flex-col items-start sm:hidden md:flex">
-                        <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs px-1">Lottery</h4>
-                        <LotteryTickets />
+                        <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs px-1">Scratch Ticket</h4>
+                        <button
+                            onClick={onOpenScratchTicket}
+                            className="px-4 py-2 bg-black border border-white/10 hover:border-magic-blue/50 hover:text-magic-blue transition-all group"
+                        >
+                            <span className="text-xs font-bold text-gray-400 group-hover:text-magic-blue uppercase tracking-widest font-mono">Buy Ticket</span>
+                        </button>
+                        <p className="mt-2 text-[9px] text-gray-700 font-mono uppercase tracking-wider">500 GOR</p>
+                        <p className="text-[9px] text-gray-700 font-mono uppercase tracking-wider">Win DEBRIS</p>
                     </div>
 
                     {/* Community Section */}
@@ -67,7 +77,7 @@ const Footer: React.FC = () => {
                                 href="https://github.com/DOGECOIN87/Trashmarket.fun"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-10 h-10 bg-black border border-white/10 flex items-center justify-center hover:border-magic-green/50 hover:text-magic-green transition-all group"
+                                className="w-10 h-10 bg-black border border-white/10 flex items-center justify-center hover:border-magic-blue/50 hover:text-magic-blue transition-all group"
                             >
                                 <Github className="w-5 h-5" />
                             </a>
@@ -75,7 +85,7 @@ const Footer: React.FC = () => {
                                 href="https://twitter.com"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-10 h-10 bg-black border border-white/10 flex items-center justify-center hover:border-magic-green/50 hover:text-magic-green transition-all group"
+                                className="w-10 h-10 bg-black border border-white/10 flex items-center justify-center hover:border-magic-blue/50 hover:text-magic-blue transition-all group"
                             >
                                 <Twitter className="w-5 h-5" />
                             </a>
@@ -83,7 +93,7 @@ const Footer: React.FC = () => {
                                 href="https://t.me"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-10 h-10 bg-black border border-white/10 flex items-center justify-center hover:border-magic-green/50 hover:text-magic-green transition-all group"
+                                className="w-10 h-10 bg-black border border-white/10 flex items-center justify-center hover:border-magic-blue/50 hover:text-magic-blue transition-all group"
                             >
                                 <Send className="w-5 h-5" />
                             </a>

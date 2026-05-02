@@ -18,14 +18,14 @@ export const COLORS = {
   BLACK: '#000000',
   DARK_CARD: '#080808',
   DARK_HOVER: '#111111',
-  NEON_GREEN: '#adff02',
-  LOGO_GREEN: '#cbf30c',
+  NEON_BLUE: '#00d4ff',
+  LOGO_BLUE: '#00e6ff',
   MAGENTA: '#ff00ff',
   PURPLE: '#9945ff',
   RED: '#ff2222',
   MUTED_TEXT: '#666666',
   WHITE: '#FFFFFF',
-  GLOW_GREEN: '#00ff00',
+  GLOW_BLUE: '#0099ff',
   GLOW_CYAN: '#00ffff',
 } as const;
 

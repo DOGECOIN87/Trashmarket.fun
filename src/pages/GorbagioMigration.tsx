@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { ArrowRight, CheckCircle, AlertCircle, Loader, RefreshCw, Shield, Trash2, Wrench, VolumeX, Volume2, Grid, ExternalLink } from 'lucide-react';
+import { ArrowRight, CheckCircle, AlertCircle, Loader, RefreshCw, Shield, Trash2, Wrench, Grid, ExternalLink } from 'lucide-react';
 import { audioManager } from '../lib/audioManager';
 import MigrateAnimation from '../components/MigrateAnimation';
 import type { LegacyGorbagio, MigratedGorbagioNeedingFix, MigratedGorbagio } from '../services/migrationService';
@@ -27,16 +27,6 @@ interface CollectionFixState {
 const GorbagioMigration: React.FC = () => {
   const { connected, publicKey, wallet } = useWallet();
   const { connection } = useConnection();
-  const [isMuted, setIsMuted] = useState(true);
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
   const [state, setState] = useState<MigrationState>({
     nfts: [],
     selected: null,
@@ -197,30 +187,6 @@ const GorbagioMigration: React.FC = () => {
 
   return (
     <div className="relative min-h-screen text-white p-4 overflow-x-hidden">
-      {/* Background Video */}
-      <div className="fixed inset-0 z-0 bg-black pointer-events-none">
-        <video
-          ref={videoRef}
-          autoPlay
-          loop
-          muted={isMuted}
-          playsInline
-          className="w-full h-full object-cover opacity-30"
-          src="/assets/backgrounds/lv_0_20260323005114.mp4"
-        />
-      </div>
-      <button
-        onClick={toggleMute}
-        style={{ top: 'calc(var(--navbar-height, 64px) + 3.5rem)' }}
-        className="fixed right-4 z-50 p-2 bg-black/50 border border-white/20 rounded-full hover:bg-black/70 transition-all duration-200 group"
-        aria-label={isMuted ? 'Unmute video' : 'Mute video'}
-      >
-        {isMuted ? (
-          <VolumeX className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-        ) : (
-          <Volume2 className="w-4 h-4 text-[#39FF14] group-hover:text-[#39FF14]/80 transition-colors" />
-        )}
-      </button>
       <div className="relative z-10">
       {/* Migration Animation Overlay */}
       {showAnimation && animatedNFT && (

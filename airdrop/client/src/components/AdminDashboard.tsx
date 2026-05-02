@@ -123,7 +123,7 @@ export default function AdminDashboard({ onBack, onLogout }: AdminDashboardProps
                 className="w-12 h-12"
               />
               <div>
-                <h1 className="text-2xl text-glow-green">{BRAND.NAME}</h1>
+                <h1 className="text-2xl text-glow-blue">{BRAND.NAME}</h1>
                 <p className="text-xs text-[#666666] uppercase tracking-widest">ADMIN DASHBOARD</p>
               </div>
             </div>
@@ -191,7 +191,7 @@ export default function AdminDashboard({ onBack, onLogout }: AdminDashboardProps
                 <p className="text-xs font-bold text-[#adff02] uppercase tracking-widest mb-2">
                   TOTAL REGISTRATIONS
                 </p>
-                <p className="text-4xl text-glow-green">
+                <p className="text-4xl text-glow-blue">
                   {isLoading || !stats ? '...' : stats.totalCount}
                 </p>
               </div>
@@ -199,7 +199,7 @@ export default function AdminDashboard({ onBack, onLogout }: AdminDashboardProps
                 <p className="text-xs font-bold text-[#adff02] uppercase tracking-widest mb-2">
                   LAST 24 HOURS
                 </p>
-                <p className="text-4xl text-glow-green">
+                <p className="text-4xl text-glow-blue">
                   {isLoading || !stats ? '...' : stats.last24h}
                 </p>
               </div>
@@ -207,7 +207,7 @@ export default function AdminDashboard({ onBack, onLogout }: AdminDashboardProps
                 <p className="text-xs font-bold text-[#adff02] uppercase tracking-widest mb-2">
                   LAST HOUR
                 </p>
-                <p className="text-4xl text-glow-green">
+                <p className="text-4xl text-glow-blue">
                   {isLoading || !stats ? '...' : stats.lastHour}
                 </p>
               </div>
@@ -223,7 +223,7 @@ export default function AdminDashboard({ onBack, onLogout }: AdminDashboardProps
 
             {/* Recent Registrations Feed */}
             <div className="card mb-12">
-              <h2 className="text-2xl font-bold text-glow-green mb-6">LIVE FEED - LATEST SIGN-UPS</h2>
+              <h2 className="text-2xl font-bold text-glow-blue mb-6">LIVE FEED - LATEST SIGN-UPS</h2>
               {isLoading || !recentRegistrations || recentRegistrations.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-[#666666] uppercase tracking-widest">
@@ -265,7 +265,7 @@ export default function AdminDashboard({ onBack, onLogout }: AdminDashboardProps
             {/* Hourly Trend Chart */}
             {trendStats && trendStats.hourlyTrend.length > 0 && (
               <div className="card mb-12">
-                <h2 className="text-2xl font-bold text-glow-green mb-6">REGISTRATION TREND</h2>
+                <h2 className="text-2xl font-bold text-glow-blue mb-6">REGISTRATION TREND</h2>
                 <div className="space-y-3">
                   {trendStats.hourlyTrend.slice(-24).map((stat) => (
                     <div key={stat.hour} className="flex items-center gap-4">
@@ -289,7 +289,7 @@ export default function AdminDashboard({ onBack, onLogout }: AdminDashboardProps
 
             {/* Export Controls */}
             <div className="card mb-12">
-              <h2 className="text-2xl font-bold text-glow-green mb-6">EXPORT DATA</h2>
+              <h2 className="text-2xl font-bold text-glow-blue mb-6">EXPORT DATA</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                   onClick={handleExportCSV}
@@ -317,7 +317,7 @@ export default function AdminDashboard({ onBack, onLogout }: AdminDashboardProps
 
             {/* All Registrations Table */}
             <div className="card">
-              <h2 className="text-2xl font-bold text-glow-green mb-6">ALL REGISTRATIONS</h2>
+              <h2 className="text-2xl font-bold text-glow-blue mb-6">ALL REGISTRATIONS</h2>
 
               {isLoading ? (
                 <div className="text-center py-12">

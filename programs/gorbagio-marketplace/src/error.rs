@@ -18,4 +18,8 @@ pub enum MarketplaceError {
     BuyerIsSeller,
     #[msg("Unauthorized")]
     Unauthorized,
+    #[msg("Escrow account is not empty")]
+    EscrowNotEmpty,
+    #[msg("Listing is still active; cancel it before closing the escrow")]
+    ListingStillActive,
 }

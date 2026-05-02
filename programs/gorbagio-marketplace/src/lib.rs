@@ -36,4 +36,11 @@ pub mod gorbagio_marketplace {
     pub fn update_price(ctx: Context<UpdatePrice>, new_price: u64) -> Result<()> {
         instructions::update_price::handler(ctx, new_price)
     }
+
+    /// Admin-only: close an orphaned escrow token account and return rent to
+    /// the original seller (or admin as fallback).  Only callable on empty
+    /// escrow accounts left behind by the pre-fix program version.
+    pub fn close_orphaned_escrow(ctx: Context<CloseOrphanedEscrow>) -> Result<()> {
+        instructions::close_orphaned_escrow::handler(ctx)
+    }
 }

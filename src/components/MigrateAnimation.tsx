@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 /* ─── Brand Tokens ─── */
 const C = {
-  green: '#adff02',
+  blue: '#00d4ff',
   magenta: '#ff00ff',
   purple: '#9945ff',
   red: '#ff2222',
@@ -10,7 +10,7 @@ const C = {
   black: '#000000',
   card: '#080808',
   cardBorder: '#1a1a1a',
-  glowGreen: '#00ff00',
+  glowBlue: '#0099ff',
   glowCyan: '#00ffff',
   muted: '#666666',
   orange: '#ff8800',

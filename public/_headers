@@ -1,0 +1,36 @@
+# Hashed assets (filenames include content hash) — cache forever
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Fonts — cache forever
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML — always revalidate so new deploys take effect immediately
+/index.html
+  Cache-Control: no-cache, must-revalidate
+
+# Static images — 1 week
+/*.png
+  Cache-Control: public, max-age=604800
+/*.jpg
+  Cache-Control: public, max-age=604800
+/*.webp
+  Cache-Control: public, max-age=604800
+/*.svg
+  Cache-Control: public, max-age=604800
+
+# Videos — 1 day (they're large, don't hammer Pages bandwidth)
+/*.mp4
+  Cache-Control: public, max-age=86400
+
+# Audio
+/*.mp3
+  Cache-Control: public, max-age=86400
+
+# Security headers on all responses
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()

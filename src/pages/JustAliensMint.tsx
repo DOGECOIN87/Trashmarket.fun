@@ -66,7 +66,7 @@ function StatBox({
   return (
     <div className="border border-gray-800 bg-[#080808] px-4 py-3 flex flex-col items-center gap-1">
       <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{label}</span>
-      <span className={`text-lg font-black ${accent ? 'text-magic-green' : 'text-white'}`}>
+      <span className={`text-lg font-black ${accent ? 'text-magic-blue' : 'text-white'}`}>
         {value}
       </span>
     </div>
@@ -126,7 +126,7 @@ function SocialLink({
       target="_blank"
       rel="noopener noreferrer"
       title={label}
-      className="flex items-center gap-2 px-4 py-2 border border-gray-800 text-gray-400 hover:text-magic-green hover:border-magic-green/40 transition-all text-xs font-bold uppercase tracking-wider"
+      className="flex items-center gap-2 px-4 py-2 border border-gray-800 text-gray-400 hover:text-magic-blue hover:border-magic-blue/40 transition-all text-xs font-bold uppercase tracking-wider"
     >
       {icon}
       {label}
@@ -186,13 +186,13 @@ function PreviewCarousel({ images }: { images: readonly string[] }) {
       {/* Navigation */}
       <button
         onClick={() => go(-1)}
-        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/70 border border-gray-700 flex items-center justify-center text-gray-400 hover:text-magic-green hover:border-magic-green/40 transition-all"
+        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/70 border border-gray-700 flex items-center justify-center text-gray-400 hover:text-magic-blue hover:border-magic-blue/40 transition-all"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
       <button
         onClick={() => go(1)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/70 border border-gray-700 flex items-center justify-center text-gray-400 hover:text-magic-green hover:border-magic-green/40 transition-all"
+        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/70 border border-gray-700 flex items-center justify-center text-gray-400 hover:text-magic-blue hover:border-magic-blue/40 transition-all"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
@@ -203,16 +203,16 @@ function PreviewCarousel({ images }: { images: readonly string[] }) {
           <button
             key={i}
             onClick={() => { setCurrent(i); startTimer(); }}
-            className={`w-1.5 h-1.5 transition-all ${i === current ? 'bg-magic-green w-4' : 'bg-gray-600'}`}
+            className={`w-1.5 h-1.5 transition-all ${i === current ? 'bg-magic-blue w-4' : 'bg-gray-600'}`}
           />
         ))}
       </div>
 
       {/* Corner accent */}
-      <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-magic-green" />
-      <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-magic-green" />
-      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-magic-green" />
-      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-magic-green" />
+      <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-magic-blue" />
+      <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-magic-blue" />
+      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-magic-blue" />
+      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-magic-blue" />
     </div>
   );
 }
@@ -259,12 +259,12 @@ function SuccessModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-      <div className="w-full max-w-md border border-magic-green/40 bg-[#050505] overflow-hidden">
+      <div className="w-full max-w-md border border-magic-blue/40 bg-[#050505] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <div className="flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-magic-green" />
-            <span className="text-sm font-black uppercase tracking-wider text-magic-green">
+            <CheckCircle className="w-5 h-5 text-magic-blue" />
+            <span className="text-sm font-black uppercase tracking-wider text-magic-blue">
               Mint Successful!
             </span>
           </div>
@@ -302,11 +302,11 @@ function SuccessModal({
               </span>
               <button
                 onClick={() => copy(result.mintAddress!)}
-                className="text-gray-500 hover:text-magic-green transition-colors flex-shrink-0"
+                className="text-gray-500 hover:text-magic-blue transition-colors flex-shrink-0"
                 title="Copy address"
               >
                 {copied ? (
-                  <CheckCircle className="w-3.5 h-3.5 text-magic-green" />
+                  <CheckCircle className="w-3.5 h-3.5 text-magic-blue" />
                 ) : (
                   <Copy className="w-3.5 h-3.5" />
                 )}
@@ -321,7 +321,7 @@ function SuccessModal({
                 href={result.imageUri}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-magic-green text-black font-black text-sm uppercase tracking-wider hover:brightness-110 transition-all"
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-magic-blue text-black font-black text-sm uppercase tracking-wider hover:brightness-110 transition-all"
               >
                 <ExternalLink className="w-4 h-4" />
                 View NFT on IPFS
@@ -340,7 +340,7 @@ function SuccessModal({
             )}
             <button
               onClick={onMintAnother}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 border border-magic-green/40 text-magic-green text-xs font-bold uppercase tracking-wider hover:bg-magic-green/10 transition-all"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 border border-magic-blue/40 text-magic-blue text-xs font-bold uppercase tracking-wider hover:bg-magic-blue/10 transition-all"
             >
               <Zap className="w-3.5 h-3.5" />
               Mint Another
@@ -482,7 +482,7 @@ const JustAliensMint: React.FC = () => {
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen selection:bg-magic-green selection:text-black">
+    <div className="min-h-screen selection:bg-magic-blue selection:text-black">
       {/* ── HERO ─────────────────────────────────────────── */}
       <section className="border-b border-white/10 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 py-12 md:py-20">
@@ -490,7 +490,7 @@ const JustAliensMint: React.FC = () => {
             {/* Left: text */}
             <div>
               <div className="flex items-center gap-2 mb-5">
-                <span className="px-2 py-0.5 bg-magic-green text-black text-[10px] font-black uppercase tracking-widest">
+                <span className="px-2 py-0.5 bg-magic-blue text-black text-[10px] font-black uppercase tracking-widest">
                   {state?.isLive ? 'LIVE NOW' : 'COMING SOON'}
                 </span>
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
@@ -503,7 +503,7 @@ const JustAliensMint: React.FC = () => {
               </p>
               <h1
                 className="text-5xl md:text-7xl font-black tracking-tight text-white mb-1 leading-none"
-                style={{ textShadow: '0 0 30px rgba(173,255,2,0.35)' }}
+                style={{ textShadow: '0 0 30px rgba(0,212,255,0.35)' }}
               >
                 JUST ALIENS
               </h1>
@@ -511,7 +511,7 @@ const JustAliensMint: React.FC = () => {
                 className="text-3xl md:text-5xl font-black tracking-tight mb-6 leading-none"
               >
                 <span className="text-white">DUDE </span>
-                <span className="text-magic-green" style={{ textShadow: '0 0 20px rgba(173,255,2,0.6)' }}>RELAX</span>
+                <span className="text-magic-blue" style={{ textShadow: '0 0 20px rgba(0,212,255,0.6)' }}>RELAX</span>
               </h2>
 
               <p className="text-gray-400 text-sm leading-relaxed max-w-md mb-6">
@@ -541,7 +541,7 @@ const JustAliensMint: React.FC = () => {
           {/* Stats row */}
           {loadingState ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="w-6 h-6 text-magic-green animate-spin" />
+              <Loader2 className="w-6 h-6 text-magic-blue animate-spin" />
             </div>
           ) : (
             <>
@@ -567,7 +567,7 @@ const JustAliensMint: React.FC = () => {
                 </div>
                 <div className="w-full h-2 bg-gray-900 border border-gray-800 overflow-hidden">
                   <div
-                    className="h-full bg-magic-green transition-all duration-700"
+                    className="h-full bg-magic-blue transition-all duration-700"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -578,7 +578,7 @@ const JustAliensMint: React.FC = () => {
                 <div className="flex flex-col gap-3">
                   <button
                     onClick={() => setShowWalletPicker((v) => !v)}
-                    className="w-full py-4 bg-magic-green text-black font-black text-sm uppercase tracking-wider hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-4 bg-magic-blue text-black font-black text-sm uppercase tracking-wider hover:brightness-110 transition-all flex items-center justify-center gap-2"
                   >
                     <Zap className="w-4 h-4" />
                     Connect Wallet to Mint
@@ -598,7 +598,7 @@ const JustAliensMint: React.FC = () => {
                           }}
                           className={`flex items-center gap-3 px-4 py-3 border text-sm font-bold transition-all ${
                             w.installed
-                              ? 'border-gray-700 text-white hover:border-magic-green/50 hover:text-magic-green'
+                              ? 'border-gray-700 text-white hover:border-magic-blue/50 hover:text-magic-blue'
                               : 'border-gray-800 text-gray-600 cursor-not-allowed'
                           }`}
                           disabled={!w.installed}
@@ -619,7 +619,7 @@ const JustAliensMint: React.FC = () => {
                 <div className="flex flex-col gap-3">
                   {/* Connected wallet info */}
                   <div className="flex items-center gap-2 text-xs text-gray-600 font-mono mb-1">
-                    <span className="w-2 h-2 bg-magic-green inline-block" />
+                    <span className="w-2 h-2 bg-magic-blue inline-block" />
                     <span>{address ? truncateAddress(address) : 'Connected'}</span>
                   </div>
 
@@ -631,7 +631,7 @@ const JustAliensMint: React.FC = () => {
                         ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
                         : mintStatus === 'error'
                         ? 'bg-red-900/50 border border-red-800 text-red-400 hover:bg-red-900/70'
-                        : 'bg-magic-green text-black hover:brightness-110'
+                        : 'bg-magic-blue text-black hover:brightness-110'
                     }`}
                   >
                     {isMinting ? (
@@ -696,7 +696,7 @@ const JustAliensMint: React.FC = () => {
                     <p className="text-[10px] text-gray-600 uppercase tracking-widest font-bold mb-0.5">
                       Trait
                     </p>
-                    <p className="text-xs text-magic-green font-black">{trait}</p>
+                    <p className="text-xs text-magic-blue font-black">{trait}</p>
                   </div>
                 ))}
               </div>

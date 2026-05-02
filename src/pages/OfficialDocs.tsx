@@ -23,7 +23,7 @@ const OfficialDocs: React.FC = () => {
       {/* Hero Section */}
       <div className="border-b border-white/20 bg-gradient-to-b from-black via-black to-black/80">
         <div className="max-w-6xl mx-auto px-6 py-20">
-          <div className="mb-4 flex items-center gap-2 text-magic-green text-sm font-mono uppercase tracking-widest">
+          <div className="mb-4 flex items-center gap-2 text-magic-blue text-sm font-mono uppercase tracking-widest">
             <BookOpen className="w-4 h-4" />
             Official Documentation
           </div>
@@ -34,7 +34,7 @@ const OfficialDocs: React.FC = () => {
             The decentralized marketplace and ecosystem for the Gorbagana network. Powered by Debris.
           </p>
           <div className="flex flex-wrap gap-4">
-            <a href="#features" onClick={(e) => { e.preventDefault(); setActiveTab('features'); }} className="px-6 py-3 bg-magic-green text-black font-bold uppercase tracking-widest hover:bg-white transition-colors">
+            <a href="#features" onClick={(e) => { e.preventDefault(); setActiveTab('features'); }} className="px-6 py-3 bg-magic-blue text-black font-bold uppercase tracking-widest hover:bg-white transition-colors">
               Get Started
             </a>
             <a href="https://github.com/DOGECOIN87/Trashmarket.fun" target="_blank" rel="noopener noreferrer" className="px-6 py-3 border border-white/20 text-white font-bold uppercase tracking-widest hover:bg-white/5 transition-colors flex items-center gap-2">
@@ -56,7 +56,7 @@ const OfficialDocs: React.FC = () => {
                   onClick={() => setActiveTab(section.id)}
                   className={`py-4 px-2 font-bold uppercase tracking-widest text-sm flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
                     activeTab === section.id
-                      ? 'border-magic-green text-magic-green'
+                      ? 'border-magic-blue text-magic-blue'
                       : 'border-transparent text-gray-500 hover:text-white'
                   }`}
                 >
@@ -81,7 +81,7 @@ const OfficialDocs: React.FC = () => {
                   Trashmarket.fun is the decentralized marketplace and ecosystem built exclusively for the Gorbagana network — a custom SVM (Solana Virtual Machine) Layer 2 chain. Trade NFTs, swap tokens, play on-chain games, bridge assets, and more.
                 </p>
                 <p className="text-lg text-gray-300 leading-relaxed">
-                  Our philosophy is simple: <span className="text-magic-green font-bold">Speed over safety. Information density over whitespace. Brutal honesty about asset value (usually 0).</span>
+                  Our philosophy is simple: <span className="text-magic-blue font-bold">Speed over safety. Information density over whitespace. Brutal honesty about asset value (usually 0).</span>
                 </p>
               </div>
             </section>
@@ -95,7 +95,7 @@ const OfficialDocs: React.FC = () => {
                   { title: 'Community', desc: 'Built by the community, for the community. Permissionless participation.' },
                 ].map((value, idx) => (
                   <div key={idx} className="border border-white/10 p-6 bg-white/5 hover:bg-white/10 transition-colors">
-                    <h4 className="text-lg font-heading text-magic-green mb-3 uppercase">{value.title}</h4>
+                    <h4 className="text-lg font-heading text-magic-blue mb-3 uppercase">{value.title}</h4>
                     <p className="text-gray-400 text-sm leading-relaxed">{value.desc}</p>
                   </div>
                 ))}
@@ -104,32 +104,32 @@ const OfficialDocs: React.FC = () => {
 
             <section className="border-t border-white/10 pt-12">
               <h3 className="text-2xl font-heading text-white mb-8 uppercase tracking-tight">Network Details</h3>
-              <div className="bg-black border border-magic-green/30 p-8">
-                <p className="text-gray-300 mb-4">Trashmarket.fun operates exclusively on the <span className="font-bold text-magic-green">Gorbagana Network</span>, a custom SVM L2 chain.</p>
+              <div className="bg-black border border-magic-blue/30 p-8">
+                <p className="text-gray-300 mb-4">Trashmarket.fun operates exclusively on the <span className="font-bold text-magic-blue">Gorbagana Network</span>, a custom SVM L2 chain.</p>
                 <div className="space-y-3 text-sm text-gray-400 font-mono">
                   <div className="flex items-center gap-2">
-                    <span className="text-magic-green">Network:</span> Gorbagana (SVM L2)
+                    <span className="text-magic-blue">Network:</span> Gorbagana (SVM L2)
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-magic-green">Native Token:</span> GOR (9 decimals)
+                    <span className="text-magic-blue">Native Token:</span> GOR (9 decimals)
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-magic-green">RPC:</span>
+                    <span className="text-magic-blue">RPC:</span>
                     <span
                       className="cursor-pointer hover:text-white transition-colors"
                       onClick={() => copyToClipboard('https://rpc.gorbagana.wtf', 'rpc')}
                     >
-                      https://rpc.gorbagana.wtf {copiedCode === 'rpc' ? <Check className="w-3 h-3 inline text-magic-green" /> : <Copy className="w-3 h-3 inline" />}
+                      https://rpc.gorbagana.wtf {copiedCode === 'rpc' ? <Check className="w-3 h-3 inline text-magic-blue" /> : <Copy className="w-3 h-3 inline" />}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-magic-green">Explorer:</span>
+                    <span className="text-magic-blue">Explorer:</span>
                     <a href="https://explorer.gorbagana.wtf" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
                       explorer.gorbagana.wtf <ExternalLink className="w-3 h-3 inline" />
                     </a>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-magic-green">Wallet:</span> Backpack or any Solana-compatible wallet
+                    <span className="text-magic-blue">Wallet:</span> Backpack or any Solana-compatible wallet
                   </div>
                 </div>
               </div>
@@ -144,16 +144,16 @@ const OfficialDocs: React.FC = () => {
               <h2 className="text-4xl font-heading text-white mb-12 uppercase tracking-tight">Platform Features</h2>
 
               {/* Market Feed */}
-              <div className="mb-16 border-l-4 border-magic-green pl-8">
+              <div className="mb-16 border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <Zap className="w-6 h-6 text-magic-green" />
+                  <Zap className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">Market Feed</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   The home page serves as a real-time market dashboard for the Gorbagana ecosystem. View featured collections, DEBRIS token holder leaderboards, circulating supply data, token prices with 24h changes, and a live NFT artwork carousel.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">Dashboard Includes:</div>
+                  <div className="text-magic-blue mb-2">Dashboard Includes:</div>
                   <ul className="space-y-1">
                     <li>• Featured collection spotlight</li>
                     <li>• DEBRIS token holder leaderboard</li>
@@ -165,23 +165,23 @@ const OfficialDocs: React.FC = () => {
               </div>
 
               {/* GorID */}
-              <div className="mb-16 border-l-4 border-magic-green pl-8">
+              <div className="mb-16 border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <LinkIcon className="w-6 h-6 text-magic-green" />
+                  <LinkIcon className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">GorID (Identity)</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   Integrated marketplace for .gor domain names on the Gorbagana network. Look up existing domains, buy listed domains, list your own domains for sale, and view recent sales history. Domain registration is handled by the GorID protocol — Trashmarket provides the trading layer.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">Marketplace Features:</div>
+                  <div className="text-magic-blue mb-2">Marketplace Features:</div>
                   <ul className="space-y-1">
                     <li>• Buy and sell .gor domains</li>
                     <li>• Domain lookup and resolution</li>
                     <li>• List domains with custom pricing</li>
                     <li>• Recent sales history</li>
                   </ul>
-                  <div className="text-magic-green mt-4 mb-2">Fee Structure:</div>
+                  <div className="text-magic-blue mt-4 mb-2">Fee Structure:</div>
                   <ul className="space-y-1">
                     <li>• Platform fee: 2.5%</li>
                     <li>• Creator royalty: 5%</li>
@@ -191,16 +191,16 @@ const OfficialDocs: React.FC = () => {
               </div>
 
               {/* Junk Pusher */}
-              <div className="mb-16 border-l-4 border-magic-green pl-8">
+              <div className="mb-16 border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <Gamepad2 className="w-6 h-6 text-magic-green" />
+                  <Gamepad2 className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">Junk Pusher (Arcade)</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   A physics-based coin pusher arcade game powered by DEBRIS tokens. Drop coins to push treasures off the edge and earn rewards. Compete on the global leaderboard. All deposits and withdrawals are recorded on the Gorbagana blockchain.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">Game Details:</div>
+                  <div className="text-magic-blue mb-2">Game Details:</div>
                   <ul className="space-y-1">
                     <li>• Currency: DEBRIS token</li>
                     <li>• Drop cost: 1 DEBRIS per coin</li>
@@ -212,16 +212,16 @@ const OfficialDocs: React.FC = () => {
               </div>
 
               {/* Skill Game (Slots) */}
-              <div className="mb-16 border-l-4 border-magic-green pl-8">
+              <div className="mb-16 border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <Gamepad2 className="w-6 h-6 text-magic-green" />
+                  <Gamepad2 className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">Skill Game (Slots)</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   A skill-based 3x3 grid slot game using DEBRIS tokens. After the spin, you choose where to place your WILD symbol to complete winning lines. Your skill in picking the optimal WILD placement determines your payout. Approximately 90% RTP with optimal play.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">Game Details:</div>
+                  <div className="text-magic-blue mb-2">Game Details:</div>
                   <ul className="space-y-1">
                     <li>• Currency: DEBRIS token</li>
                     <li>• Wager levels: 10 to 9,999 DEBRIS</li>
@@ -234,16 +234,16 @@ const OfficialDocs: React.FC = () => {
               </div>
 
               {/* Vanity Generator */}
-              <div className="mb-16 border-l-4 border-magic-green pl-8">
+              <div className="mb-16 border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <Code2 className="w-6 h-6 text-magic-green" />
+                  <Code2 className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">Vanity Generator</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   Client-side vanity address mining for Gorbagana. Generate custom wallet addresses with specific patterns. All computation happens in your browser using Web Workers — private keys never leave your device. Unlocking matched addresses requires a DEBRIS payment scaled to pattern difficulty.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">Security & Features:</div>
+                  <div className="text-magic-blue mb-2">Security & Features:</div>
                   <ul className="space-y-1">
                     <li>• 100% client-side generation</li>
                     <li>• Pattern matching (prefix/suffix)</li>
@@ -255,16 +255,16 @@ const OfficialDocs: React.FC = () => {
               </div>
 
               {/* Bridge */}
-              <div className="mb-16 border-l-4 border-magic-green pl-8">
+              <div className="mb-16 border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <ArrowLeftRight className="w-6 h-6 text-magic-green" />
+                  <ArrowLeftRight className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">Bridge (Cross-Chain)</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   Peer-to-peer escrow bridge between Solana and Gorbagana. Create or fill offers to swap sGOR (Solana) for gGOR (Gorbagana native) and vice versa. All trades are locked in on-chain escrow programs on both networks until completion. Orders expire after approximately 24 hours.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">Bridge Details:</div>
+                  <div className="text-magic-blue mb-2">Bridge Details:</div>
                   <ul className="space-y-1">
                     <li>• P2P OTC escrow — no custodial risk</li>
                     <li>• sGOR (Solana) ↔ gGOR (Gorbagana)</li>
@@ -276,16 +276,16 @@ const OfficialDocs: React.FC = () => {
               </div>
 
               {/* DEX */}
-              <div className="mb-16 border-l-4 border-magic-green pl-8">
+              <div className="mb-16 border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <Zap className="w-6 h-6 text-magic-green" />
+                  <Zap className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">DEX (Swap)</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   Native decentralized exchange for Gorbagana tokens. Swap GOR for any token with liquidity on the network, including DEBRIS and other ecosystem tokens. Uses constant-product AMM pools (CPAMM) with real-time pricing and price impact calculations.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">DEX Features:</div>
+                  <div className="text-magic-blue mb-2">DEX Features:</div>
                   <ul className="space-y-1">
                     <li>• Token search by symbol or mint address</li>
                     <li>• Real-time pricing with 24h change</li>
@@ -297,16 +297,16 @@ const OfficialDocs: React.FC = () => {
               </div>
 
               {/* Raffles */}
-              <div className="mb-16 border-l-4 border-magic-green pl-8">
+              <div className="mb-16 border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <Ticket className="w-6 h-6 text-magic-green" />
+                  <Ticket className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">Raffles</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   Create and participate in NFT raffles. Stake an NFT as the prize, set ticket prices in GOR, and let others buy tickets for a chance to win. Winners are drawn on-chain. Platform fees scale with raffle duration.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">Raffle Details:</div>
+                  <div className="text-magic-blue mb-2">Raffle Details:</div>
                   <ul className="space-y-1">
                     <li>• Ticket currency: GOR</li>
                     <li>• Platform fee: 2.5% (≤6h), 5% (≤24h), 7.5% (≤48h), 10% ({'>'}48h)</li>
@@ -317,16 +317,16 @@ const OfficialDocs: React.FC = () => {
               </div>
 
               {/* Gorbagio Migration */}
-              <div className="mb-16 border-l-4 border-magic-green pl-8">
+              <div className="mb-16 border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <ImageIcon className="w-6 h-6 text-magic-green" />
+                  <ImageIcon className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">Gorbagio Migration</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   Migrate legacy Gorbagio NFTs from the old Token-2022 format to the new Metaplex Token Metadata standard. This enables proper collection grouping, marketplace compatibility, and removes "possible spam" warnings in wallets.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">Migration Details:</div>
+                  <div className="text-magic-blue mb-2">Migration Details:</div>
                   <ul className="space-y-1">
                     <li>• Scan wallet for legacy Gorbagios</li>
                     <li>• One-click migration per NFT</li>
@@ -337,16 +337,16 @@ const OfficialDocs: React.FC = () => {
               </div>
 
               {/* Submit */}
-              <div className="border-l-4 border-magic-green pl-8">
+              <div className="border-l-4 border-magic-blue pl-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <Upload className="w-6 h-6 text-magic-green" />
+                  <Upload className="w-6 h-6 text-magic-blue" />
                   <h3 className="text-2xl font-heading text-white uppercase">Submit (Collection Launchpad)</h3>
                 </div>
                 <p className="text-gray-300 mb-4 leading-relaxed">
                   Permissionless NFT collection submission for creators. Submit your project through a 4-step form covering collection details, visual assets, contract information, and project roadmap. Maximum 3 submissions per wallet.
                 </p>
                 <div className="bg-black border border-white/10 p-4 text-sm text-gray-400 font-mono">
-                  <div className="text-magic-green mb-2">Submission Steps:</div>
+                  <div className="text-magic-blue mb-2">Submission Steps:</div>
                   <ul className="space-y-1">
                     <li>• Step 1: Collection info (name, symbol, supply, mint price)</li>
                     <li>• Step 2: Visual assets (logo, banner, sample NFTs)</li>
@@ -383,7 +383,7 @@ const OfficialDocs: React.FC = () => {
                   },
                 ].map((token, idx) => (
                   <div key={idx} className="border border-white/10 p-8 bg-black hover:bg-white/5 transition-colors">
-                    <div className="text-magic-green font-mono text-sm font-bold mb-2">${token.name}</div>
+                    <div className="text-magic-blue font-mono text-sm font-bold mb-2">${token.name}</div>
                     <h4 className="text-xl font-heading text-white mb-3 uppercase">{token.title}</h4>
                     <p className="text-gray-400 text-sm mb-4 leading-relaxed">{token.desc}</p>
                     {'mint' in token && (
@@ -391,7 +391,7 @@ const OfficialDocs: React.FC = () => {
                         className="text-xs font-mono text-gray-500 mb-4 cursor-pointer hover:text-gray-300 transition-colors flex items-center gap-1"
                         onClick={() => copyToClipboard(token.mint!, `mint-${idx}`)}
                       >
-                        Mint: {token.mint!.slice(0, 8)}...{token.mint!.slice(-4)} {copiedCode === `mint-${idx}` ? <Check className="w-3 h-3 text-magic-green" /> : <Copy className="w-3 h-3" />}
+                        Mint: {token.mint!.slice(0, 8)}...{token.mint!.slice(-4)} {copiedCode === `mint-${idx}` ? <Check className="w-3 h-3 text-magic-blue" /> : <Copy className="w-3 h-3" />}
                       </div>
                     )}
                     <div className="space-y-2">
@@ -399,7 +399,7 @@ const OfficialDocs: React.FC = () => {
                       <ul className="space-y-1">
                         {token.uses.map((use, uIdx) => (
                           <li key={uIdx} className="text-sm text-gray-400 flex items-center gap-2">
-                            <ChevronRight className="w-3 h-3 text-magic-green" />
+                            <ChevronRight className="w-3 h-3 text-magic-blue" />
                             {use}
                           </li>
                         ))}
@@ -435,7 +435,7 @@ const OfficialDocs: React.FC = () => {
                         </div>
                         <div>
                           <div className="text-xs text-gray-500 uppercase font-bold mb-1">Fee</div>
-                          <div className="text-magic-green font-bold">{fee.fee}</div>
+                          <div className="text-magic-blue font-bold">{fee.fee}</div>
                         </div>
                         <div>
                           <div className="text-xs text-gray-500 uppercase font-bold mb-1">Recipient / Royalty</div>
@@ -499,7 +499,7 @@ const OfficialDocs: React.FC = () => {
                 },
               ].map((faq, idx) => (
                 <div key={idx} className="border border-white/10 p-6 bg-white/5 hover:bg-white/10 transition-colors">
-                  <h3 className="text-lg font-heading text-magic-green mb-3 uppercase">{faq.q}</h3>
+                  <h3 className="text-lg font-heading text-magic-blue mb-3 uppercase">{faq.q}</h3>
                   <p className="text-gray-300 leading-relaxed">{faq.a}</p>
                 </div>
               ))}
@@ -507,10 +507,10 @@ const OfficialDocs: React.FC = () => {
 
             <section className="border-t border-white/10 pt-12">
               <h3 className="text-2xl font-heading text-white mb-6 uppercase tracking-tight">Need More Help?</h3>
-              <div className="border border-magic-green/30 bg-magic-green/5 p-8">
+              <div className="border border-magic-blue/30 bg-magic-blue/5 p-8">
                 <p className="text-gray-300 mb-4">For additional support, visit our GitHub repository or connect with the community.</p>
                 <div className="flex flex-wrap gap-4">
-                  <a href="https://github.com/DOGECOIN87/Trashmarket.fun" target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-magic-green text-black font-bold uppercase tracking-widest hover:bg-white transition-colors flex items-center gap-2">
+                  <a href="https://github.com/DOGECOIN87/Trashmarket.fun" target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-magic-blue text-black font-bold uppercase tracking-widest hover:bg-white transition-colors flex items-center gap-2">
                     GitHub <ExternalLink className="w-4 h-4" />
                   </a>
                 </div>

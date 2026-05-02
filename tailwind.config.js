@@ -12,7 +12,7 @@ export default {
         'magic-hover': '#111111',
         'magic-pink': '#ff00ff',
         'magic-purple': '#9945ff',
-        'magic-green': '#adff02',
+        'magic-blue': '#00d4ff',
         'magic-red': '#ff2222',
         'magic-text': '#666666',
       },

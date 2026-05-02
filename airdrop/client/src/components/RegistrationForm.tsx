@@ -68,7 +68,7 @@ export default function RegistrationForm({ user, onLogout, onShowAdmin }: Regist
                   className="w-12 h-12"
                 />
                 <div className="text-center">
-                  <h1 className="text-2xl text-glow-green font-bold">{BRAND.NAME}</h1>
+                  <h1 className="text-2xl text-glow-blue font-bold">{BRAND.NAME}</h1>
                   <p className="text-xs text-[#666666] uppercase tracking-widest">{BRAND.SUBTITLE}</p>
                 </div>
               </div>
@@ -98,7 +98,7 @@ export default function RegistrationForm({ user, onLogout, onShowAdmin }: Regist
             <div className="flex flex-col items-center text-center">
               {/* Welcome */}
               <div className="mb-12 w-full">
-                <h2 className="text-5xl md:text-6xl mb-6 text-glow-green font-bold tracking-tight">WELCOME, {user?.name?.toUpperCase() || 'USER'}</h2>
+                <h2 className="text-5xl md:text-6xl mb-6 text-glow-blue font-bold tracking-tight">WELCOME, {user?.name?.toUpperCase() || 'USER'}</h2>
                 <p className="text-[#999999] text-base md:text-lg leading-relaxed max-w-2xl mx-auto">
                   Your X.com account has been verified. Now submit your Gorbagana wallet address to complete registration.
                 </p>

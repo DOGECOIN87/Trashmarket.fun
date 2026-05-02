@@ -40,20 +40,20 @@ const Launchpad: React.FC = () => {
       <div className="relative border-b border-white/10 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 py-16 md:py-24 relative z-10">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-magic-green/10 border border-magic-green/30 flex items-center justify-center">
-              <Rocket className="w-5 h-5 text-magic-green" />
+            <div className="w-10 h-10 bg-magic-blue/10 border border-magic-blue/30 flex items-center justify-center">
+              <Rocket className="w-5 h-5 text-magic-blue" />
             </div>
-            <span className="text-xs font-bold text-magic-green uppercase tracking-widest font-mono">Collection Launchpad</span>
+            <span className="text-xs font-bold text-magic-blue uppercase tracking-widest font-mono">Collection Launchpad</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight mb-4">
-            UPCOMING <span className="text-magic-green">DROPS</span>
+            UPCOMING <span className="text-magic-blue">DROPS</span>
           </h1>
           <p className="text-gray-400 font-mono text-sm max-w-xl mb-8 leading-relaxed">
             Hand-picked NFT collections launching on Trashmarket. Every project reviewed and approved by the team.
           </p>
           <Link
             to="/submit"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-magic-green text-black font-bold text-sm uppercase tracking-wider hover:bg-[#cbf30c] transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-magic-blue text-black font-bold text-sm uppercase tracking-wider hover:bg-[#cbf30c] transition-all"
           >
             Submit Your Collection
             <ArrowRight className="w-4 h-4" />
@@ -63,24 +63,24 @@ const Launchpad: React.FC = () => {
 
       {/* Featured: Just Aliens */}
       <div className="max-w-7xl mx-auto px-4 py-8 border-b border-white/10">
-        <p className="text-[10px] font-bold text-magic-green uppercase tracking-widest mb-4">Featured Drop</p>
+        <p className="text-[10px] font-bold text-magic-blue uppercase tracking-widest mb-4">Featured Drop</p>
         <Link
           to="/launchpad/just-aliens"
-          className="flex flex-col sm:flex-row items-start sm:items-center gap-5 border border-magic-green/30 bg-[#080808] p-5 hover:border-magic-green/60 hover:bg-[#0a0a0a] transition-all group"
+          className="flex flex-col sm:flex-row items-start sm:items-center gap-5 border border-magic-blue/30 bg-[#080808] p-5 hover:border-magic-blue/60 hover:bg-[#0a0a0a] transition-all group"
         >
-          <div className="w-16 h-16 bg-magic-green/10 border border-magic-green/20 flex items-center justify-center flex-shrink-0 text-3xl">
-            👽
+          <div className="w-16 h-16 border border-magic-blue/20 flex-shrink-0 overflow-hidden">
+            <img src="/images/18.png" alt="Just Aliens NFT" className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-white font-black text-lg">BRUH, IT'S JUST ALIENS</h3>
-              <span className="px-1.5 py-0.5 bg-gray-800 text-gray-400 text-[9px] font-black uppercase tracking-widest">COMING SOON</span>
+              <span className="px-1.5 py-0.5 bg-magic-blue/20 text-magic-blue text-[9px] font-black uppercase tracking-widest">LIVE NOW</span>
             </div>
             <p className="text-gray-500 text-xs font-mono line-clamp-2">
               10,000 unique aliens on Gorbagana. 200 GOR per mint. Dude relax.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-magic-green text-xs font-black uppercase tracking-wider group-hover:gap-3 transition-all flex-shrink-0">
+          <div className="flex items-center gap-2 text-magic-blue text-xs font-black uppercase tracking-wider group-hover:gap-3 transition-all flex-shrink-0">
             <Zap className="w-3.5 h-3.5" />
             View Drop
             <ArrowRight className="w-3.5 h-3.5" />
@@ -92,7 +92,7 @@ const Launchpad: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-8 h-8 text-magic-green animate-spin" />
+            <Loader2 className="w-8 h-8 text-magic-blue animate-spin" />
           </div>
         ) : collections.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -103,7 +103,7 @@ const Launchpad: React.FC = () => {
             <p className="text-gray-500 text-sm font-mono mb-6">Be the first to launch on Trashmarket.</p>
             <Link
               to="/submit"
-              className="inline-flex items-center gap-2 px-5 py-2.5 border border-magic-green/50 text-magic-green font-bold text-xs uppercase tracking-wider hover:bg-magic-green hover:text-black transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-magic-blue/50 text-magic-blue font-bold text-xs uppercase tracking-wider hover:bg-magic-blue hover:text-black transition-all"
             >
               Submit a Collection
             </Link>
@@ -126,17 +126,17 @@ function CollectionCard({ collection: col }: { collection: CollectionSubmission 
   const isMinting = mintDate && !isUpcoming;
 
   return (
-    <div className="border border-white/10 bg-black/60 flex flex-col overflow-hidden hover:border-magic-green/30 transition-all group">
+    <div className="border border-white/10 bg-black/60 flex flex-col overflow-hidden hover:border-magic-blue/30 transition-all group">
       {/* Banner */}
       <div className="relative h-36 bg-[#111] overflow-hidden">
         {col.bannerUrl ? (
           <img src={col.bannerUrl} alt={col.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-magic-green/10 to-transparent" />
+          <div className="w-full h-full bg-gradient-to-br from-magic-blue/10 to-transparent" />
         )}
         {/* Status badge */}
         <div className={`absolute top-3 right-3 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest ${
-          isUpcoming ? 'bg-magic-green text-black' : 'bg-white/10 text-white'
+          isUpcoming ? 'bg-magic-blue text-black' : 'bg-white/10 text-white'
         }`}>
           {isUpcoming ? 'UPCOMING' : 'MINTING'}
         </div>
@@ -147,13 +147,13 @@ function CollectionCard({ collection: col }: { collection: CollectionSubmission 
         {col.logoUrl ? (
           <img src={col.logoUrl} alt={col.name} className="w-12 h-12 rounded-full object-cover border-2 border-white/10 flex-shrink-0" />
         ) : (
-          <div className="w-12 h-12 rounded-full bg-magic-green/10 border-2 border-magic-green/20 flex items-center justify-center flex-shrink-0">
-            <Rocket className="w-5 h-5 text-magic-green" />
+          <div className="w-12 h-12 rounded-full bg-magic-blue/10 border-2 border-magic-blue/20 flex items-center justify-center flex-shrink-0">
+            <Rocket className="w-5 h-5 text-magic-blue" />
           </div>
         )}
         <div className="min-w-0">
           <h3 className="text-white font-black text-base truncate">{col.name}</h3>
-          <span className="text-xs text-magic-green font-mono">{col.symbol}</span>
+          <span className="text-xs text-magic-blue font-mono">{col.symbol}</span>
         </div>
       </div>
 
@@ -196,7 +196,7 @@ function CollectionCard({ collection: col }: { collection: CollectionSubmission 
             href={`https://explorer.gorbagana.wtf/address/${col.contractAddress}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto text-[10px] text-gray-600 hover:text-magic-green font-mono flex items-center gap-1 transition-colors"
+            className="ml-auto text-[10px] text-gray-600 hover:text-magic-blue font-mono flex items-center gap-1 transition-colors"
           >
             Contract <ExternalLink className="w-3 h-3" />
           </a>
@@ -222,7 +222,7 @@ function SocialLink({ href, icon, label }: { href: string; icon: React.ReactNode
       target="_blank"
       rel="noopener noreferrer"
       title={label}
-      className="w-7 h-7 border border-white/10 flex items-center justify-center text-gray-500 hover:text-magic-green hover:border-magic-green/40 transition-all"
+      className="w-7 h-7 border border-white/10 flex items-center justify-center text-gray-500 hover:text-magic-blue hover:border-magic-blue/40 transition-all"
     >
       {icon}
     </a>

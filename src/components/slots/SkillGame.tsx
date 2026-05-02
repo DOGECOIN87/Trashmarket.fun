@@ -10,26 +10,29 @@ import { pushGameEvent } from '../../services/activityService';
 import { parseTransactionError } from '../../utils/errorMessages';
 import { setWithIntegrity, getWithIntegrity } from '../../utils/localStorageIntegrity';
 import './SkillGame.css';
+import BonusRound from './BonusRound';
+import AudioPlayer from '../junk-pusher/AudioPlayer';
+import { SlotsLeaderboard } from './SlotsLeaderboard';
+import { subscribeToSlotsConfig, DEFAULT_SLOTS_WEIGHTS, SLOTS_OUTCOME_META } from '../../services/gameConfigService';
 
 const SYMBOL_IMAGES = [
-  '/symbols/alon.png',
-  '/symbols/oscar.png',
-  '/symbols/sky-garbage.png',
-  '/symbols/shredder.png',
-  '/symbols/gorbios.png',
-  '/symbols/pump-pill.png',
-  '/symbols/digibin.png',
-  '/symbols/box.png',
-  '/symbols/matress.png',
+  '/symbols/alon.webp',
+  '/symbols/oscar.webp',
+  '/symbols/sky-garbage.webp',
+  '/symbols/shredder.webp',
+  '/symbols/gorbios.webp',
+  '/symbols/pump-pill.webp',
+  '/symbols/digibin.webp',
+  '/symbols/box.webp',
+  '/symbols/matress.webp',
+  '/assets/logo-circle-transparent.png', // index 9 — TM BONUS symbol (ultra-rare)
 ];
 
-// Payout multipliers (×wager). Only the BEST single line pays out.
-// Grid is pre-constructed per patent US20070232385A1 — outcome determined first,
-// then grid built to match. Player skill: find the optimal WILD placement.
-const BASE_PAYOUTS = [25, 8, 4, 2.5, 1.5, 1.0, 0.7, 0.4, 0.2];
+// Payout multipliers (×wager). Index 9 (TM logo) pays 0 cash — triggers BONUS instead.
+const BASE_PAYOUTS = [25, 8, 4, 2.5, 1.5, 1.0, 0.7, 0.4, 0.2, 0];
 
-// Symbol weights — moderate spread. Rare symbols are less frequent.
-const GRID_WEIGHTS = [3, 5, 8, 11, 13, 15, 17, 19, 20];
+// Symbol weights — index 9 (TM logo) weight=1 makes it ultra-rare in any cell.
+const GRID_WEIGHTS = [3, 5, 8, 11, 13, 15, 17, 19, 20, 1];
 const GRID_TOTAL_WEIGHT = GRID_WEIGHTS.reduce((a, b) => a + b, 0);
 
 // Fixed play levels (wager amounts) - players pick one of these
@@ -54,16 +57,17 @@ const PLAY_LEVELS = [10, 25, 50, 100, 250, 1000, 2500, 5000, 9999];
 // Preview cherry-picking: with per-level grid persistence and cooldowns,
 // users can scout levels but can't reroll — fair and fun.
 const OUTCOME_POOL = [
-  { tier: -1, weight: 100 }, // 10.0% LOSS — reduced from 20% for better feel
-  { tier: 8, weight: 200 }, // 20.0% → 0.2x (small consolation)
-  { tier: 7, weight: 200 }, // 20.0% → 0.4x
-  { tier: 6, weight: 150 }, // 15.0% → 0.7x
-  { tier: 5, weight: 120 }, // 12.0% → 1.0x (break even — feels like a win)
-  { tier: 4, weight: 100 }, // 10.0% → 1.5x (profit!)
-  { tier: 3, weight: 60 },  //  6.0% → 2.5x
-  { tier: 2, weight: 30 },  //  3.0% → 4.0x
-  { tier: 1, weight: 15 },  //  1.5% → 8.0x
-  { tier: 0, weight: 5 },   //  0.5% → 25x (jackpot!)
+  { tier: -1, weight: 100 }, // 10.0% LOSS
+  { tier: 8,  weight: 200 }, // 20.0% → 0.2x
+  { tier: 7,  weight: 200 }, // 20.0% → 0.4x
+  { tier: 6,  weight: 150 }, // 15.0% → 0.7x
+  { tier: 5,  weight: 120 }, // 12.0% → 1.0x
+  { tier: 4,  weight: 100 }, // 10.0% → 1.5x
+  { tier: 3,  weight: 60  }, //  6.0% → 2.5x
+  { tier: 2,  weight: 30  }, //  3.0% → 4.0x
+  { tier: 1,  weight: 15  }, //  1.5% → 8.0x
+  { tier: 0,  weight: 5   }, //  0.5% → 25x (jackpot)
+  { tier: 9,  weight: 3   }, // ~0.3% → TM LOGO line → BONUS ROUND (ultra-rare)
 ];
 const OUTCOME_TOTAL = OUTCOME_POOL.reduce((s, o) => s + o.weight, 0);
 
@@ -190,7 +194,12 @@ function constructWinGrid(winTier: number): number[] {
     }
     if (!winPosClean) continue;
 
-    // Check no other WILD position creates a better payout
+    // For the bonus tier (9 — TM logo), skip the best-payout guard.
+    // The player will see 2 TM logos and CHOOSE whether to complete that line
+    // (triggering the bonus) or play a different cash line. That's the skill element.
+    if (winTier === 9) return grid;
+
+    // For normal tiers: ensure no other WILD position yields a better payout.
     let bestOther = 0;
     for (let pos = 0; pos < 9; pos++) {
       if (pos === winPos) continue;
@@ -259,6 +268,14 @@ export default function SkillGame() {
   const [playButtonText, setPlayButtonText] = useState('Play');
   const [isPlayDisabled, setIsPlayDisabled] = useState(false);
   const [showFairness, setShowFairness] = useState(false);
+  const [showBonus, setShowBonus] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+  // Admin-controlled game config (live from Firestore)
+  const [gamePaused, setGamePaused] = useState(false);
+  const outcomeWeightsRef = useRef<number[]>([...DEFAULT_SLOTS_WEIGHTS]);
+  // Jackpot flash: which tier label lights up after a big win (null = none)
+  const [flashingJackpot, setFlashingJackpot] = useState<string | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [previewCooldown, setPreviewCooldown] = useState(0);
 
@@ -287,6 +304,35 @@ export default function SkillGame() {
   const spinCountRef = useRef(0);
 
   const isAnimating = spinningCells.some(Boolean);
+
+  // ─── Subscribe to admin game config (live pause + odds) ──────────────
+  useEffect(() => {
+    const unsub = subscribeToSlotsConfig((cfg) => {
+      setGamePaused(cfg.paused);
+      if (cfg.outcomeWeights.length === SLOTS_OUTCOME_META.length) {
+        outcomeWeightsRef.current = cfg.outcomeWeights;
+      }
+    });
+    return unsub;
+  }, []);
+
+  // Component-local rollOutcome using live admin weights
+  const rollOutcomeDynamic = useCallback((): number => {
+    const weights = outcomeWeightsRef.current;
+    const total = weights.reduce((a, b) => a + b, 0);
+    if (total === 0) return -1;
+    let r = Math.random() * total;
+    for (let i = 0; i < SLOTS_OUTCOME_META.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return SLOTS_OUTCOME_META[i].tier;
+    }
+    return -1;
+  }, []);
+
+  const constructGameGridDynamic = useCallback((): number[] => {
+    const tier = rollOutcomeDynamic();
+    return tier === -1 ? constructLossGrid() : constructWinGrid(tier);
+  }, [rollOutcomeDynamic]);
 
   // ─── Fetch on-chain DEBRIS balance ──────────────────────────────────
   const refreshDebrisBalance = useCallback(async () => {
@@ -491,35 +537,26 @@ export default function SkillGame() {
     try {
       const sig = await onChain.depositBalance(intAmount, 0);
       if (sig) {
-        const oldBalance = balance;
         setDepositAmount('');
-        setTxMessage('Deposit sent! Waiting for confirmation...');
+        // sendTx already awaits full on-chain confirmation — safe to credit immediately.
+        // Do NOT call refreshGameBalance() here: the PDA only syncs every 5 spins and would
+        // overwrite the local balance, erasing any unsynced gameplay wins.
+        setBalance((prev) => prev + intAmount);
+        setTxMessage(`Deposit confirmed! +${intAmount} DEBRIS`);
         pushGameEvent('DEPOSIT', `Player deposited ${intAmount} DEBRIS into Skill Game`);
-
-        // Poll for balance change (up to 30 seconds)
-        let attempts = 0;
-        const pollInterval = setInterval(async () => {
-          attempts++;
-          const newBal = await refreshGameBalance();
-          await refreshDebrisBalance();
-
-          if (newBal !== null && newBal !== oldBalance) {
-            setTxMessage('Deposit confirmed!');
-            clearInterval(pollInterval);
-          } else if (attempts >= 15) {
-            setTxMessage('Deposit complete (indexing may take a moment)');
-            clearInterval(pollInterval);
-          }
-        }, 2000);
+        // Refresh wallet DEBRIS balance so the "wallet" display reflects the deduction
+        setTimeout(() => refreshDebrisBalance(), 2000);
+        setTimeout(() => setTxMessage(null), 4000);
       } else {
         setTxMessage(onChain.error || 'Deposit failed - check wallet');
+        setTimeout(() => setTxMessage(null), 5000);
       }
     } catch (err: any) {
       console.error('[Slots] Deposit error:', err);
       setTxMessage(parseTransactionError(err));
+      setTimeout(() => setTxMessage(null), 5000);
     } finally {
       setTxPending(false);
-      setTimeout(() => setTxMessage(null), 5000);
     }
   };
 
@@ -588,6 +625,17 @@ export default function SkillGame() {
       setCurrentWin(winAmount);
       setStatusMessage('You Win!');
       pushGameEvent('WIN', `Player won ${winAmount} DEBRIS on Skill Game`);
+      // Flash the matching jackpot tier
+      const mult = winAmount / playLevel;
+      const tier =
+        mult >= 25  ? 'GRAND' :
+        mult >= 8   ? 'MAJOR' :
+        mult >= 4   ? 'MINOR' :
+        mult >= 1.5 ? 'MINI'  : null;
+      if (tier) {
+        setFlashingJackpot(tier);
+        addTimeout(() => setFlashingJackpot(null), 2500);
+      }
     } else if (!won) {
       setStatusMessage('Try Again');
     }
@@ -616,12 +664,13 @@ export default function SkillGame() {
     }, 2000);
   };
 
-  // Check for winning lines after WILD placement — pays BEST single line only.
-  // WILD only counts on lines that contain the WILD cell (2 natural matches + WILD).
-  // Lines without the WILD cell can still win with 3 natural matches.
+  // Check for winning lines after WILD placement.
+  // Special: if the WILD completes a line of 2 TM logos (index 9), trigger BONUS ROUND.
+  // Otherwise pays the BEST single cash line only.
   const checkWin = (finalGrid: CellValue[], currentPlayLevel: number) => {
     let bestWin = 0;
     let bestLine: number[] = [];
+    let bonusLine: number[] | null = null;
     const wildIdx = finalGrid.indexOf('WILD');
 
     WIN_LINES.forEach((line) => {
@@ -633,16 +682,21 @@ export default function SkillGame() {
         const nonWild = symbols.filter((s) => s !== 'WILD');
         if (nonWild.length === 2 && nonWild[0] === nonWild[1]) {
           const tier = nonWild[0] as number;
-          const lineWin = getPayout(tier, currentPlayLevel);
-          if (lineWin > bestWin) {
-            bestWin = lineWin;
-            bestLine = line;
+          if (tier === 9) {
+            // TM logo × 2 + WILD = BONUS ROUND trigger
+            bonusLine = line;
+          } else {
+            const lineWin = getPayout(tier, currentPlayLevel);
+            if (lineWin > bestWin) {
+              bestWin = lineWin;
+              bestLine = line;
+            }
           }
         }
       } else {
-        // Non-WILD line: all 3 must be the same natural symbol
+        // Non-WILD line: all 3 must be the same natural symbol (TM logo excluded from cash)
         const unique = [...new Set(symbols)];
-        if (unique.length === 1 && typeof unique[0] === 'number') {
+        if (unique.length === 1 && typeof unique[0] === 'number' && unique[0] !== 9) {
           const tier = unique[0];
           const lineWin = getPayout(tier, currentPlayLevel);
           if (lineWin > bestWin) {
@@ -653,13 +707,29 @@ export default function SkillGame() {
       }
     });
 
+    // ── BONUS TRIGGER: TM logo line takes priority ──────────────────────
+    if (bonusLine !== null) {
+      setWinningCells(new Set<number>(bonusLine));
+      setStatusMessage('BONUS TRIGGERED!');
+      setPlayButtonText('BONUS!');
+      addTimeout(() => {
+        setWinningCells(new Set());
+        setStage('IDLE');
+        setIsPlayDisabled(false);
+        setPlayButtonText('Play');
+        setStatusMessage(null);
+        setShowBonus(true);
+      }, 2200);
+      return;
+    }
+
+    // ── Normal cash win / loss ──────────────────────────────────────────
     if (bestWin > 0) {
       const winCells = new Set<number>(bestLine);
       setWinningCells(winCells);
       setCurrentWin(bestWin);
       addTimeout(() => resetToIdle(true, bestWin), 2000);
     } else {
-      // No win — wager already deducted
       resetToIdle(false);
     }
   };
@@ -732,7 +802,7 @@ export default function SkillGame() {
     // Get or generate the grid for this level — same grid every time until played
     let previewGrid = levelGridsRef.current.get(levelIndex);
     if (!previewGrid) {
-      previewGrid = constructGameGrid();
+      previewGrid = constructGameGridDynamic();
       levelGridsRef.current.set(levelIndex, previewGrid);
       saveLevelGrids(); // Persist to localStorage so refresh doesn't grant new grids
     }
@@ -757,6 +827,10 @@ export default function SkillGame() {
       showWalletModal(true);
       return;
     }
+    if (gamePaused) {
+      setStatusMessage('Game temporarily paused');
+      return;
+    }
     if (balance < playLevel) {
       setStatusMessage('Deposit DEBRIS to Play!');
       setShowDepositUI(true);
@@ -771,7 +845,7 @@ export default function SkillGame() {
 
     // Use the stored grid for this level if available, otherwise construct a fresh one.
     // Consume the grid after use — next preview will generate a new one.
-    const baseGrid = levelGridsRef.current.get(levelIndex) ?? constructGameGrid();
+    const baseGrid = levelGridsRef.current.get(levelIndex) ?? constructGameGridDynamic();
     levelGridsRef.current.delete(levelIndex);
     saveLevelGrids(); // Persist the removal so refresh can't replay same grid
 
@@ -779,7 +853,7 @@ export default function SkillGame() {
     setStage('PLAYING');
 
     runSpinAnimation(baseGrid, () => {
-      // After spin: let player choose where to place WILD
+      // Normal flow: let player choose where to place WILD
       setStage('CHOOSING_WILD');
       setPlayButtonText('Place WILD');
       setStatusMessage('Tap a cell to place WILD!');
@@ -799,9 +873,9 @@ export default function SkillGame() {
 
   // Render individual cell content
   const renderCellContent = (index: number) => {
-    // Spinning - show rapidly changing symbol
+    // Spinning - show rapidly changing symbol (TM logo excluded from spin display)
     if (spinningCells[index]) {
-      return <img src={SYMBOL_IMAGES[spinDisplay[index]]} alt="Symbol" />;
+      return <img src={SYMBOL_IMAGES[spinDisplay[index] % 9]} alt="Symbol" />;
     }
 
     // Final grid value
@@ -810,24 +884,68 @@ export default function SkillGame() {
       return 'WILD';
     }
     if (value !== null) {
-      return <img src={SYMBOL_IMAGES[value as number]} alt="Symbol" />;
+      const symIdx = value as number;
+      const isTmLogo = symIdx === 9;
+      return (
+        <img
+          src={SYMBOL_IMAGES[symIdx]}
+          alt={isTmLogo ? 'BONUS' : 'Symbol'}
+          className={isTmLogo ? 'skill-bonus-symbol' : undefined}
+        />
+      );
     }
     return null;
   };
 
+  // Jackpot tier definitions — scaled to current play level
+  const JACKPOT_TIERS = [
+    { name: 'MINI',  mult: 1.5,  color: '#888' },
+    { name: 'MINOR', mult: 4,    color: '#adff02' },
+    { name: 'GRAND', mult: 25,   color: '#ffd700', grand: true },
+    { name: 'MAJOR', mult: 8,    color: '#ff6b35' },
+    { name: 'MINI',  mult: 1.5,  color: '#888' },
+  ];
+
   return (
     <div className="skill-game-container">
+
+      {/* ── Jackpot Tier Bar ───────────────────────────────────────────── */}
+      <div className="skill-jackpot-bar">
+        {JACKPOT_TIERS.map((jp, i) => {
+          const isFlashing = flashingJackpot === jp.name && jp.name !== 'MINI';
+          const val = Math.round(playLevel * jp.mult);
+          return (
+            <div
+              key={i}
+              className={[
+                'skill-jp-tier',
+                jp.grand ? 'skill-jp-grand' : '',
+                isFlashing ? 'skill-jp-flashing' : '',
+              ].filter(Boolean).join(' ')}
+            >
+              <div className="skill-jp-name">{jp.name}</div>
+              <div className="skill-jp-val" style={{ color: isFlashing ? '#fff' : jp.color }}>
+                {val >= 1000 ? `${+(val / 1000).toFixed(1)}K` : val}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="skill-game-content">
         {/* Paytable Column */}
         <div className="skill-paytable-column">
           <div className="skill-paytable-content">
             {BASE_PAYOUTS.map((payout, index) => (
-              <div key={index} className="skill-tier-row">
+              <div
+                key={index}
+                className={`skill-tier-row${index === 9 ? ' skill-tier-row-bonus' : ''}`}
+              >
                 <div className="skill-tier-symbol">
-                  <img src={SYMBOL_IMAGES[index]} alt={`Symbol ${index}`} />
+                  <img src={SYMBOL_IMAGES[index]} alt={index === 9 ? 'BONUS' : `Symbol ${index}`} />
                 </div>
                 <span className="skill-tier-value">
-                  {Math.round(payout * playLevel)}
+                  {index === 9 ? 'BONUS' : Math.round(payout * playLevel)}
                 </span>
               </div>
             ))}
@@ -849,12 +967,15 @@ export default function SkillGame() {
               const isWild = value === 'WILD' && !isSpinning;
               const isChoosable = stage === 'CHOOSING_WILD' && !isSpinning;
 
+              // TM logo cell glows gold to hint the player
+              const isTmLogoCell = !isSpinning && value === 9;
               const cellClasses = [
                 'skill-grid-cell',
                 isSpinning && 'skill-spinning',
                 isWinning && 'skill-winning-cell',
                 isWild && 'skill-wild',
                 isChoosable && 'skill-choosable',
+                isTmLogoCell && 'skill-bonus-cell',
               ]
                 .filter(Boolean)
                 .join(' ');
@@ -1012,6 +1133,12 @@ export default function SkillGame() {
           </button>
           <button
             className="skill-game-btn"
+            onClick={() => setShowLeaderboard(true)}
+          >
+            Scores
+          </button>
+          <button
+            className="skill-game-btn"
             onClick={handlePreview}
             disabled={stage !== 'IDLE' || isAnimating || !connected || isPreviewing || previewCooldown > 0}
           >
@@ -1020,9 +1147,9 @@ export default function SkillGame() {
           <button
             className="skill-game-btn skill-play"
             onClick={handlePlay}
-            disabled={isPlayDisabled || stage === 'CHOOSING_WILD' || (!connected ? false : balance < playLevel)}
+            disabled={isPlayDisabled || stage === 'CHOOSING_WILD' || gamePaused || (!connected ? false : balance < playLevel)}
           >
-            {connected ? playButtonText : 'Connect'}
+            {gamePaused ? 'Paused' : connected ? playButtonText : 'Connect'}
           </button>
         </div>
 
@@ -1032,6 +1159,33 @@ export default function SkillGame() {
           <span>SKL 402 83 PEN</span>
         </div>
       </div>
+
+      {/* Bonus Round Overlay */}
+      {showBonus && (
+        <BonusRound
+          playLevel={playLevel}
+          onClose={(totalWin) => {
+            setShowBonus(false);
+            if (totalWin > 0) {
+              setBalance((prev) => prev + totalWin);
+              setNetProfit((prev) => prev + totalWin);
+              setCurrentWin(totalWin);
+              setStatusMessage(`BONUS WIN: ${totalWin.toLocaleString()}!`);
+              pushGameEvent('WIN', `Player won ${totalWin} DEBRIS in Bonus Round`);
+              setTimeout(() => {
+                setCurrentWin(0);
+                setStatusMessage(null);
+              }, 3000);
+            }
+          }}
+        />
+      )}
+
+      {/* Audio Player */}
+      <AudioPlayer />
+
+      {/* Leaderboard Modal */}
+      <SlotsLeaderboard isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
 
       {/* Fairness Disclosure Modal */}
       {showFairness && (

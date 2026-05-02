@@ -355,12 +355,12 @@ export default function TrashDAQSwap() {
     const networkFee = 0.000005 + getPriorityFeeValue();
 
     return (
-        <div className="w-full max-w-[480px] mx-auto bg-gradient-to-b from-gray-900 via-black to-gray-900 border border-magic-green/20 rounded-lg shadow-2xl shadow-magic-green/5 overflow-hidden">
+        <div className="w-full max-w-[480px] mx-auto bg-gradient-to-b from-gray-900 via-black to-gray-900 border border-magic-blue/20 rounded-lg shadow-2xl shadow-magic-blue/5 overflow-hidden">
             {/* Header */}
-            <div className="bg-black/50 border-b border-magic-green/10 px-4 py-3 flex items-center justify-between">
+            <div className="bg-black/50 border-b border-magic-blue/10 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-magic-green rounded-full animate-pulse shadow-[0_0_8px_#adff02]" />
-                    <span className="text-magic-green font-mono text-xs font-bold tracking-wider">TRASH_SWAP</span>
+                    <div className="w-2 h-2 bg-magic-blue rounded-full animate-pulse shadow-[0_0_8px_#00d4ff]" />
+                    <span className="text-magic-blue font-mono text-xs font-bold tracking-wider">TRASH_SWAP</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -368,14 +368,14 @@ export default function TrashDAQSwap() {
                         className="p-1.5 hover:bg-white/5 rounded transition-colors"
                         title="Refresh prices"
                     >
-                        <RefreshCw size={14} className="text-gray-500 hover:text-magic-green" />
+                        <RefreshCw size={14} className="text-gray-500 hover:text-magic-blue" />
                     </button>
                     <button
                         onClick={() => setShowSettings(true)}
                         className="p-1.5 hover:bg-white/5 rounded transition-colors"
                         title="Settings"
                     >
-                        <Settings size={14} className="text-gray-500 hover:text-magic-green" />
+                        <Settings size={14} className="text-gray-500 hover:text-magic-blue" />
                     </button>
                 </div>
             </div>
@@ -427,7 +427,7 @@ export default function TrashDAQSwap() {
                             ) : (
                                 <span className="text-gray-500 text-sm">Select token</span>
                             )}
-                            <ChevronDown size={14} className="text-gray-500 group-hover:text-magic-green" />
+                            <ChevronDown size={14} className="text-gray-500 group-hover:text-magic-blue" />
                         </button>
 
                         <div className="flex flex-col items-end gap-1">
@@ -443,7 +443,7 @@ export default function TrashDAQSwap() {
                                 {connected && state.sellBalance > 0 && (
                                     <button
                                         onClick={handleMaxClick}
-                                        className="text-[10px] text-magic-green hover:text-white font-bold px-2 py-1 bg-magic-green/10 hover:bg-magic-green/20 rounded border border-magic-green/30 transition-all"
+                                        className="text-[10px] text-magic-blue hover:text-white font-bold px-2 py-1 bg-magic-blue/10 hover:bg-magic-blue/20 rounded border border-magic-blue/30 transition-all"
                                     >
                                         MAX
                                     </button>
@@ -462,9 +462,9 @@ export default function TrashDAQSwap() {
                 <div className="flex justify-center -my-2 relative z-10">
                     <button
                         onClick={handleTokenSwap}
-                        className="bg-gray-900 border-2 border-gray-700 hover:border-magic-green p-2 rounded-full transition-all hover:rotate-180 duration-300"
+                        className="bg-gray-900 border-2 border-gray-700 hover:border-magic-blue p-2 rounded-full transition-all hover:rotate-180 duration-300"
                     >
-                        <ArrowDownUp size={16} className="text-gray-500 hover:text-magic-green" />
+                        <ArrowDownUp size={16} className="text-gray-500 hover:text-magic-blue" />
                     </button>
                 </div>
 
@@ -493,7 +493,7 @@ export default function TrashDAQSwap() {
                             ) : (
                                 <span className="text-gray-500 text-sm">Select token</span>
                             )}
-                            <ChevronDown size={14} className="text-gray-500 group-hover:text-magic-green" />
+                            <ChevronDown size={14} className="text-gray-500 group-hover:text-magic-blue" />
                         </button>
 
                         <div className="flex flex-col items-end">
@@ -549,7 +549,7 @@ export default function TrashDAQSwap() {
                                     <React.Fragment key={i}>
                                         <div className="flex items-center gap-1 bg-gray-800/50 px-2 py-0.5 rounded border border-gray-700">
                                             {i === 0 ? (
-                                                <span className="text-[10px] text-magic-green font-bold">{step}</span>
+                                                <span className="text-[10px] text-magic-blue font-bold">{step}</span>
                                             ) : (
                                                 <>
                                                     {tokens.find(t => t.symbol === step)?.logo && (
@@ -619,14 +619,14 @@ export default function TrashDAQSwap() {
                 <button
                     onClick={handleSwap}
                     disabled={!state.sellToken || !state.buyToken || !state.sellAmount || parseFloat(state.sellAmount) <= 0 || !connected || txInFlightRef.current}
-                    className="w-full bg-magic-green hover:bg-magic-green/90 disabled:bg-gray-800 disabled:text-gray-600 text-black font-bold py-3 px-4 rounded-lg transition-all uppercase tracking-wider text-sm shadow-lg shadow-magic-green/20 hover:shadow-magic-green/40 disabled:shadow-none"
+                    className="w-full bg-magic-blue hover:bg-magic-blue/90 disabled:bg-gray-800 disabled:text-gray-600 text-black font-bold py-3 px-4 rounded-lg transition-all uppercase tracking-wider text-sm shadow-lg shadow-magic-blue/20 hover:shadow-magic-blue/40 disabled:shadow-none"
                 >
                     {!connected ? 'Connect Wallet' : !state.sellToken || !state.buyToken ? 'Select Tokens' : txInFlightRef.current ? 'Processing...' : 'Swap'}
                 </button>
             </div>
 
             {/* Powered by TrashDAQ */}
-            <div className="bg-black/80 border-t border-magic-green/10 px-4 py-3 flex items-center justify-center gap-2">
+            <div className="bg-black/80 border-t border-magic-blue/10 px-4 py-3 flex items-center justify-center gap-2">
                 <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Powered by</span>
                 <a
                     href="https://explorer.gorbagana.wtf"
@@ -703,7 +703,7 @@ function TokenSelectModal({
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-gray-900 border border-magic-green/20 rounded-lg max-w-md w-full max-h-[600px] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gray-900 border border-magic-blue/20 rounded-lg max-w-md w-full max-h-[600px] flex flex-col" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="border-b border-gray-800 p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -715,7 +715,7 @@ function TokenSelectModal({
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search name or paste address"
-                        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-magic-green/50"
+                        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-magic-blue/50"
                         autoFocus
                     />
                 </div>
@@ -775,7 +775,7 @@ function SwapSettingsModal({
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-gray-900 border border-magic-green/20 rounded-lg max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gray-900 border border-magic-blue/20 rounded-lg max-w-md w-full" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="border-b border-gray-800 p-4 flex items-center justify-between">
                     <h3 className="text-white font-bold text-base">Swap Settings</h3>
@@ -795,7 +795,7 @@ function SwapSettingsModal({
                                     key={preset}
                                     onClick={() => setLocalSettings({ ...localSettings, slippage: preset, customSlippage: '' })}
                                     className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-all ${localSettings.slippage === preset && !localSettings.customSlippage
-                                        ? 'bg-magic-green text-black'
+                                        ? 'bg-magic-blue text-black'
                                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                                         }`}
                                 >
@@ -808,7 +808,7 @@ function SwapSettingsModal({
                             value={localSettings.customSlippage}
                             onChange={(e) => setLocalSettings({ ...localSettings, slippage: -1, customSlippage: e.target.value })}
                             placeholder="Custom %"
-                            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-magic-green/50"
+                            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-magic-blue/50"
                         />
                     </div>
 
@@ -821,7 +821,7 @@ function SwapSettingsModal({
                                     key={preset.value}
                                     onClick={() => setLocalSettings({ ...localSettings, priorityFee: preset.value, customPriorityFee: '' })}
                                     className={`py-2 px-3 rounded text-sm font-medium transition-all ${localSettings.priorityFee === preset.value && !localSettings.customPriorityFee
-                                        ? 'bg-magic-green text-black'
+                                        ? 'bg-magic-blue text-black'
                                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                                         }`}
                                 >
@@ -834,7 +834,7 @@ function SwapSettingsModal({
                             value={localSettings.customPriorityFee}
                             onChange={(e) => setLocalSettings({ ...localSettings, priorityFee: 'custom', customPriorityFee: e.target.value })}
                             placeholder="Custom fee (GOR)"
-                            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-magic-green/50"
+                            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-magic-blue/50"
                         />
                     </div>
 
@@ -843,7 +843,7 @@ function SwapSettingsModal({
                         <label className="text-white text-sm font-semibold">Auto-refresh prices</label>
                         <button
                             onClick={() => setLocalSettings({ ...localSettings, autoRefresh: !localSettings.autoRefresh })}
-                            className={`relative w-12 h-6 rounded-full transition-colors ${localSettings.autoRefresh ? 'bg-magic-green' : 'bg-gray-700'
+                            className={`relative w-12 h-6 rounded-full transition-colors ${localSettings.autoRefresh ? 'bg-magic-blue' : 'bg-gray-700'
                                 }`}
                         >
                             <div
@@ -864,7 +864,7 @@ function SwapSettingsModal({
                     </button>
                     <button
                         onClick={() => onSave(localSettings)}
-                        className="flex-1 bg-magic-green hover:bg-magic-green/90 text-black font-bold py-2 px-4 rounded transition-colors"
+                        className="flex-1 bg-magic-blue hover:bg-magic-blue/90 text-black font-bold py-2 px-4 rounded transition-colors"
                     >
                         Save
                     </button>

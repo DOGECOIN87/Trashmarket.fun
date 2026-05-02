@@ -425,7 +425,7 @@ const VanityGenerator: React.FC = () => {
   const accentBorder = accentColor.replace('text-', 'border-');
 
   return (
-    <div className="vanity-generator bg-black text-white min-h-screen p-6 font-mono">
+    <div className="vanity-generator text-white min-h-screen p-6 font-mono">
       {/* Match Found Prompt Modal */}
       {showMatchPrompt && pendingMatch && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -448,7 +448,7 @@ const VanityGenerator: React.FC = () => {
             <div className="flex gap-3">
               <button
                 onClick={handleContinueMining}
-                className="flex-1 bg-magic-green text-black font-bold py-3 hover:opacity-90"
+                className="flex-1 bg-magic-blue text-black font-bold py-3 hover:opacity-90"
               >
                 <Play className="w-4 h-4 inline mr-2" />
                 CONTINUE
@@ -497,7 +497,7 @@ const VanityGenerator: React.FC = () => {
                   // This would trigger deposit UI
                   setDepositDepleted(false);
                 }}
-                className="flex-1 bg-magic-green text-black font-bold py-3 hover:opacity-90"
+                className="flex-1 bg-magic-blue text-black font-bold py-3 hover:opacity-90"
               >
                 ADD FUNDS
               </button>
@@ -745,7 +745,7 @@ const VanityGenerator: React.FC = () => {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-[10px] text-gray-500 uppercase">DIFFICULTY</span>
                 <span className={`text-xs font-bold uppercase ${
-                  difficulty.difficulty === 'easy' ? 'text-magic-green' :
+                  difficulty.difficulty === 'easy' ? 'text-magic-blue' :
                   difficulty.difficulty === 'medium' ? 'text-yellow-500' :
                   difficulty.difficulty === 'hard' ? 'text-orange-500' :
                   'text-magic-red'
@@ -756,7 +756,7 @@ const VanityGenerator: React.FC = () => {
               <div className="w-full h-2 bg-gray-800 overflow-hidden mb-2">
                 <div
                   className={`h-full transition-all ${
-                    difficulty.difficulty === 'easy' ? 'bg-magic-green w-1/4' :
+                    difficulty.difficulty === 'easy' ? 'bg-magic-blue w-1/4' :
                     difficulty.difficulty === 'medium' ? 'bg-yellow-500 w-2/4' :
                     difficulty.difficulty === 'hard' ? 'bg-orange-500 w-3/4' :
                     'bg-magic-red w-full'
@@ -965,7 +965,7 @@ const VanityGenerator: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
                           {match.unlocked ? (
-                            <Unlock className="w-3 h-3 text-magic-green" />
+                            <Unlock className="w-3 h-3 text-magic-blue" />
                           ) : (
                             <Lock className="w-3 h-3 text-gray-500" />
                           )}

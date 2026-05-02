@@ -7,7 +7,7 @@ import { TOKEN_CONFIG, KNOWN_WALLETS } from '../lib/tokenConfig';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { GORBAGANA_CONFIG } from '../contexts/NetworkContext';
 
-import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio, Volume2, VolumeX, Users, Coins, TrendingUp, ExternalLink } from 'lucide-react';
+import { Terminal, ArrowRight, ArrowUpRight, ArrowDownRight, Activity, Zap, Radio, Users, Coins, TrendingUp, ExternalLink } from 'lucide-react';
 
 import { useNetwork } from '../contexts/NetworkContext';
 
@@ -48,24 +48,6 @@ const Home: React.FC = () => {
   const [debrisHolders, setDebrisHolders] = useState<TokenHolder[]>([]);
   const [debrisSupply, setDebrisSupply] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
-  const [isBgMuted, setIsBgMuted] = useState(true);
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-  const bgVideoRef = React.useRef<HTMLVideoElement>(null);
-
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const toggleBgMute = () => {
-    if (bgVideoRef.current) {
-      bgVideoRef.current.muted = !isBgMuted;
-      setIsBgMuted(!isBgMuted);
-    }
-  };
 
   useEffect(() => {
     let isMounted = true;
@@ -145,13 +127,13 @@ const Home: React.FC = () => {
   const [isHovering, setIsHovering] = useState(false);
   const carouselItems = featuredArtworks.filter((item) => item.image);
 
-  const borderAccent = accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-green';
-  const bgAccent = accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green';
+  const borderAccent = accentColor === 'text-magic-purple' ? 'border-magic-purple' : 'border-magic-blue';
+  const bgAccent = accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-blue';
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-magic-green animate-pulse font-mono uppercase tracking-widest text-2xl">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-magic-blue animate-pulse font-mono uppercase tracking-widest text-2xl">
           LOADING MARKET DATA...
         </div>
       </div>
@@ -160,29 +142,9 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
-      {/* Hero / Spotlight with Background Video */}
+      {/* Hero / Spotlight */}
       {featuredCollection ? (
         <div className="relative h-[300px] sm:h-[400px] md:h-[450px] w-full overflow-hidden border-b border-white/20">
-          <video
-            ref={videoRef}
-            autoPlay
-            loop
-            muted={isMuted}
-            playsInline
-            className="absolute top-0 left-0 w-full h-full object-cover opacity-90"
-            src="/assets/backgrounds/lv_0_20260323005114.mp4"
-          />
-          <button
-            onClick={toggleMute}
-            className="absolute top-4 right-4 z-20 p-2 bg-black/50 border border-white/20 rounded-full hover:bg-black/70 transition-all duration-200 group"
-            aria-label={isMuted ? 'Unmute video' : 'Mute video'}
-          >
-            {isMuted ? (
-              <VolumeX className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-            ) : (
-              <Volume2 className="w-4 h-4 text-magic-green group-hover:text-magic-green/80 transition-colors" />
-            )}
-          </button>
           <div className="absolute inset-0">
             <div className="absolute inset-0 bg-black/40" />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
@@ -262,34 +224,13 @@ const Home: React.FC = () => {
         </div>
       ) : (
         <div className="relative h-[300px] sm:h-[400px] md:h-[450px] w-full overflow-hidden border-b border-white/20 flex items-center justify-center">
-          <div className="text-magic-green animate-pulse font-mono uppercase tracking-widest text-xl">
+          <div className="text-magic-blue animate-pulse font-mono uppercase tracking-widest text-xl">
             LOADING SPOTLIGHT...
           </div>
         </div>
       )}
 
       <div className="relative overflow-hidden">
-        <video
-          ref={bgVideoRef}
-          autoPlay
-          loop
-          muted={isBgMuted}
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover opacity-30"
-          src="/assets/backgrounds/lv_0_20260322165012.mp4"
-        />
-        <div className="absolute inset-0 bg-black/30" />
-        <button
-          onClick={toggleBgMute}
-          className="absolute top-4 right-4 z-20 p-2 bg-black/50 border border-white/20 rounded-full hover:bg-black/70 transition-all duration-200 group"
-          aria-label={isBgMuted ? 'Unmute background video' : 'Mute background video'}
-        >
-          {isBgMuted ? (
-            <VolumeX className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-          ) : (
-            <Volume2 className="w-4 h-4 text-magic-green group-hover:text-magic-green/80 transition-colors" />
-          )}
-        </button>
       <div className="relative z-10 max-w-[1600px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-12 pb-24 sm:pb-32">
         {/* ─── DEBRIS Token Showcase ─── */}
         <div className="mb-12">
@@ -494,7 +435,7 @@ const Home: React.FC = () => {
                         <td className="p-2 sm:p-4 text-right font-mono font-bold text-gray-300">
                           {currency} {token.price >= 1 ? token.price.toFixed(2) : token.price >= 0.001 ? token.price.toFixed(4) : token.price.toExponential(2)}
                         </td>
-                        <td className={`p-2 sm:p-4 text-right font-mono font-bold text-xs ${token.change24h >= 0 ? 'text-magic-green' : 'text-magic-red'} hidden sm:table-cell`}>
+                        <td className={`p-2 sm:p-4 text-right font-mono font-bold text-xs ${token.change24h >= 0 ? 'text-magic-blue' : 'text-magic-red'} hidden sm:table-cell`}>
                           <div className="flex items-center justify-end gap-1">
                             {token.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                             {Math.abs(token.change24h).toFixed(1)}%

@@ -141,15 +141,15 @@ export function isPointInShape(px: number, py: number, shape: Shape): boolean {
 }
 
 export function generateInitialLayout(width: number, height: number): Shape[] {
-  // Gorbagana brand palette — greens and purples
+  // Gorbagana brand palette — blues and complementary accents
   const colors = [
-    '#00ff00', // Neon Green — primary
+    '#0099ff', // Neon Blue — primary
     '#9945FF', // Oscar Purple
-    '#00cc44', // Emerald
+    '#0066ff', // Deep blue
     '#FF00FF', // Magenta accent
-    '#33ff66', // Light green
+    '#33ccff', // Light cyan
     '#7733ff', // Deep purple
-    '#00ff88', // Mint
+    '#00e6ff', // Bright cyan
     '#ffcc00', // Gold
     '#ff0099', // Hot pink
   ];

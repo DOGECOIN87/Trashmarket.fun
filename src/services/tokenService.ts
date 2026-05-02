@@ -115,7 +115,7 @@ export const transformTokensToMetrics = (tokens: Token[]): MarketMetric[] => {
       label: token.symbol,
       value: `G ${priceStr}`,
       change: changeStr,
-      color: isPositive ? 'text-magic-green' : 'text-magic-red',
+      color: isPositive ? 'text-magic-blue' : 'text-magic-red',
     };
   });
 };
@@ -124,18 +124,18 @@ export const transformTokensToMetrics = (tokens: Token[]): MarketMetric[] => {
  * Fallback mock data when API is unavailable
  */
 export const getMockTokenMetrics = (): MarketMetric[] => [
-  { label: "GOR", value: "G 1.00", change: "0%", color: "text-magic-green" },
-  { label: "TRASH", value: "G 0.0042", change: "+69.4%", color: "text-magic-green" },
-  { label: "GORBAG", value: "G 0.15", change: "+12.3%", color: "text-magic-green" },
+  { label: "GOR", value: "G 1.00", change: "0%", color: "text-magic-blue" },
+  { label: "TRASH", value: "G 0.0042", change: "+69.4%", color: "text-magic-blue" },
+  { label: "GORBAG", value: "G 0.15", change: "+12.3%", color: "text-magic-blue" },
   { label: "DUMP", value: "G 0.0001", change: "-5.2%", color: "text-magic-red" },
-  { label: "RECYCLE", value: "G 0.025", change: "+8.1%", color: "text-magic-green" },
-  { label: "WASTE", value: "G 0.0088", change: "+2.4%", color: "text-magic-green" },
+  { label: "RECYCLE", value: "G 0.025", change: "+8.1%", color: "text-magic-blue" },
+  { label: "WASTE", value: "G 0.0088", change: "+2.4%", color: "text-magic-blue" },
   { label: "COMPOST", value: "G 0.033", change: "-1.8%", color: "text-magic-red" },
-  { label: "LANDFILL", value: "G 0.0005", change: "+420%", color: "text-magic-green" },
-  { label: "SCRAPS", value: "G 0.012", change: "+5.5%", color: "text-magic-green" },
+  { label: "LANDFILL", value: "G 0.0005", change: "+420%", color: "text-magic-blue" },
+  { label: "SCRAPS", value: "G 0.012", change: "+5.5%", color: "text-magic-blue" },
   { label: "JUNK", value: "G 0.0022", change: "-3.1%", color: "text-magic-red" },
-  { label: "DEBRIS", value: "G 0.045", change: "+15.2%", color: "text-magic-green" },
-  { label: "REFUSE", value: "G 0.008", change: "+1.9%", color: "text-magic-green" },
+  { label: "DEBRIS", value: "G 0.045", change: "+15.2%", color: "text-magic-blue" },
+  { label: "REFUSE", value: "G 0.008", change: "+1.9%", color: "text-magic-blue" },
   { label: "GPS", value: "4,200", change: "LIVE", color: "text-yellow-400" },
   { label: "GAS", value: "0.001 G", change: "LOW", color: "text-blue-400" },
   { label: "TVL", value: "G 1.2M", change: "+24h", color: "text-white" },

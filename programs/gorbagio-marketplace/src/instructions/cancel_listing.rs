@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
 use crate::state::Listing;
 use crate::error::MarketplaceError;
 
@@ -63,6 +63,19 @@ pub fn handler(ctx: Context<CancelListing>) -> Result<()> {
         signer_seeds,
     );
     token::transfer(cpi_ctx, 1)?;
+
+    // Close the now-empty escrow token account and return rent to seller
+    let close_accounts = CloseAccount {
+        account: ctx.accounts.escrow_nft_account.to_account_info(),
+        destination: ctx.accounts.seller.to_account_info(),
+        authority: ctx.accounts.escrow_authority.to_account_info(),
+    };
+    let close_ctx = CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        close_accounts,
+        signer_seeds,
+    );
+    token::close_account(close_ctx)?;
 
     emit!(ListingCancelled {
         seller: listing.seller,

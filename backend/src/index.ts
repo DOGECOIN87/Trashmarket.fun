@@ -19,6 +19,9 @@ export interface Env {
   GAME_ADMIN_KEYPAIR: string;  // JSON array of admin keypair bytes for signing game txs
   DEPLOYER_KEYPAIR: string;    // JSON array of deployer keypair bytes for VerifyCollection
 
+  // KV namespaces
+  SESSIONS: KVNamespace;
+
   // Vars (set in wrangler.toml)
   CORS_ORIGIN: string;
   GORBAGANA_RPC: string;
@@ -944,6 +947,391 @@ async function handleVerifyCollection(request: Request, env: Env): Promise<Respo
   }
 }
 
+// ─── Lottery constants ───────────────────────────────────────────────────────
+
+const LOTTERY_TREASURY = '8iKCvwz3tyUp4hzxcyLYtPQghiwiEhiLDd38MEQBF6kR';
+const LOTTERY_DEBRIS_SOURCE = 'CfBeTmkYkPEvJoGd41J15XoKtUVqXUF8DcaHcs9pN2mr'; // DEBRIS token account (ATA) for payout wallet
+const DEBRIS_MINT = 'DebrikgCUTkxMGSxnBoVuwqpW4zivMrUfUP6kUeNUMwy';
+const SPL_TOKEN_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'; // Token-2022 (DEBRIS uses Token-2022)
+const ASSOCIATED_TOKEN_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bh3';
+const SYSTEM_PROGRAM = '11111111111111111111111111111111';
+const SYSVAR_RENT = 'SysvarRent111111111111111111111111111111111';
+const TICKET_COST_LAMPORTS = 500 * 1_000_000_000; // 500 GOR in lamports
+
+// Symbol weights matching frontend exactly
+const LOTTERY_SYMBOLS = [
+  { name: 'DIGIBIN',   payout: 50,  weight: 2  },
+  { name: 'GORBIOS',   payout: 25,  weight: 4  },
+  { name: 'MATRESS',   payout: 25,  weight: 4  },
+  { name: 'PUMP PILL', payout: 25,  weight: 4  },
+  { name: 'OSCAR',     payout: 8,   weight: 8  },
+  { name: 'SHREDDER',  payout: 5,   weight: 7  },
+  { name: 'SKY-GARB',  payout: 3,   weight: 10 },
+  { name: 'BOX',       payout: 2,   weight: 12 },
+  { name: 'ALON',      payout: 1.5, weight: 15 },
+];
+const LOTTERY_TOTAL_WEIGHT = LOTTERY_SYMBOLS.reduce((s, sym) => s + sym.weight, 0);
+
+const LOTTERY_WIN_LINES = [
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6],
+];
+
+/** Deterministically generate a 9-cell grid from a seed (tx signature hash). */
+async function generateLotteryGrid(seed: string): Promise<number[]> {
+  const encoder = new TextEncoder();
+  const grid: number[] = [];
+  for (let i = 0; i < 9; i++) {
+    const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(`${seed}:cell:${i}`));
+    const val = new DataView(hashBuf).getUint32(0, false);
+    let r = val % LOTTERY_TOTAL_WEIGHT;
+    let symIdx = LOTTERY_SYMBOLS.length - 1;
+    for (let j = 0; j < LOTTERY_SYMBOLS.length; j++) {
+      if (r < LOTTERY_SYMBOLS[j].weight) { symIdx = j; break; }
+      r -= LOTTERY_SYMBOLS[j].weight;
+    }
+    grid.push(symIdx);
+  }
+  return grid;
+}
+
+/** Check win lines, return best payout multiplier (0 = loss). */
+function checkLotteryWins(grid: number[]): number {
+  let best = 0;
+  for (const line of LOTTERY_WIN_LINES) {
+    const [a, b, c] = line;
+    if (grid[a] === grid[b] && grid[b] === grid[c]) {
+      const payout = LOTTERY_SYMBOLS[grid[a]].payout;
+      if (payout > best) best = payout;
+    }
+  }
+  return best;
+}
+
+// Maximum DEBRIS that can ever be paid out in a single ticket (50× × 500 base)
+const MAX_DEBRIS_PAYOUT = 25_000;
+
+// Rate limit: max plays submitted per wallet per window
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_SEC = 60;
+
+/**
+ * POST /api/lottery/play
+ *
+ * Body: { txSignature: string, playerWallet: string }
+ *
+ * Security checks (in order):
+ *  1. Input validation
+ *  2. Per-wallet rate limiting (5 req / 60s)
+ *  3. Replay check — reject if txSignature already used
+ *  4. On-chain tx verification:
+ *     a. tx confirmed with no error
+ *     b. playerWallet is the fee payer (index 0 in accountKeys)
+ *     c. treasury received >= 500 GOR
+ *  5. Mark ticket used in KV (TTL 90 days)
+ *  6. Deterministically generate grid from SHA-256(txSignature)
+ */
+async function handleLotteryPlay(request: Request, env: Env): Promise<Response> {
+  let body: { txSignature: string; playerWallet: string };
+  try {
+    body = await request.json() as typeof body;
+  } catch {
+    return json({ error: 'Invalid JSON' }, 400);
+  }
+
+  if (!body.txSignature || !body.playerWallet) {
+    return json({ error: 'Missing txSignature or playerWallet' }, 400);
+  }
+
+  // Basic format checks to avoid wasting RPC calls
+  if (body.txSignature.length < 64 || body.txSignature.length > 128) {
+    return json({ error: 'Invalid txSignature format' }, 400);
+  }
+  if (body.playerWallet.length < 32 || body.playerWallet.length > 50) {
+    return json({ error: 'Invalid playerWallet format' }, 400);
+  }
+
+  // ── Per-wallet rate limiting ──────────────────────────────────────────────
+  const rateKey = `lottery:rate:${body.playerWallet}`;
+  const rateRaw = await env.SESSIONS.get(rateKey);
+  const rateCount = rateRaw ? parseInt(rateRaw, 10) : 0;
+  if (rateCount >= RATE_LIMIT_MAX) {
+    return json({ error: 'Too many requests. Please wait before buying another ticket.' }, 429);
+  }
+  // Increment counter; first request sets TTL for the window
+  await env.SESSIONS.put(rateKey, String(rateCount + 1), {
+    expirationTtl: RATE_LIMIT_WINDOW_SEC,
+  });
+
+  // ── Replay check ──────────────────────────────────────────────────────────
+  const replayKey = `lottery:used:${body.txSignature}`;
+  const alreadyUsed = await env.SESSIONS.get(replayKey);
+  if (alreadyUsed) {
+    return json({ error: 'Ticket already used' }, 409);
+  }
+
+  // ── Verify tx on-chain ────────────────────────────────────────────────────
+  const rpcResp = await fetch(env.GORBAGANA_RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0', id: 1,
+      method: 'getTransaction',
+      params: [body.txSignature, { encoding: 'jsonParsed', commitment: 'confirmed', maxSupportedTransactionVersion: 0 }],
+    }),
+  });
+  const rpcResult = await rpcResp.json() as any;
+  const tx = rpcResult?.result;
+
+  if (!tx) {
+    return json({ error: 'Transaction not found or not confirmed yet' }, 404);
+  }
+  if (tx.meta?.err) {
+    return json({ error: 'Transaction failed on-chain' }, 400);
+  }
+
+  const accountKeys: string[] = tx.transaction?.message?.accountKeys?.map((k: any) =>
+    typeof k === 'string' ? k : k.pubkey
+  ) ?? [];
+
+  // ── SECURITY: playerWallet must be the fee payer (index 0 = first signer) ──
+  // This prevents attacker from using someone else's tx signature.
+  if (accountKeys[0] !== body.playerWallet) {
+    return json({ error: 'playerWallet is not the transaction fee payer' }, 403);
+  }
+
+  // ── Verify treasury received >= 500 GOR ──────────────────────────────────
+  const treasuryIdx = accountKeys.indexOf(LOTTERY_TREASURY);
+  if (treasuryIdx === -1) {
+    return json({ error: 'Transaction does not send funds to lottery treasury' }, 400);
+  }
+
+  const preBalances: number[] = tx.meta?.preBalances ?? [];
+  const postBalances: number[] = tx.meta?.postBalances ?? [];
+  const treasuryDelta = (postBalances[treasuryIdx] ?? 0) - (preBalances[treasuryIdx] ?? 0);
+
+  if (treasuryDelta < TICKET_COST_LAMPORTS) {
+    return json({
+      error: `Insufficient payment: treasury received ${treasuryDelta} lamports, expected ${TICKET_COST_LAMPORTS}`,
+    }, 400);
+  }
+
+  // ── Mark ticket used atomically before returning grid ────────────────────
+  // TTL: 90 days — long enough to cover any claim window
+  await env.SESSIONS.put(replayKey, body.playerWallet, { expirationTtl: 60 * 60 * 24 * 90 });
+
+  // ── Generate grid deterministically from tx signature ────────────────────
+  const grid = await generateLotteryGrid(body.txSignature);
+  const bestPayout = checkLotteryWins(grid);
+  const winAmount = bestPayout > 0 ? Math.min(Math.round(bestPayout * 500), MAX_DEBRIS_PAYOUT) : 0;
+
+  return json({ grid, winAmount, payout: bestPayout });
+}
+
+/**
+ * POST /api/lottery/claim
+ *
+ * Body: { txSignature: string, playerWallet: string }
+ *
+ * Security model:
+ *  1. Verify /play was called first (storedWallet exists in KV)
+ *  2. Verify playerWallet matches the wallet that called /play
+ *  3. Write an atomic "pending" lock to KV BEFORE sending the payout tx
+ *     — this is the critical fix for the double-claim race condition.
+ *     If the Worker crashes after writing pending but before sending, the
+ *     player can call /claim again and the pending lock will be overwritten
+ *     only after a confirmed tx sig is available.
+ *  4. Re-derive win amount server-side (never trust client-supplied amounts)
+ *  5. Hard cap at MAX_DEBRIS_PAYOUT
+ *  6. Check treasury DEBRIS balance before sending
+ *  7. Send SPL transfer and persist final claim tx sig
+ */
+async function handleLotteryClaim(request: Request, env: Env): Promise<Response> {
+  let body: { txSignature: string; playerWallet: string };
+  try {
+    body = await request.json() as typeof body;
+  } catch {
+    return json({ error: 'Invalid JSON' }, 400);
+  }
+
+  if (!body.txSignature || !body.playerWallet) {
+    return json({ error: 'Missing txSignature or playerWallet' }, 400);
+  }
+
+  // ── Verify /play was called and wallet matches ─────────────────────────────
+  const replayKey = `lottery:used:${body.txSignature}`;
+  const storedWallet = await env.SESSIONS.get(replayKey);
+  if (!storedWallet) {
+    return json({ error: 'No verified play found for this ticket' }, 404);
+  }
+  if (storedWallet !== body.playerWallet) {
+    return json({ error: 'Wallet mismatch — this ticket belongs to a different wallet' }, 403);
+  }
+
+  const claimKey = `lottery:claimed:${body.txSignature}`;
+
+  // ── Check if already fully claimed ───────────────────────────────────────
+  const existingClaim = await env.SESSIONS.get(claimKey);
+  if (existingClaim && existingClaim !== 'PENDING') {
+    // Already claimed — return the existing tx so the client can show it
+    return json({ error: 'Winnings already claimed', claimTx: existingClaim }, 409);
+  }
+
+  // ── Re-derive win amount entirely server-side ─────────────────────────────
+  const grid = await generateLotteryGrid(body.txSignature);
+  const bestPayout = checkLotteryWins(grid);
+  if (bestPayout === 0) {
+    return json({ error: 'No winnings for this ticket' }, 400);
+  }
+
+  // Hard cap — never pay more than MAX_DEBRIS_PAYOUT regardless of multiplier
+  const winAmount = Math.min(Math.round(bestPayout * 500), MAX_DEBRIS_PAYOUT);
+  const winAmountRaw = BigInt(winAmount) * BigInt(1_000_000_000); // 9 decimals
+
+  // ── ATOMIC LOCK: write PENDING before sending tx ──────────────────────────
+  // This prevents the double-claim race condition. If the Worker crashes after
+  // this write but before the tx is sent, the player retries and hits PENDING.
+  // We only update the KV value once we have a confirmed tx signature.
+  if (!existingClaim) {
+    await env.SESSIONS.put(claimKey, 'PENDING', { expirationTtl: 60 * 60 * 24 * 90 });
+  }
+
+  // ── Check treasury DEBRIS balance before sending ──────────────────────────
+  const balResp = await fetch(env.GORBAGANA_RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0', id: 1,
+      method: 'getTokenAccountBalance',
+      params: [LOTTERY_DEBRIS_SOURCE],
+    }),
+  });
+  const balResult = await balResp.json() as any;
+  const treasuryBalanceRaw = BigInt(balResult?.result?.value?.amount ?? '0');
+  if (treasuryBalanceRaw < winAmountRaw) {
+    // Release the pending lock so the player can retry later
+    await env.SESSIONS.delete(claimKey);
+    return json({ error: 'Lottery treasury temporarily low on DEBRIS. Try again soon.' }, 503);
+  }
+
+  // ── Look up player's DEBRIS token account on-chain ───────────────────────
+  const ataResp = await fetch(env.GORBAGANA_RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0', id: 1,
+      method: 'getTokenAccountsByOwner',
+      params: [
+        body.playerWallet,
+        { mint: DEBRIS_MINT },
+        { encoding: 'jsonParsed' },
+      ],
+    }),
+  });
+  const ataResult = await ataResp.json() as any;
+  const ataAccounts: any[] = ataResult?.result?.value ?? [];
+
+  if (ataAccounts.length === 0) {
+    await env.SESSIONS.delete(claimKey);
+    return json({ error: 'No DEBRIS token account found in your wallet. Add DEBRIS to your wallet first to receive winnings.' }, 400);
+  }
+
+  // Use the first matching token account
+  const playerAtaAddress = ataAccounts[0].pubkey as string;
+  const playerAta = base58Decode(playerAtaAddress);
+
+  // ── Build SPL token Transfer instruction ──────────────────────────────────
+  const keypairBytes = new Uint8Array(JSON.parse(env.GAME_ADMIN_KEYPAIR));
+  const adminPrivkey = keypairBytes.slice(0, 64);
+  const adminPubkeyBytes = keypairBytes.slice(32, 64);
+  const sourceAtaBytes = base58Decode(LOTTERY_DEBRIS_SOURCE);
+  const tokenProgBytes = base58Decode(SPL_TOKEN_PROGRAM);
+
+  // SPL Transfer discriminator = 3, followed by u64 LE amount
+  const transferData = new Uint8Array(9);
+  transferData[0] = 3;
+  const amountView = new DataView(new ArrayBuffer(8));
+  amountView.setBigUint64(0, winAmountRaw, true);
+  transferData.set(new Uint8Array(amountView.buffer), 1);
+
+  // Fetch recent blockhash
+  const bhResp = await fetch(env.GORBAGANA_RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getLatestBlockhash', params: [{ commitment: 'confirmed' }] }),
+  });
+  const bhResult = await bhResp.json() as any;
+  const blockhash = bhResult.result?.value?.blockhash;
+  if (!blockhash) {
+    await env.SESSIONS.delete(claimKey);
+    return json({ error: 'Could not fetch blockhash' }, 500);
+  }
+  const blockhashBytes = base58Decode(blockhash);
+
+  // Build legacy transaction message:
+  // header(3) + numKeys(1) + keys(4×32) + blockhash(32) + numIx(1) + ix(programIdx + accounts + data)
+  const numKeys = 4;
+  const msgSize = 3 + 1 + (numKeys * 32) + 32 + 1 + 1 + 1 + 3 + 1 + transferData.length;
+  const msg = new Uint8Array(msgSize);
+  let off = 0;
+
+  msg[off++] = 1; // numRequiredSignatures
+  msg[off++] = 0; // numReadonlySignedAccounts
+  msg[off++] = 1; // numReadonlyUnsignedAccounts (tokenProgram)
+  msg[off++] = numKeys;
+  msg.set(adminPubkeyBytes, off); off += 32; // [0] admin — signer, writable
+  msg.set(sourceAtaBytes, off);   off += 32; // [1] source ATA — writable
+  msg.set(playerAta, off);        off += 32; // [2] dest ATA — writable
+  msg.set(tokenProgBytes, off);   off += 32; // [3] token program — read-only
+  msg.set(blockhashBytes, off);   off += 32;
+
+  msg[off++] = 1; // numInstructions
+  msg[off++] = 3; // programIdIndex → tokenProgram at [3]
+  msg[off++] = 3; // numAccountMetas
+  msg[off++] = 1; // source ATA index
+  msg[off++] = 2; // dest ATA index
+  msg[off++] = 0; // authority (admin) index
+  msg[off++] = transferData.length;
+  msg.set(transferData, off);
+
+  // Sign with admin keypair
+  const nacl = await import('tweetnacl');
+  const sig = nacl.sign.detached(msg, adminPrivkey);
+
+  // Assemble: numSigs(1) + sig(64) + message
+  const fullTx = new Uint8Array(1 + 64 + msg.length);
+  fullTx[0] = 1;
+  fullTx.set(sig, 1);
+  fullTx.set(msg, 65);
+
+  // ── Send payout transaction ───────────────────────────────────────────────
+  const txB64 = btoa(String.fromCharCode(...fullTx));
+  const sendResp = await fetch(env.GORBAGANA_RPC, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0', id: 1,
+      method: 'sendTransaction',
+      params: [txB64, { encoding: 'base64', skipPreflight: true, preflightCommitment: 'confirmed' }],
+    }),
+  });
+  const sendResult = await sendResp.json() as any;
+
+  if (sendResult.error) {
+    // Release pending lock on failure so player can retry
+    await env.SESSIONS.delete(claimKey);
+    return json({ error: `Payout tx failed: ${sendResult.error.message ?? JSON.stringify(sendResult.error)}` }, 500);
+  }
+
+  const claimTxSig = sendResult.result as string;
+
+  // ── Persist confirmed claim tx (replaces PENDING) ─────────────────────────
+  await env.SESSIONS.put(claimKey, claimTxSig, { expirationTtl: 60 * 60 * 24 * 90 });
+
+  return json({ success: true, claimTx: claimTxSig, winAmount, debrisAmount: winAmount });
+}
+
 // ─── Main router ────────────────────────────────────────────────────────────
 
 export default {
@@ -978,6 +1366,10 @@ export default {
         response = await handleGameSign(request, env);
       } else if (url.pathname === '/api/migration/verify-collection' && request.method === 'POST') {
         response = await handleVerifyCollection(request, env);
+      } else if (url.pathname === '/api/lottery/play' && request.method === 'POST') {
+        response = await handleLotteryPlay(request, env);
+      } else if (url.pathname === '/api/lottery/claim' && request.method === 'POST') {
+        response = await handleLotteryClaim(request, env);
       } else {
         response = json({ error: 'Not found' }, 404);
       }

@@ -42,8 +42,8 @@ body {
 }
 
 /* Glow effects for Gorbagana branding */
-.glow-green {
-  text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
+.glow-blue {
+  text-shadow: 0 0 10px #0099ff, 0 0 20px #0099ff, 0 0 30px #0099ff;
 }
 
 .glow-cyan {

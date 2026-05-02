@@ -135,7 +135,7 @@ const Raffle: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'text-magic-green';
+      case 'active': return 'text-magic-blue';
       case 'drawing': return 'text-yellow-400';
       case 'completed': return 'text-blue-400';
       case 'cancelled': return 'text-red-400';
@@ -175,12 +175,12 @@ const Raffle: React.FC = () => {
           <div className="flex justify-center mb-6">
             <TicketIcon size={120} className="opacity-20" />
           </div>
-          <h1 className="text-4xl font-bold mb-4 text-magic-green">NFT RAFFLES</h1>
+          <h1 className="text-4xl font-bold mb-4 text-magic-blue">NFT RAFFLES</h1>
           <p className="text-gray-400 mb-8">
             Win NFTs by purchasing Tickets
           </p>
           <div className="flex justify-center">
-            <WalletMultiButton className="!bg-magic-green !text-black hover:!bg-magic-green/80" />
+            <WalletMultiButton className="!bg-magic-blue !text-black hover:!bg-magic-blue/80" />
           </div>
         </div>
       </div>
@@ -194,13 +194,13 @@ const Raffle: React.FC = () => {
         <div className="flex items-center gap-4">
           <TicketIcon size={48} />
           <div>
-            <h1 className="text-4xl font-bold text-magic-green mb-2">NFT RAFFLES</h1>
+            <h1 className="text-4xl font-bold text-magic-blue mb-2">NFT RAFFLES</h1>
             <p className="text-gray-400">Win NFTs by purchasing Tickets</p>
           </div>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="px-6 py-3 bg-magic-green text-black font-bold hover:bg-magic-green/80 transition-colors whitespace-nowrap"
+          className="px-6 py-3 bg-magic-blue text-black font-bold hover:bg-magic-blue/80 transition-colors whitespace-nowrap"
         >
           CREATE RAFFLE
         </button>
@@ -208,30 +208,30 @@ const Raffle: React.FC = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-8">
-        <div className="bg-black/50 border border-magic-green/20 p-4">
+        <div className="bg-black/50 border border-magic-blue/20 p-4">
           <div className="text-gray-400 text-sm mb-1">TOTAL RAFFLES</div>
-          <div className="text-2xl font-bold text-magic-green">
+          <div className="text-2xl font-bold text-magic-blue">
             {raffles.filter(r => r.status !== 'cancelled' && r.status !== 'completed').length}
           </div>
         </div>
-        <div className="bg-black/50 border border-magic-green/20 p-4">
+        <div className="bg-black/50 border border-magic-blue/20 p-4">
           <div className="text-gray-400 text-sm mb-1">ACTIVE</div>
-          <div className="text-2xl font-bold text-magic-green">
+          <div className="text-2xl font-bold text-magic-blue">
             {activeRaffles.length}
           </div>
         </div>
-        <div className="bg-black/50 border border-magic-green/20 p-4">
+        <div className="bg-black/50 border border-magic-blue/20 p-4">
           <div className="text-gray-400 text-sm mb-1">
             {autoDrawing.size > 0 ? 'AUTO-DRAWING' : 'AWAITING DRAW'}
           </div>
-          <div className={`text-2xl font-bold ${autoDrawing.size > 0 ? 'text-magic-green' : 'text-yellow-400'} flex items-center gap-2`}>
+          <div className={`text-2xl font-bold ${autoDrawing.size > 0 ? 'text-magic-blue' : 'text-yellow-400'} flex items-center gap-2`}>
             {autoDrawing.size > 0 && <Loader2 className="w-5 h-5 animate-spin" />}
             {autoDrawing.size > 0 ? autoDrawing.size : raffles.filter(r => (r.status === 'active' && r.endTime <= Date.now() && r.ticketsSold > 0) || (r.status === 'active' && r.ticketsSold >= r.totalTickets)).length}
           </div>
         </div>
-        <div className="bg-black/50 border border-magic-green/20 p-4">
+        <div className="bg-black/50 border border-magic-blue/20 p-4">
           <div className="text-gray-400 text-sm mb-1">YOUR RAFFLES</div>
-          <div className="text-2xl font-bold text-magic-green">
+          <div className="text-2xl font-bold text-magic-blue">
             {raffles.filter(r => r.creator === wallet.publicKey?.toString() && r.status !== 'cancelled' && r.status !== 'completed').length}
           </div>
         </div>
@@ -239,10 +239,10 @@ const Raffle: React.FC = () => {
 
       {/* Auto-drawing notification */}
       {autoDrawing.size > 0 && (
-        <div className="mb-8 bg-magic-green/10 border border-magic-green/30 p-4 flex items-center gap-3">
-          <Loader2 className="w-5 h-5 text-magic-green animate-spin flex-shrink-0" />
+        <div className="mb-8 bg-magic-blue/10 border border-magic-blue/30 p-4 flex items-center gap-3">
+          <Loader2 className="w-5 h-5 text-magic-blue animate-spin flex-shrink-0" />
           <div className="flex-1">
-            <div className="text-magic-green font-bold text-sm">Automatically drawing winners...</div>
+            <div className="text-magic-blue font-bold text-sm">Automatically drawing winners...</div>
             <div className="text-gray-400 text-xs mt-1">
               {autoDrawing.size} raffle{autoDrawing.size > 1 ? 's' : ''} in progress
             </div>
@@ -254,8 +254,8 @@ const Raffle: React.FC = () => {
       {activeRaffles.length > 0 && (
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-4">
-            <TicketIcon size={24} className="text-magic-green" />
-            <h2 className="text-2xl font-bold text-magic-green uppercase tracking-wide">ACTIVE RAFFLES</h2>
+            <TicketIcon size={24} className="text-magic-blue" />
+            <h2 className="text-2xl font-bold text-magic-blue uppercase tracking-wide">ACTIVE RAFFLES</h2>
           </div>
           <RaffleCarousel raffles={activeRaffles} onUpdate={loadRaffles} />
         </div>
@@ -264,7 +264,7 @@ const Raffle: React.FC = () => {
       {/* All Raffles Grid */}
       {loading ? (
         <div className="text-center py-16">
-          <div className="text-magic-green text-xl">Loading raffles...</div>
+          <div className="text-magic-blue text-xl">Loading raffles...</div>
         </div>
       ) : raffles.length === 0 ? (
         <div className="text-center py-16">
@@ -274,7 +274,7 @@ const Raffle: React.FC = () => {
           <div className="text-gray-400 text-xl mb-4">No raffles yet</div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-6 py-3 bg-magic-green text-black font-bold hover:bg-magic-green/80 transition-colors"
+            className="px-6 py-3 bg-magic-blue text-black font-bold hover:bg-magic-blue/80 transition-colors"
           >
             CREATE FIRST RAFFLE
           </button>
@@ -283,7 +283,7 @@ const Raffle: React.FC = () => {
         <>
           {otherRaffles.length > 0 && (
             <div>
-              <h2 className="text-xl font-bold text-magic-green uppercase tracking-wide mb-4">ALL RAFFLES</h2>
+              <h2 className="text-xl font-bold text-magic-blue uppercase tracking-wide mb-4">ALL RAFFLES</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {otherRaffles.map((raffle) => (
                   <RaffleCard key={raffle.publicKey} raffle={raffle} onUpdate={loadRaffles} />
@@ -322,7 +322,7 @@ function RaffleCarousel({ raffles, onUpdate }: { key?: string | number; raffles:
 
   return (
     <div
-      className="relative overflow-hidden bg-black/30 border border-magic-green/20 rounded-sm"
+      className="relative overflow-hidden bg-black/30 border border-magic-blue/20 rounded-sm"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -383,7 +383,7 @@ function RaffleCard({ raffle, onUpdate, isCompact = false }: { key?: string | nu
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'text-magic-green';
+      case 'active': return 'text-magic-blue';
       case 'drawing': return 'text-yellow-400';
       case 'completed': return 'text-blue-400';
       case 'cancelled': return 'text-red-400';
@@ -393,7 +393,7 @@ function RaffleCard({ raffle, onUpdate, isCompact = false }: { key?: string | nu
 
   const getStatusBgColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-magic-green/20';
+      case 'active': return 'bg-magic-blue/20';
       case 'drawing': return 'bg-yellow-400/20';
       case 'completed': return 'bg-blue-400/20';
       case 'cancelled': return 'bg-red-400/20';
@@ -430,7 +430,7 @@ function RaffleCard({ raffle, onUpdate, isCompact = false }: { key?: string | nu
       <>
         <div
           onClick={() => setShowDetail(true)}
-          className="bg-black/50 border border-magic-green/20 hover:border-magic-green/40 transition-all cursor-pointer group h-full flex flex-col"
+          className="bg-black/50 border border-magic-blue/20 hover:border-magic-blue/40 transition-all cursor-pointer group h-full flex flex-col"
         >
           {/* NFT Image - Smaller for carousel */}
           <div className="aspect-square bg-black/30 relative overflow-hidden flex-shrink-0">
@@ -452,14 +452,14 @@ function RaffleCard({ raffle, onUpdate, isCompact = false }: { key?: string | nu
 
           {/* Info - Compact */}
           <div className="p-2 flex-1 flex flex-col">
-            <h3 className="text-xs font-bold text-magic-green mb-1 truncate">
+            <h3 className="text-xs font-bold text-magic-blue mb-1 truncate">
               {nftMetadata?.content?.metadata?.name || `Raffle #${raffle.raffleId}`}
             </h3>
 
             <div className="space-y-1 text-[10px] mb-2 flex-1">
               <div className="flex justify-between">
                 <span className="text-gray-400">Price:</span>
-                <span className="text-magic-green font-bold">{raffle.ticketPrice.toFixed(2)}</span>
+                <span className="text-magic-blue font-bold">{raffle.ticketPrice.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Tickets:</span>
@@ -474,13 +474,13 @@ function RaffleCard({ raffle, onUpdate, isCompact = false }: { key?: string | nu
             {/* Progress Bar - Smaller */}
             <div className="w-full bg-black/50 h-1 mb-2">
               <div
-                className="bg-magic-green h-full transition-all"
+                className="bg-magic-blue h-full transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
 
             {/* Action button - Smaller */}
-            <div className="w-full px-2 py-1 border border-magic-green/30 text-magic-green font-bold text-center text-[10px] group-hover:bg-magic-green group-hover:text-black transition-colors">
+            <div className="w-full px-2 py-1 border border-magic-blue/30 text-magic-blue font-bold text-center text-[10px] group-hover:bg-magic-blue group-hover:text-black transition-colors">
               VIEW
             </div>
           </div>
@@ -506,7 +506,7 @@ function RaffleCard({ raffle, onUpdate, isCompact = false }: { key?: string | nu
     <>
       <div
         onClick={() => setShowDetail(true)}
-        className="bg-black/50 border border-magic-green/20 hover:border-magic-green/40 transition-colors cursor-pointer group"
+        className="bg-black/50 border border-magic-blue/20 hover:border-magic-blue/40 transition-colors cursor-pointer group"
       >
         {/* NFT Image */}
         <div className="aspect-square bg-black/30 relative overflow-hidden">
@@ -528,14 +528,14 @@ function RaffleCard({ raffle, onUpdate, isCompact = false }: { key?: string | nu
 
         {/* Info */}
         <div className="p-4">
-          <h3 className="text-lg font-bold text-magic-green mb-2 truncate">
+          <h3 className="text-lg font-bold text-magic-blue mb-2 truncate">
             {nftMetadata?.content?.metadata?.name || `Raffle #${raffle.raffleId}`}
           </h3>
 
           <div className="space-y-2 text-sm mb-4">
             <div className="flex justify-between">
               <span className="text-gray-400">Ticket Price:</span>
-              <span className="text-magic-green font-bold">{raffle.ticketPrice.toFixed(2)} GGOR</span>
+              <span className="text-magic-blue font-bold">{raffle.ticketPrice.toFixed(2)} GGOR</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-400">Tickets:</span>
@@ -553,13 +553,13 @@ function RaffleCard({ raffle, onUpdate, isCompact = false }: { key?: string | nu
           {/* Progress Bar */}
           <div className="w-full bg-black/50 h-2 mb-4">
             <div
-              className="bg-magic-green h-full transition-all"
+              className="bg-magic-blue h-full transition-all"
               style={{ width: `${progress}%` }}
             />
           </div>
 
           {/* Action indicator */}
-          <div className="w-full px-4 py-2 border border-magic-green/30 text-magic-green font-bold text-center text-sm group-hover:bg-magic-green group-hover:text-black transition-colors flex items-center justify-center gap-2">
+          <div className="w-full px-4 py-2 border border-magic-blue/30 text-magic-blue font-bold text-center text-sm group-hover:bg-magic-blue group-hover:text-black transition-colors flex items-center justify-center gap-2">
             <TicketIcon size={16} />
             VIEW RAFFLE
           </div>
@@ -734,14 +734,14 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-magic-dark border border-magic-green/30 max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="bg-magic-dark border border-magic-blue/30 max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/40 shrink-0">
           <div className="flex items-center gap-2">
             {step === 'configure' && (
               <button
                 onClick={() => setStep('select-nft')}
-                className="text-gray-500 hover:text-magic-green transition-colors mr-1"
+                className="text-gray-500 hover:text-magic-blue transition-colors mr-1"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -775,7 +775,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                 <input
                   type="text"
-                  className="w-full bg-black border border-white/10 pl-10 pr-3 py-2.5 text-sm font-mono focus:border-magic-green outline-none transition-colors"
+                  className="w-full bg-black border border-white/10 pl-10 pr-3 py-2.5 text-sm font-mono focus:border-magic-blue outline-none transition-colors"
                   placeholder="Search your NFTs..."
                   value={nftSearch}
                   onChange={(e) => setNftSearch(e.target.value)}
@@ -787,7 +787,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
             <div className="overflow-y-auto flex-1 p-4">
               {nftsLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
-                  <Loader2 className="w-8 h-8 animate-spin text-magic-green" />
+                  <Loader2 className="w-8 h-8 animate-spin text-magic-blue" />
                   <p className="text-gray-500 text-sm">Loading your NFTs...</p>
                 </div>
               ) : filteredNfts.length === 0 ? (
@@ -803,7 +803,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
                     <button
                       key={nft.tokenAccount}
                       onClick={() => handleSelectNft(nft)}
-                      className="group bg-black/40 border border-white/5 hover:border-magic-green/60 transition-all overflow-hidden text-left"
+                      className="group bg-black/40 border border-white/5 hover:border-magic-blue/60 transition-all overflow-hidden text-left"
                     >
                       <div className="aspect-square bg-black/60 overflow-hidden">
                         {nft.image ? (
@@ -820,7 +820,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
                         )}
                       </div>
                       <div className="p-2">
-                        <p className="text-xs text-white truncate group-hover:text-magic-green transition-colors">
+                        <p className="text-xs text-white truncate group-hover:text-magic-blue transition-colors">
                           {nft.name}
                         </p>
                         {nft.collection && (
@@ -855,7 +855,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
             )}
             {/* Selected NFT preview */}
             {selectedNft && (
-              <div className="flex items-center gap-3 bg-black/40 p-3 border border-magic-green/20">
+              <div className="flex items-center gap-3 bg-black/40 p-3 border border-magic-blue/20">
                 <div className="w-14 h-14 bg-black/60 overflow-hidden shrink-0">
                   {selectedNft.image ? (
                     <img src={selectedNft.image} alt={selectedNft.name} className="w-full h-full object-cover" />
@@ -866,7 +866,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-magic-green truncate">{selectedNft.name}</p>
+                  <p className="text-sm font-bold text-magic-blue truncate">{selectedNft.name}</p>
                   <p className="text-[10px] text-gray-500 font-mono truncate">{selectedNft.mint}</p>
                 </div>
               </div>
@@ -879,7 +879,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
                   type="number"
                   required
                   step="0.1"
-                  className="w-full bg-black border border-white/10 p-3 text-sm font-mono focus:border-magic-green outline-none transition-colors"
+                  className="w-full bg-black border border-white/10 p-3 text-sm font-mono focus:border-magic-blue outline-none transition-colors"
                   placeholder="1.0"
                   value={formData.ticketPrice}
                   onChange={(e) => setFormData({ ...formData, ticketPrice: e.target.value })}
@@ -890,7 +890,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
                 <input
                   type="number"
                   required
-                  className="w-full bg-black border border-white/10 p-3 text-sm font-mono focus:border-magic-green outline-none transition-colors"
+                  className="w-full bg-black border border-white/10 p-3 text-sm font-mono focus:border-magic-blue outline-none transition-colors"
                   placeholder="100"
                   value={formData.totalTickets}
                   onChange={(e) => setFormData({ ...formData, totalTickets: e.target.value })}
@@ -900,7 +900,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
             <div>
               <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Duration (Hours)</label>
               <select
-                className="w-full bg-black border border-white/10 p-3 text-sm font-mono focus:border-magic-green outline-none transition-colors"
+                className="w-full bg-black border border-white/10 p-3 text-sm font-mono focus:border-magic-blue outline-none transition-colors"
                 value={formData.durationHours}
                 onChange={(e) => setFormData({ ...formData, durationHours: e.target.value })}
               >
@@ -914,7 +914,7 @@ function CreateRaffleModal({ onClose, onSuccess }: { key?: string | number; onCl
             <button
               type="submit"
               disabled={loading || !selectedNft}
-              className="w-full py-4 bg-magic-green text-black font-bold uppercase tracking-widest hover:bg-magic-green/80 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-4 bg-magic-blue text-black font-bold uppercase tracking-widest hover:bg-magic-blue/80 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'LAUNCH RAFFLE'}
             </button>
@@ -1105,7 +1105,7 @@ function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
         {/* Back button */}
         <button
           onClick={onClose}
-          className="flex items-center gap-2 text-gray-400 hover:text-magic-green transition-colors mb-4 sm:mb-6 group"
+          className="flex items-center gap-2 text-gray-400 hover:text-magic-blue transition-colors mb-4 sm:mb-6 group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="text-sm font-bold uppercase tracking-widest">BACK TO RAFFLES</span>
@@ -1114,7 +1114,7 @@ function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
         {/* Main content: Image left, Info right */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 mb-8">
           {/* Left: NFT Image — constrained height on small screens */}
-          <div className="bg-black/50 border border-magic-green/20 overflow-hidden">
+          <div className="bg-black/50 border border-magic-blue/20 overflow-hidden">
             <div className="aspect-square max-h-[40vh] sm:max-h-[50vh] lg:max-h-none relative">
               {nftImage ? (
                 <img
@@ -1132,7 +1132,7 @@ function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
                 isExpiredWithSales ? 'bg-yellow-500 text-black' :
                   isExpiredNoSales ? 'bg-red-500 text-white' :
                     isNeedsDrawOrSoldOut ? 'bg-yellow-500 text-black' :
-                      raffle.status === 'active' ? 'bg-magic-green text-black' :
+                      raffle.status === 'active' ? 'bg-magic-blue text-black' :
                         raffle.status === 'completed' ? 'bg-blue-500 text-white' :
                           raffle.status === 'cancelled' ? 'bg-red-500 text-white' :
                             'bg-yellow-500 text-black'
@@ -1153,24 +1153,24 @@ function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
                 <TicketIcon size={16} className="sm:w-5 sm:h-5" />
                 <span className="text-[10px] text-gray-500 uppercase tracking-widest">RAFFLE PRIZE &middot; 1 WINNER</span>
               </div>
-              <h1 className="text-xl sm:text-3xl font-bold text-magic-green font-pusia truncate">{nftName}</h1>
+              <h1 className="text-xl sm:text-3xl font-bold text-magic-blue font-pusia truncate">{nftName}</h1>
               <p className="text-[10px] sm:text-xs text-gray-500 font-mono mt-1 truncate">{raffle.nftMint}</p>
             </div>
 
             {/* Stats grid */}
             <div className="grid grid-cols-2 gap-2 sm:gap-4">
-              <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
+              <div className="bg-black/50 border border-magic-blue/20 p-2 sm:p-4">
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">TICKET PRICE</div>
-                <div className="text-sm sm:text-xl font-bold text-magic-green font-mono">{raffle.ticketPrice.toFixed(2)} GGOR</div>
+                <div className="text-sm sm:text-xl font-bold text-magic-blue font-mono">{raffle.ticketPrice.toFixed(2)} GGOR</div>
               </div>
-              <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
+              <div className="bg-black/50 border border-magic-blue/20 p-2 sm:p-4">
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">PLATFORM FEE</div>
-                <div className="text-sm sm:text-xl font-bold text-magic-green font-mono">{formatFeeBps(raffle.platformFeeBps)}</div>
+                <div className="text-sm sm:text-xl font-bold text-magic-blue font-mono">{formatFeeBps(raffle.platformFeeBps)}</div>
               </div>
             </div>
 
             {/* Tickets remaining */}
-            <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
+            <div className="bg-black/50 border border-magic-blue/20 p-2 sm:p-4">
               <div className="flex justify-between items-center mb-2 sm:mb-3">
                 <div className="text-[10px] text-gray-500 uppercase tracking-widest">TICKETS REMAINING</div>
                 <div className="flex items-center gap-1.5">
@@ -1180,7 +1180,7 @@ function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
               </div>
               <div className="w-full bg-black h-2 sm:h-3 border border-white/5">
                 <div
-                  className="bg-magic-green h-full transition-all duration-500"
+                  className="bg-magic-blue h-full transition-all duration-500"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -1190,36 +1190,36 @@ function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
             </div>
 
             {/* Countdown */}
-            <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
+            <div className="bg-black/50 border border-magic-blue/20 p-2 sm:p-4">
               <div className="flex items-center gap-2 mb-1 sm:mb-2">
                 <Clock className="w-4 h-4 text-gray-500" />
                 <span className="text-[10px] text-gray-500 uppercase tracking-widest">
                   {raffle.endTime > Date.now() ? 'ENDS IN' : 'ENDED'}
                 </span>
               </div>
-              <div className={`text-lg sm:text-2xl font-bold font-mono ${countdown === 'ENDED' ? 'text-red-400' : 'text-magic-green'}`}>
+              <div className={`text-lg sm:text-2xl font-bold font-mono ${countdown === 'ENDED' ? 'text-red-400' : 'text-magic-blue'}`}>
                 {countdown}
               </div>
             </div>
 
             {/* Raffler / Creator info */}
-            <div className="bg-black/50 border border-magic-green/20 p-2 sm:p-4">
+            <div className="bg-black/50 border border-magic-blue/20 p-2 sm:p-4">
               <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 sm:mb-2">RAFFLER</div>
               <div className="flex items-center justify-between">
                 <span className="text-white font-mono text-xs sm:text-sm">{shortenAddress(raffle.creator)}</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => copyAddress(raffle.creator)}
-                    className="text-gray-500 hover:text-magic-green transition-colors"
+                    className="text-gray-500 hover:text-magic-blue transition-colors"
                     title="Copy address"
                   >
-                    {copied ? <CheckCircle2 className="w-4 h-4 text-magic-green" /> : <Copy className="w-4 h-4" />}
+                    {copied ? <CheckCircle2 className="w-4 h-4 text-magic-blue" /> : <Copy className="w-4 h-4" />}
                   </button>
                   <a
                     href={`${EXPLORER_URLS.GORBAGANA}/address/${raffle.creator}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-gray-500 hover:text-magic-green transition-colors"
+                    className="text-gray-500 hover:text-magic-blue transition-colors"
                     title="View on TrashScan"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -1244,7 +1244,7 @@ function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
               <button
                 onClick={handleBuyTicket}
                 disabled={loading || !wallet.connected}
-                className="w-full py-3 sm:py-5 bg-magic-green text-black font-bold uppercase tracking-widest text-sm sm:text-lg hover:bg-magic-green/80 transition-all disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
+                className="w-full py-3 sm:py-5 bg-magic-blue text-black font-bold uppercase tracking-widest text-sm sm:text-lg hover:bg-magic-blue/80 transition-all disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
@@ -1343,14 +1343,14 @@ function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-magic-green/20 mb-6">
+        <div className="border-b border-magic-blue/20 mb-6">
           <div className="flex gap-0">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-6 py-3 text-xs font-bold uppercase tracking-widest transition-colors border-b-2 ${activeTab === tab.id
-                  ? 'text-magic-green border-magic-green'
+                  ? 'text-magic-blue border-magic-blue'
                   : 'text-gray-500 border-transparent hover:text-gray-300'
                   }`}
               >
@@ -1362,7 +1362,7 @@ function RaffleDetailView({ raffle, nftMetadata, onClose, onUpdate }: {
         </div>
 
         {/* Tab Content */}
-        <div className="bg-black/50 border border-magic-green/20 min-h-[300px]">
+        <div className="bg-black/50 border border-magic-blue/20 min-h-[300px]">
           {activeTab === 'participants' && (
             <ParticipantsTab raffle={raffle} />
           )}
@@ -1424,7 +1424,7 @@ function ParticipantsTab({ raffle }: { raffle: RaffleType }) {
   if (loadingParticipants) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3">
-        <Loader2 className="w-6 h-6 text-magic-green animate-spin" />
+        <Loader2 className="w-6 h-6 text-magic-blue animate-spin" />
         <p className="text-gray-500 text-sm">Loading participants...</p>
       </div>
     );
@@ -1459,13 +1459,13 @@ function ParticipantsTab({ raffle }: { raffle: RaffleType }) {
                   href={`${EXPLORER_URLS.GORBAGANA}/address/${p.buyer}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-magic-green/80 hover:text-magic-green font-mono text-sm"
+                  className="text-magic-blue/80 hover:text-magic-blue font-mono text-sm"
                 >
                   {p.buyer.slice(0, 4)}...{p.buyer.slice(-4)}
                 </a>
               </td>
               <td className="px-6 py-4 text-center text-white font-mono text-sm">{p.ticketCount}</td>
-              <td className="px-6 py-4 text-right text-magic-green font-mono text-sm">
+              <td className="px-6 py-4 text-right text-magic-blue font-mono text-sm">
                 {totalSold > 0 ? ((p.ticketCount / totalSold) * 100).toFixed(1) : 0}%
               </td>
             </tr>
@@ -1580,7 +1580,7 @@ function TransactionsTab({ raffle }: { raffle: RaffleType }) {
   if (loadingTx) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3">
-        <Loader2 className="w-6 h-6 text-magic-green animate-spin" />
+        <Loader2 className="w-6 h-6 text-magic-blue animate-spin" />
         <p className="text-gray-500 text-sm">Loading transactions...</p>
       </div>
     );
@@ -1615,7 +1615,7 @@ function TransactionsTab({ raffle }: { raffle: RaffleType }) {
                     href={`${EXPLORER_URLS.GORBAGANA}/tx/${tx.signature}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-magic-green/80 hover:text-magic-green font-mono text-sm flex items-center gap-1"
+                    className="text-magic-blue/80 hover:text-magic-blue font-mono text-sm flex items-center gap-1"
                   >
                     {tx.signature.slice(0, 8)}...{tx.signature.slice(-4)}
                     <ExternalLink className="w-3 h-3" />
@@ -1677,7 +1677,7 @@ function TermsTab({ raffle }: { raffle: RaffleType }) {
       <ol className="space-y-4">
         {terms.map((term, i) => (
           <li key={i} className="flex gap-4">
-            <span className="text-magic-green font-mono font-bold text-sm shrink-0">{i + 1}.</span>
+            <span className="text-magic-blue font-mono font-bold text-sm shrink-0">{i + 1}.</span>
             <span className="text-gray-300 text-sm leading-relaxed">{term}</span>
           </li>
         ))}

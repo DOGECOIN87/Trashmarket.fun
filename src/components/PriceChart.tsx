@@ -7,7 +7,7 @@ interface PriceChartProps {
   height?: number;
 }
 
-const PriceChart: React.FC<PriceChartProps> = ({ data, color = '#adff02', height = 250 }) => {
+const PriceChart: React.FC<PriceChartProps> = ({ data, color = '#00d4ff', height = 250 }) => {
   if (data.length === 0) return null;
 
   const prices = data.map(d => d.price);
@@ -77,7 +77,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ data, color = '#adff02', height
       </svg>
       
       {/* Tooltip hint */}
-      <div className="absolute top-2 right-2 bg-black border border-magic-green px-2 py-1 text-xs text-magic-green font-mono font-bold opacity-0 group-hover:opacity-100 transition-opacity z-20">
+      <div className="absolute top-2 right-2 bg-black border border-magic-blue px-2 py-1 text-xs text-magic-blue font-mono font-bold opacity-0 group-hover:opacity-100 transition-opacity z-20">
         LAST: ◎{prices[prices.length - 1]}
       </div>
     </div>

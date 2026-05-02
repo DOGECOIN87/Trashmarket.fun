@@ -50,7 +50,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="text-glow-green text-2xl mb-4">INITIALIZING...</div>
+          <div className="text-glow-blue text-2xl mb-4">INITIALIZING...</div>
           <div className="animate-pulse text-[#666666]">Loading DEBRIS Airdrop Registration</div>
         </div>
       </div>
@@ -115,7 +115,7 @@ export default function Home() {
                 className="w-12 h-12"
               />
               <div className="text-center">
-                <h1 className="text-2xl text-glow-green font-bold">{BRAND.NAME}</h1>
+                <h1 className="text-2xl text-glow-blue font-bold">{BRAND.NAME}</h1>
                 <p className="text-xs text-[#666666] uppercase tracking-widest">{BRAND.SUBTITLE}</p>
               </div>
             </div>
@@ -140,7 +140,7 @@ export default function Home() {
 
               {/* Text Content - Centered Below Image */}
               <div className="max-w-2xl">
-                <h2 className="text-5xl md:text-6xl mb-6 text-glow-green leading-tight font-bold tracking-tight">
+                <h2 className="text-5xl md:text-6xl mb-6 text-glow-blue leading-tight font-bold tracking-tight">
                   REGISTER FOR<br />THE DEBRIS<br />AIRDROP
                 </h2>
                 <p className="text-[#999999] mb-10 leading-relaxed text-base md:text-lg">

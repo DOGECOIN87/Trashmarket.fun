@@ -10,14 +10,14 @@ import { X, CheckCircle2, AlertTriangle, Info, XCircle } from 'lucide-react';
 import { useNotificationStore } from '../stores/useAppStore';
 
 const iconMap = {
-  success: <CheckCircle2 className="w-5 h-5 text-magic-green flex-shrink-0" />,
+  success: <CheckCircle2 className="w-5 h-5 text-magic-blue flex-shrink-0" />,
   error: <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />,
   warning: <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />,
   info: <Info className="w-5 h-5 text-blue-400 flex-shrink-0" />,
 };
 
 const borderMap = {
-  success: 'border-magic-green/30',
+  success: 'border-magic-blue/30',
   error: 'border-red-500/30',
   warning: 'border-yellow-500/30',
   info: 'border-blue-400/30',
@@ -49,7 +49,7 @@ const Notifications: React.FC = () => {
                   href={`https://explorer.gorbagana.wtf/tx/${notification.txSignature}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-magic-green text-[10px] font-mono mt-1 hover:underline block"
+                  className="text-magic-blue text-[10px] font-mono mt-1 hover:underline block"
                 >
                   View TX: {notification.txSignature.slice(0, 12)}...
                 </a>

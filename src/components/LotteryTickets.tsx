@@ -196,22 +196,22 @@ const LotteryTickets: React.FC = () => {
             {/* Footer Trigger Button */}
             <button 
                 onClick={() => setIsOpen(true)}
-                className="flex items-center gap-3 px-4 py-2 bg-black border border-white/10 hover:border-magic-green/50 transition-all group"
+                className="flex items-center gap-3 px-4 py-2 bg-black border border-white/10 hover:border-magic-blue/50 transition-all group"
             >
-                <div className="w-6 h-6 rounded-sm overflow-hidden bg-magic-green/20 flex items-center justify-center">
+                <div className="w-6 h-6 rounded-sm overflow-hidden bg-magic-blue/20 flex items-center justify-center">
                     <img src="/assets/logo.svg" alt="JUNK" className="w-4 h-4 opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <span className="text-xs font-bold text-gray-400 group-hover:text-magic-green uppercase tracking-widest font-mono">Convert JUNK</span>
+                <span className="text-xs font-bold text-gray-400 group-hover:text-magic-blue uppercase tracking-widest font-mono">Convert JUNK</span>
             </button>
 
             {/* Modal Overlay */}
             {isOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="w-full max-w-md bg-magic-dark border border-magic-green/30 shadow-[0_0_50px_rgba(0,255,0,0.1)] relative overflow-hidden">
+                    <div className="w-full max-w-md bg-magic-dark border border-magic-blue/30 shadow-[0_0_50px_rgba(0,255,0,0.1)] relative overflow-hidden">
                         {/* Modal Header */}
                         <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/40">
                             <div className="flex items-center gap-2">
-                                <Ticket className="w-5 h-5 text-magic-green" />
+                                <Ticket className="w-5 h-5 text-magic-blue" />
                                 <h3 className="text-sm font-bold text-white tracking-widest uppercase font-pusia">JUNK TO TICKETS</h3>
                             </div>
                             <button 
@@ -238,14 +238,14 @@ const LotteryTickets: React.FC = () => {
                                                 {junkBalance !== null ? junkBalance.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '---'}
                                             </p>
                                         </div>
-                                        <div className="bg-magic-green/5 border border-magic-green/20 p-4 rounded-sm relative">
-                                            <p className="text-[10px] text-magic-green/70 uppercase tracking-widest mb-1">Your Tickets</p>
-                                            <p className="text-lg font-bold text-magic-green font-mono">
+                                        <div className="bg-magic-blue/5 border border-magic-blue/20 p-4 rounded-sm relative">
+                                            <p className="text-[10px] text-magic-blue/70 uppercase tracking-widest mb-1">Your Tickets</p>
+                                            <p className="text-lg font-bold text-magic-blue font-mono">
                                                 {ticketBalance !== null ? ticketBalance.toLocaleString() : '---'}
                                             </p>
                                             {isRefreshing && (
                                                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                                    <Loader2 className="w-4 h-4 animate-spin text-magic-green" />
+                                                    <Loader2 className="w-4 h-4 animate-spin text-magic-blue" />
                                                 </div>
                                             )}
                                         </div>
@@ -259,13 +259,13 @@ const LotteryTickets: React.FC = () => {
                                                 value={amount}
                                                 onChange={(e) => setAmount(e.target.value)}
                                                 placeholder="ENTER JUNK AMOUNT"
-                                                className="w-full bg-black border border-white/10 group-hover:border-magic-green/30 focus:border-magic-green/50 text-white font-mono text-sm p-4 outline-none transition-all placeholder:text-gray-700"
+                                                className="w-full bg-black border border-white/10 group-hover:border-magic-blue/30 focus:border-magic-blue/50 text-white font-mono text-sm p-4 outline-none transition-all placeholder:text-gray-700"
                                                 disabled={status === 'loading' || !IS_FEATURE_ENABLED}
                                             />
                                             <button 
                                                 type="button"
                                                 onClick={() => junkBalance && setAmount(junkBalance.toString())}
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-magic-green hover:text-white transition-colors uppercase tracking-widest"
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-magic-blue hover:text-white transition-colors uppercase tracking-widest"
                                                 disabled={!IS_FEATURE_ENABLED}
                                             >
                                                 MAX
@@ -276,7 +276,7 @@ const LotteryTickets: React.FC = () => {
                                             <button
                                                 type="submit"
                                                 disabled={status === 'loading' || !amount || parseFloat(amount) <= 0 || !IS_FEATURE_ENABLED}
-                                                className="w-full bg-magic-green hover:bg-white text-black font-bold py-4 text-sm transition-all uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,0,0.2)]"
+                                                className="w-full bg-magic-blue hover:bg-white text-black font-bold py-4 text-sm transition-all uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,0,0.2)]"
                                             >
                                                 {!IS_FEATURE_ENABLED ? (
                                                     <>
@@ -300,7 +300,7 @@ const LotteryTickets: React.FC = () => {
                                     {/* Status */}
                                     {(status === 'success' || status === 'error' || status === 'loading') && (
                                         <div className={`flex items-start gap-3 text-xs font-mono p-4 border ${
-                                            status === 'success' ? 'text-magic-green bg-magic-green/5 border-magic-green/20' : 
+                                            status === 'success' ? 'text-magic-blue bg-magic-blue/5 border-magic-blue/20' : 
                                             status === 'error' ? 'text-red-400 bg-red-400/5 border-red-400/20' : 
                                             'text-blue-400 bg-blue-400/5 border-blue-400/20'
                                         }`}>
@@ -322,7 +322,7 @@ const LotteryTickets: React.FC = () => {
                             <div className="flex items-center gap-3">
                                 <button 
                                     onClick={() => setShowDebug(!showDebug)}
-                                    className="text-gray-600 hover:text-magic-green transition-colors"
+                                    className="text-gray-600 hover:text-magic-blue transition-colors"
                                     title="Debug Info"
                                 >
                                     <Info className="w-4 h-4" />
@@ -330,7 +330,7 @@ const LotteryTickets: React.FC = () => {
                                 <button 
                                     onClick={fetchBalances}
                                     disabled={isRefreshing}
-                                    className="text-magic-green/50 hover:text-magic-green transition-colors"
+                                    className="text-magic-blue/50 hover:text-magic-blue transition-colors"
                                 >
                                     <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                                 </button>

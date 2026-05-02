@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { GameEngine } from '../../lib/GameEngine';
 import { Overlay } from './Overlay';
-import AudioPlayer from './AudioPlayer';
 import RainOverlay from './RainOverlay';
 import { GameState } from '../../lib/types';
 import { useGameWallet } from './WalletAdapter';
@@ -12,6 +11,7 @@ import { PROGRAM_ID } from '../../lib/JunkPusherClient';
 import { setupAutoSave, loadGameState, clearGameState } from '../../lib/statePersistence';
 import { soundManager } from '../../lib/soundManager';
 import { pushGameEvent } from '../../services/activityService';
+import { subscribeToJunkPusherConfig } from '../../services/gameConfigService';
 import { PublicKey } from '@solana/web3.js';
 
 type MascotPhase = 'hidden' | 'rising' | 'visible' | 'falling';
@@ -26,6 +26,7 @@ const JunkPusherGame: React.FC = () => {
     const onChain = useJunkPusherOnChain();
 
     const [isRaining, setIsRaining] = useState(false);
+    const [adminPaused, setAdminPaused] = useState(false);
 
     // Mascot random event state
     const [mascotPhase, setMascotPhase] = useState<MascotPhase>('hidden');
@@ -258,9 +259,15 @@ const JunkPusherGame: React.FC = () => {
         };
     }, [handleUpdate]);
 
+    // Subscribe to admin pause flag
+    useEffect(() => {
+        const unsub = subscribeToJunkPusherConfig((cfg) => setAdminPaused(cfg.paused));
+        return unsub;
+    }, []);
+
     const handleDropCoin = () => {
         soundManager.initialize();
-        if (engineRef.current && !gameState.isPaused) {
+        if (engineRef.current && !gameState.isPaused && !adminPaused) {
             const x = (Math.random() - 0.5) * 6;
             engineRef.current.dropUserCoin(x);
         }
@@ -273,7 +280,7 @@ const JunkPusherGame: React.FC = () => {
      * Falls back to the local mock flow if the program isn't deployed yet.
      */
     const handleBump = useCallback(async () => {
-        if (engineRef.current && !gameStateRef.current.isPaused) {
+        if (engineRef.current && !gameStateRef.current.isPaused && !adminPaused) {
             const oc = onChainRef.current;
             if (oc.isProgramReady && wallet.isConnected) {
                 try {
@@ -372,7 +379,7 @@ const JunkPusherGame: React.FC = () => {
 
     const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
         soundManager.initialize();
-        if (!engineRef.current || gameState.isPaused) return;
+        if (!engineRef.current || gameState.isPaused || adminPaused) return;
         const canvas = gameCanvasRef.current;
         if (!canvas) return;
         const rect = canvas.getBoundingClientRect();
@@ -385,7 +392,7 @@ const JunkPusherGame: React.FC = () => {
         <div className="relative w-full h-full overflow-hidden bg-black">
             {/* Background Image */}
             <img
-                src="/images/tm-background.png"
+                src="/images/tm-background.webp"
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                 style={{ objectPosition: 'center 10%' }}
@@ -400,7 +407,7 @@ const JunkPusherGame: React.FC = () => {
                 alt=""
                 className="absolute left-1/2 pointer-events-none select-none"
                 style={{
-                    bottom: '30%',
+                    bottom: '45%',
                     width: '48%',
                     maxWidth: '580px',
                     transform: `translateX(-50%) translateY(${
@@ -548,7 +555,14 @@ const JunkPusherGame: React.FC = () => {
                     wallet={wallet}
                 />
             </div>
-            <AudioPlayer src="/audio/bg-music.mp3" autoPlay={true} />
+            {adminPaused && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none">
+                    <div className="border border-amber-500/60 bg-black/80 px-8 py-4 text-center">
+                        <p className="text-amber-400 font-black text-lg uppercase tracking-widest">Game Paused</p>
+                        <p className="text-gray-500 text-xs font-mono mt-1">Temporarily unavailable — check back soon</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

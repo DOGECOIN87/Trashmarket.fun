@@ -259,7 +259,7 @@ const GorbagioMarket: React.FC = () => {
     if (txStatus === 'idle') return null;
     return (
       <div className={`p-3 mb-4 border ${txStatus === 'success'
-          ? 'border-magic-green/50 bg-magic-green/10'
+          ? 'border-magic-blue/50 bg-magic-blue/10'
           : txStatus === 'error'
             ? 'border-red-500/50 bg-red-900/20'
             : 'border-yellow-500/50 bg-yellow-900/20'
@@ -279,12 +279,12 @@ const GorbagioMarket: React.FC = () => {
           )}
           {txStatus === 'success' && txSignature && (
             <>
-              <span className="text-magic-green">Transaction confirmed!</span>
+              <span className="text-magic-blue">Transaction confirmed!</span>
               <a
                 href={getExplorerTxLink(txSignature)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-magic-green underline flex items-center gap-1"
+                className="text-magic-blue underline flex items-center gap-1"
               >
                 View <ExternalLink className="w-3 h-3" />
               </a>
@@ -360,15 +360,15 @@ const GorbagioMarket: React.FC = () => {
                   placeholder="Search NFTs..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-sm bg-gray-900 border border-magic-green/30 text-white placeholder-gray-500 focus:outline-none focus:border-magic-green"
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-gray-900 border border-magic-blue/30 text-white placeholder-gray-500 focus:outline-none focus:border-magic-blue"
                 />
               </div>
               <button
                 onClick={() => loadListings()}
-                className="p-2 border border-magic-green/30 hover:bg-magic-green/10 transition-colors"
+                className="p-2 border border-magic-blue/30 hover:bg-magic-blue/10 transition-colors"
                 title="Refresh"
               >
-                <RefreshCw className="w-4 h-4 text-magic-green" />
+                <RefreshCw className="w-4 h-4 text-magic-blue" />
               </button>
             </div>
           </div>
@@ -380,13 +380,13 @@ const GorbagioMarket: React.FC = () => {
               onClick={() => setCollectionFilter('all')}
               className={`relative overflow-hidden border transition-all duration-200 group ${
                 collectionFilter === 'all'
-                  ? 'border-magic-green bg-magic-green/10'
+                  ? 'border-magic-blue bg-magic-blue/10'
                   : 'border-white/10 bg-gray-900/50 hover:border-white/30'
               }`}
             >
               <div className="flex items-center justify-between px-4 py-3 sm:py-4">
                 <div className="text-left">
-                  <div className={`text-xs font-mono uppercase tracking-widest mb-0.5 ${collectionFilter === 'all' ? 'text-magic-green' : 'text-gray-500'}`}>
+                  <div className={`text-xs font-mono uppercase tracking-widest mb-0.5 ${collectionFilter === 'all' ? 'text-magic-blue' : 'text-gray-500'}`}>
                     Filter
                   </div>
                   <div className="text-base sm:text-lg font-black uppercase tracking-tight">All Collections</div>
@@ -398,7 +398,7 @@ const GorbagioMarket: React.FC = () => {
                 </div>
               </div>
               {collectionFilter === 'all' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-magic-green" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-magic-blue" />
               )}
             </button>
 
@@ -407,7 +407,7 @@ const GorbagioMarket: React.FC = () => {
               onClick={() => setCollectionFilter(collectionFilter === 'gorbagio' ? 'all' : 'gorbagio')}
               className={`relative overflow-hidden border transition-all duration-200 group ${
                 collectionFilter === 'gorbagio'
-                  ? 'border-magic-green bg-magic-green/10'
+                  ? 'border-magic-blue bg-magic-blue/10'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
@@ -417,7 +417,7 @@ const GorbagioMarket: React.FC = () => {
               />
               <div className="relative flex items-center justify-between px-4 py-3 sm:py-4">
                 <div className="text-left">
-                  <div className={`text-xs font-mono uppercase tracking-widest mb-0.5 ${collectionFilter === 'gorbagio' ? 'text-magic-green' : 'text-gray-500'}`}>
+                  <div className={`text-xs font-mono uppercase tracking-widest mb-0.5 ${collectionFilter === 'gorbagio' ? 'text-magic-blue' : 'text-gray-500'}`}>
                     Collection
                   </div>
                   <div className="text-base sm:text-lg font-black uppercase tracking-tight">Gorbagio</div>
@@ -428,7 +428,7 @@ const GorbagioMarket: React.FC = () => {
                 <img src={GORBAGIO_PREVIEW} alt="Gorbagio" className="w-12 h-12 sm:w-16 sm:h-16 object-cover border border-white/10 rounded" />
               </div>
               {collectionFilter === 'gorbagio' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-magic-green" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-magic-blue" />
               )}
             </button>
 
@@ -437,7 +437,7 @@ const GorbagioMarket: React.FC = () => {
               onClick={() => setCollectionFilter(collectionFilter === 'gorigins' ? 'all' : 'gorigins')}
               className={`relative overflow-hidden border transition-all duration-200 group ${
                 collectionFilter === 'gorigins'
-                  ? 'border-magic-green bg-magic-green/10'
+                  ? 'border-magic-blue bg-magic-blue/10'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
@@ -447,7 +447,7 @@ const GorbagioMarket: React.FC = () => {
               />
               <div className="relative flex items-center justify-between px-4 py-3 sm:py-4">
                 <div className="text-left">
-                  <div className={`text-xs font-mono uppercase tracking-widest mb-0.5 ${collectionFilter === 'gorigins' ? 'text-magic-green' : 'text-gray-500'}`}>
+                  <div className={`text-xs font-mono uppercase tracking-widest mb-0.5 ${collectionFilter === 'gorigins' ? 'text-magic-blue' : 'text-gray-500'}`}>
                     Collection
                   </div>
                   <div className="text-base sm:text-lg font-black uppercase tracking-tight">Gorigins</div>
@@ -458,7 +458,7 @@ const GorbagioMarket: React.FC = () => {
                 <img src={GORIGINS_PREVIEW} alt="Gorigins" className="w-12 h-12 sm:w-16 sm:h-16 object-cover border border-white/10 rounded" />
               </div>
               {collectionFilter === 'gorigins' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-magic-green" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-magic-blue" />
               )}
             </button>
           </div>
@@ -475,14 +475,14 @@ const GorbagioMarket: React.FC = () => {
               key={tab}
               onClick={() => setActiveTab(tab as Tab)}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === tab
-                  ? 'border-magic-green text-magic-green'
+                  ? 'border-magic-blue text-magic-blue'
                   : 'border-transparent text-gray-400 hover:text-white'
                 }`}
             >
               <Icon className="w-4 h-4" />
               {label}
               {tab === 'my-listings' && myListings.length > 0 && (
-                <span className="ml-1 text-xs bg-magic-green/20 text-magic-green px-1.5 py-0.5">
+                <span className="ml-1 text-xs bg-magic-blue/20 text-magic-blue px-1.5 py-0.5">
                   {myListings.length}
                 </span>
               )}
@@ -498,7 +498,7 @@ const GorbagioMarket: React.FC = () => {
             {loading && (
               <div className="flex items-center justify-center h-64">
                 <div className="text-center">
-                  <Loader className="w-8 h-8 animate-spin mx-auto mb-4 text-magic-green" />
+                  <Loader className="w-8 h-8 animate-spin mx-auto mb-4 text-magic-blue" />
                   <p className="text-gray-400">Loading listings...</p>
                 </div>
               </div>
@@ -522,14 +522,14 @@ const GorbagioMarket: React.FC = () => {
                       <div
                         key={listing.listingAddress}
                         onClick={() => handleBuy(listing)}
-                        className="bg-gray-900 border border-magic-green/20 overflow-hidden hover:border-magic-green/60 transition-all group cursor-pointer"
+                        className="bg-gray-900 border border-magic-blue/20 overflow-hidden hover:border-magic-blue/60 transition-all group cursor-pointer"
                       >
                         <div className="relative overflow-hidden bg-black aspect-square">
                           <NftImage src={listing.image || '/assets/nft-placeholder.svg'} alt={listing.name || ''} />
                         </div>
                         <div className="p-2">
                           <h3 className="font-bold text-xs truncate">{listing.name}</h3>
-                          <p className="text-magic-green text-sm font-bold mt-1">
+                          <p className="text-magic-blue text-sm font-bold mt-1">
                             {listing.price.toFixed(2)} GOR
                           </p>
                           <p className="text-[10px] text-gray-500 truncate">
@@ -580,7 +580,7 @@ const GorbagioMarket: React.FC = () => {
                           <h3 className="font-bold text-xs truncate">{nft.name}</h3>
                           <button
                             onClick={() => handleList(nft)}
-                            className="mt-2 w-full py-1.5 text-xs font-bold bg-magic-green text-black hover:bg-magic-green/80 transition-colors"
+                            className="mt-2 w-full py-1.5 text-xs font-bold bg-magic-blue text-black hover:bg-magic-blue/80 transition-colors"
                           >
                             LIST FOR SALE
                           </button>
@@ -615,20 +615,20 @@ const GorbagioMarket: React.FC = () => {
                 {myListings.map((listing) => (
                   <div
                     key={listing.listingAddress}
-                    className="bg-gray-900 border border-magic-green/20 overflow-hidden"
+                    className="bg-gray-900 border border-magic-blue/20 overflow-hidden"
                   >
                     <div className="relative overflow-hidden bg-black aspect-square">
                       <NftImage src={listing.image || '/assets/nft-placeholder.svg'} alt={listing.name || ''} />
                     </div>
                     <div className="p-2">
                       <h3 className="font-bold text-xs truncate">{listing.name}</h3>
-                      <p className="text-magic-green text-sm font-bold mt-1">
+                      <p className="text-magic-blue text-sm font-bold mt-1">
                         {listing.price.toFixed(2)} GOR
                       </p>
                       <div className="flex gap-1 mt-2">
                         <button
                           onClick={() => handleUpdatePrice(listing)}
-                          className="flex-1 py-1 text-[10px] font-bold border border-magic-green/30 text-magic-green hover:bg-magic-green/10 transition-colors"
+                          className="flex-1 py-1 text-[10px] font-bold border border-magic-blue/30 text-magic-blue hover:bg-magic-blue/10 transition-colors"
                         >
                           UPDATE
                         </button>
@@ -649,7 +649,7 @@ const GorbagioMarket: React.FC = () => {
                 <p className="text-gray-400">You have no active listings.</p>
                 <button
                   onClick={() => setActiveTab('my-nfts')}
-                  className="mt-3 text-sm text-magic-green hover:underline"
+                  className="mt-3 text-sm text-magic-blue hover:underline"
                 >
                   List an NFT &rarr;
                 </button>
@@ -661,7 +661,7 @@ const GorbagioMarket: React.FC = () => {
         {/* ─── Buy Modal ─── */}
         {selectedListing && (
           <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-gray-900 border border-magic-green/30 w-full max-w-md">
+            <div className="bg-gray-900 border border-magic-blue/30 w-full max-w-md">
               <div className="flex items-center justify-between p-4 border-b border-white/10">
                 <h2 className="font-bold text-sm">BUY NFT</h2>
                 <button onClick={() => { setSelectedListing(null); resetTxState(); }}>
@@ -696,7 +696,7 @@ const GorbagioMarket: React.FC = () => {
                             </div>
                             <div className="flex justify-between border-t border-white/10 pt-1">
                               <span className="text-gray-400">Seller receives</span>
-                              <span className="text-magic-green">{fees.sellerProceeds.toFixed(4)} GOR</span>
+                              <span className="text-magic-blue">{fees.sellerProceeds.toFixed(4)} GOR</span>
                             </div>
                           </>
                         );
@@ -715,7 +715,7 @@ const GorbagioMarket: React.FC = () => {
                   <button
                     onClick={confirmBuy}
                     disabled={txStatus === 'signing' || txStatus === 'confirming' || !connected}
-                    className="mt-4 w-full py-3 font-bold text-sm bg-magic-green text-black hover:bg-magic-green/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="mt-4 w-full py-3 font-bold text-sm bg-magic-blue text-black hover:bg-magic-blue/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {!connected
                       ? 'CONNECT WALLET'
@@ -734,7 +734,7 @@ const GorbagioMarket: React.FC = () => {
         {/* ─── List Modal ─── */}
         {listingNft && (
           <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-gray-900 border border-magic-green/30 w-full max-w-md">
+            <div className="bg-gray-900 border border-magic-blue/30 w-full max-w-md">
               <div className="flex items-center justify-between p-4 border-b border-white/10">
                 <h2 className="font-bold text-sm">LIST NFT FOR SALE</h2>
                 <button onClick={() => { setListingNft(null); resetTxState(); }}>
@@ -763,7 +763,7 @@ const GorbagioMarket: React.FC = () => {
                     value={listPrice}
                     onChange={(e) => setListPrice(e.target.value)}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 text-sm bg-black border border-magic-green/30 text-white placeholder-gray-600 focus:outline-none focus:border-magic-green"
+                    className="w-full px-3 py-2 text-sm bg-black border border-magic-blue/30 text-white placeholder-gray-600 focus:outline-none focus:border-magic-blue"
                   />
                   {listPrice && parseFloat(listPrice) > 0 && (
                     <div className="mt-2 text-xs text-gray-400">
@@ -772,7 +772,7 @@ const GorbagioMarket: React.FC = () => {
                         {calculateMarketplaceFees(parseFloat(listPrice)).marketplaceFee.toFixed(4)} GOR
                       </span>
                       {' '}— You receive:{' '}
-                      <span className="text-magic-green">
+                      <span className="text-magic-blue">
                         {calculateMarketplaceFees(parseFloat(listPrice)).sellerProceeds.toFixed(4)} GOR
                       </span>
                     </div>
@@ -794,7 +794,7 @@ const GorbagioMarket: React.FC = () => {
                       !listPrice ||
                       parseFloat(listPrice) <= 0
                     }
-                    className="mt-4 w-full py-3 font-bold text-sm bg-magic-green text-black hover:bg-magic-green/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="mt-4 w-full py-3 font-bold text-sm bg-magic-blue text-black hover:bg-magic-blue/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {txStatus === 'signing'
                       ? 'SIGNING...'
@@ -811,7 +811,7 @@ const GorbagioMarket: React.FC = () => {
         {/* ─── Update Price Modal ─── */}
         {updatePriceTarget && (
           <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-gray-900 border border-magic-green/30 w-full max-w-sm">
+            <div className="bg-gray-900 border border-magic-blue/30 w-full max-w-sm">
               <div className="flex items-center justify-between p-4 border-b border-white/10">
                 <h2 className="font-bold text-sm">UPDATE PRICE</h2>
                 <button onClick={() => { setUpdatePriceTarget(null); resetTxState(); }}>
@@ -829,7 +829,7 @@ const GorbagioMarket: React.FC = () => {
                   value={newPrice}
                   onChange={(e) => setNewPrice(e.target.value)}
                   placeholder="New price in GOR"
-                  className="w-full px-3 py-2 text-sm bg-black border border-magic-green/30 text-white placeholder-gray-600 focus:outline-none focus:border-magic-green"
+                  className="w-full px-3 py-2 text-sm bg-black border border-magic-blue/30 text-white placeholder-gray-600 focus:outline-none focus:border-magic-blue"
                 />
 
                 {txStatus !== 'idle' && (
@@ -847,7 +847,7 @@ const GorbagioMarket: React.FC = () => {
                       !newPrice ||
                       parseFloat(newPrice) <= 0
                     }
-                    className="mt-4 w-full py-3 font-bold text-sm bg-magic-green text-black hover:bg-magic-green/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="mt-4 w-full py-3 font-bold text-sm bg-magic-blue text-black hover:bg-magic-blue/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {txStatus === 'signing'
                       ? 'SIGNING...'
@@ -862,23 +862,23 @@ const GorbagioMarket: React.FC = () => {
         )}
 
         {/* Info Footer */}
-        <div className="mt-8 bg-gray-900/50 border border-magic-green/20 p-4">
+        <div className="mt-8 bg-gray-900/50 border border-magic-blue/20 p-4">
           <h2 className="font-bold text-sm mb-2 font-heading">HOW IT WORKS</h2>
           <ul className="space-y-1.5 text-gray-300 text-xs">
             <li className="flex gap-3">
-              <span className="text-magic-green font-bold">1.</span>
+              <span className="text-magic-blue font-bold">1.</span>
               <span>Migrate your legacy Gorbagios to Metaplex standard on Gorbagana</span>
             </li>
             <li className="flex gap-3">
-              <span className="text-magic-green font-bold">2.</span>
+              <span className="text-magic-blue font-bold">2.</span>
               <span>List your NFTs for sale — they are securely escrowed on-chain</span>
             </li>
             <li className="flex gap-3">
-              <span className="text-magic-green font-bold">3.</span>
+              <span className="text-magic-blue font-bold">3.</span>
               <span>Buyers pay in native GOR — 2.5% marketplace fee applies</span>
             </li>
             <li className="flex gap-3">
-              <span className="text-magic-green font-bold">4.</span>
+              <span className="text-magic-blue font-bold">4.</span>
               <span>Cancel listings anytime to get your NFT back instantly</span>
             </li>
           </ul>

@@ -138,7 +138,7 @@ export class GameEngine {
     this.scene.add(accentLight);
 
     // Neon Green point light for brand glow
-    const greenAccent = new THREE.PointLight(0x00FF00, 40, 15);
+    const greenAccent = new THREE.PointLight(0x0099ff, 40, 15);
     greenAccent.position.set(0, 2, 3);
     this.scene.add(greenAccent);
 
@@ -201,6 +201,58 @@ export class GameEngine {
       imgData.data[i + 2] += noise;
     }
     ctx.putImageData(imgData, 0, 0);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    return texture;
+  }
+
+  private makeCookieTexture(size: number): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    // Cookie base - golden brown
+    const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    gradient.addColorStop(0, '#E5B87A');
+    gradient.addColorStop(0.7, '#D4A574');
+    gradient.addColorStop(1, '#C09060');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+
+    // Add chocolate chips
+    const chipCount = 12 + Math.floor(Math.random() * 8);
+    for (let i = 0; i < chipCount; i++) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const radius = 8 + Math.random() * 12;
+      
+      // Chocolate chip with highlight
+      ctx.fillStyle = '#4A2511';
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Highlight
+      ctx.fillStyle = '#6B3A1E';
+      ctx.beginPath();
+      ctx.arc(x - radius * 0.3, y - radius * 0.3, radius * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Add texture/crumbs
+    ctx.globalAlpha = 0.3;
+    for (let i = 0; i < 100; i++) {
+      ctx.fillStyle = Math.random() > 0.5 ? '#C09060' : '#B88050';
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const r = Math.random() * 3;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
@@ -383,38 +435,32 @@ export class GameEngine {
       32
     );
 
-    // Load the logo texture
-    const loader = new THREE.TextureLoader();
-    const logoTexture = loader.load('/assets/enhanced_logo_v6.svg');
-    const blackLogoTexture = loader.load('/assets/coin_black_logo.svg');
+    // Create cartoon cookie texture
+    const cookieTexture = this.makeCookieTexture(512);
+
+    // Cookie colors: golden brown base with chocolate chips
+    const cookieColor = 0xD4A574; // Golden cookie color
+    const edgeColor = 0xC09060;   // Darker edge color
 
     // Create materials for the cylinder: [side, top, bottom]
     const sideMaterial = new THREE.MeshStandardMaterial({
-      color: COLORS.COIN,
-      roughness: 0.3,
-      metalness: 0.8,
-      emissive: COLORS.COIN,
-      emissiveIntensity: 0.1
+      color: edgeColor,
+      roughness: 0.8,
+      metalness: 0.0,
     });
 
     const faceMaterial = new THREE.MeshStandardMaterial({
-      color: COLORS.COIN,
-      map: logoTexture,
-      roughness: 0.3,
-      metalness: 0.8,
-      emissive: COLORS.COIN_EMISSIVE,
-      emissiveMap: logoTexture,
-      emissiveIntensity: 0.5
+      color: 0xFFFFFF, // White to show texture colors accurately
+      map: cookieTexture,
+      roughness: 0.7,
+      metalness: 0.0,
     });
 
     const backFaceMaterial = new THREE.MeshStandardMaterial({
-      color: COLORS.COIN,
-      map: blackLogoTexture,
-      roughness: 0.3,
-      metalness: 0.8,
-      emissive: COLORS.COIN_EMISSIVE,
-      emissiveMap: blackLogoTexture,
-      emissiveIntensity: 0.5
+      color: 0xFFFFFF, // White to show texture colors accurately
+      map: cookieTexture,
+      roughness: 0.7,
+      metalness: 0.0,
     });
 
     const materials = [sideMaterial, faceMaterial, backFaceMaterial];

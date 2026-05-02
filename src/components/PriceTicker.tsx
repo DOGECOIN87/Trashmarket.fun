@@ -48,7 +48,7 @@ const PriceTicker: React.FC = () => {
             <div key={`m-${idx}`} className="flex items-center gap-3 mx-8 py-2 text-xs uppercase tracking-wider font-mono whitespace-nowrap">
               <span className="text-gray-600 font-bold">{item.label}</span>
               <span className={`font-bold ${item.color}`}>{item.value}</span>
-              <span className={`text-[10px] ${item.change.startsWith('+') ? 'text-magic-green' : item.change.startsWith('-') ? 'text-magic-red' : 'text-gray-400'}`}>
+              <span className={`text-[10px] ${item.change.startsWith('+') ? 'text-magic-blue' : item.change.startsWith('-') ? 'text-magic-red' : 'text-gray-400'}`}>
                 {item.change}
               </span>
               <span className="text-gray-800 ml-4">/</span>
@@ -79,7 +79,7 @@ export const ActivityTicker: React.FC = () => {
   }, []);
 
   const dotColor = (type: string) => {
-    if (type === 'SALE') return accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-green';
+    if (type === 'SALE') return accentColor === 'text-magic-purple' ? 'bg-magic-purple' : 'bg-magic-blue';
     if (type === 'LIST') return 'bg-blue-400';
     if (type === 'DELIST') return 'bg-yellow-400';
     if (type === 'DEPOSIT') return 'bg-emerald-400';

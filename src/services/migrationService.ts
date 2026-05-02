@@ -815,6 +815,8 @@ export async function fetchAllMigratedGorbagios(
 
       if (!parsed.hasCollection || !parsed.collectionKey?.equals(GORBAGIO_COLLECTION_MINT)) continue;
       if (parsed.mint.equals(GORBAGIO_COLLECTION_MINT)) continue;
+      // Skip the collection parent NFT (Gorbhouse) and any non-Gorbagio NFTs
+      if (!parsed.name.startsWith('Gorbagio')) continue;
 
       results.push({
         mint: parsed.mint.toBase58(),

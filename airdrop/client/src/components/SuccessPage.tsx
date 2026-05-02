@@ -45,7 +45,7 @@ export default function SuccessPage({ registration, onLogout, onShowAdmin }: Suc
                 className="w-12 h-12"
               />
               <div>
-                <h1 className="text-2xl text-glow-green">{BRAND.NAME}</h1>
+                <h1 className="text-2xl text-glow-blue">{BRAND.NAME}</h1>
                 <p className="text-xs text-[#666666] uppercase tracking-widest">{BRAND.SUBTITLE}</p>
               </div>
             </div>
@@ -91,7 +91,7 @@ export default function SuccessPage({ registration, onLogout, onShowAdmin }: Suc
                     </svg>
                   </div>
                 </div>
-                <h2 className="text-4xl mb-4 text-glow-green">REGISTRATION CONFIRMED</h2>
+                <h2 className="text-4xl mb-4 text-glow-blue">REGISTRATION CONFIRMED</h2>
                 <p className="text-[#999999] text-lg">
                   Your wallet has been successfully registered for the DEBRIS airdrop.
                 </p>

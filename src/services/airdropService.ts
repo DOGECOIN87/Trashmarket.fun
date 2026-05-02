@@ -10,6 +10,7 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  getAdditionalUserInfo,
   signOut,
   onAuthStateChanged,
   type User,
@@ -42,6 +43,7 @@ function isEmbeddedBrowser(): boolean {
 export async function signInWithTwitter(): Promise<{
   user: User;
   twitterHandle: string;
+  twitterScreenName: string;
 } | null> {
   if (isEmbeddedBrowser()) {
     // Redirect flow — result is picked up by handleRedirectResult() on page reload
@@ -54,7 +56,11 @@ export async function signInWithTwitter(): Promise<{
     (p) => p.providerId === 'twitter.com'
   );
   const twitterHandle = twitterData?.displayName || result.user.displayName || 'unknown';
-  return { user: result.user, twitterHandle };
+  // getAdditionalUserInfo gives the Twitter screen name (lowercase, no @)
+  const screenName = (getAdditionalUserInfo(result)?.username || '').toLowerCase();
+  // Persist so Admin can read it back after onAuthStateChanged fires
+  if (screenName) sessionStorage.setItem('admin_twitter_screen_name', screenName);
+  return { user: result.user, twitterHandle, twitterScreenName: screenName };
 }
 
 /**
@@ -63,6 +69,7 @@ export async function signInWithTwitter(): Promise<{
 export async function handleRedirectResult(): Promise<{
   user: User;
   twitterHandle: string;
+  twitterScreenName: string;
 } | null> {
   const result = await getRedirectResult(auth);
   if (!result) return null;
@@ -70,7 +77,9 @@ export async function handleRedirectResult(): Promise<{
     (p) => p.providerId === 'twitter.com'
   );
   const twitterHandle = twitterData?.displayName || result.user.displayName || 'unknown';
-  return { user: result.user, twitterHandle };
+  const screenName = (getAdditionalUserInfo(result)?.username || '').toLowerCase();
+  if (screenName) sessionStorage.setItem('admin_twitter_screen_name', screenName);
+  return { user: result.user, twitterHandle, twitterScreenName: screenName };
 }
 
 /**

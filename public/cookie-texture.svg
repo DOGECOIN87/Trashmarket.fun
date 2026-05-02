@@ -1,0 +1,59 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- White outline/border -->
+  <circle cx="100" cy="100" r="95" fill="white"/>
+  
+  <!-- Black outline -->
+  <circle cx="100" cy="100" r="88" fill="black"/>
+  
+  <!-- Cookie base - golden brown -->
+  <circle cx="100" cy="100" r="80" fill="#E8B870"/>
+  
+  <!-- Shading on cookie -->
+  <ellipse cx="120" cy="130" rx="25" ry="20" fill="#D4A574" opacity="0.5"/>
+  <ellipse cx="85" cy="110" rx="15" ry="12" fill="#D4A574" opacity="0.3"/>
+  
+  <!-- Chocolate chips with black outlines -->
+  <!-- Top right chip -->
+  <circle cx="125" cy="70" r="12" fill="black"/>
+  <circle cx="125" cy="70" r="10" fill="#6B4423"/>
+  
+  <!-- Top left chip -->
+  <circle cx="75" cy="75" r="10" fill="black"/>
+  <circle cx="75" cy="75" r="8" fill="#6B4423"/>
+  
+  <!-- Middle left chip -->
+  <circle cx="65" cy="110" r="11" fill="black"/>
+  <circle cx="65" cy="110" r="9" fill="#6B4423"/>
+  
+  <!-- Middle center chip -->
+  <circle cx="100" cy="95" r="10" fill="black"/>
+  <circle cx="100" cy="95" r="8" fill="#6B4423"/>
+  
+  <!-- Middle right chip -->
+  <circle cx="130" cy="105" r="9" fill="black"/>
+  <circle cx="130" cy="105" r="7" fill="#6B4423"/>
+  
+  <!-- Bottom left chip -->
+  <circle cx="80" cy="135" r="10" fill="black"/>
+  <circle cx="80" cy="135" r="8" fill="#6B4423"/>
+  
+  <!-- Bottom center chip -->
+  <circle cx="105" cy="130" r="11" fill="black"/>
+  <circle cx="105" cy="130" r="9" fill="#6B4423"/>
+  
+  <!-- Bottom right chip -->
+  <circle cx="135" cy="125" r="10" fill="black"/>
+  <circle cx="135" cy="125" r="8" fill="#6B4423"/>
+  
+  <!-- Small chips -->
+  <circle cx="90" cy="85" r="6" fill="black"/>
+  <circle cx="90" cy="85" r="4.5" fill="#6B4423"/>
+  
+  <circle cx="115" cy="115" r="5" fill="black"/>
+  <circle cx="115" cy="115" r="3.5" fill="#6B4423"/>
+  
+  <!-- Crumbs/texture marks -->
+  <ellipse cx="70" cy="125" rx="3" ry="2" fill="#C9A05E" opacity="0.6"/>
+  <ellipse cx="95" cy="120" rx="2" ry="1.5" fill="#C9A05E" opacity="0.6"/>
+  <circle cx="120" cy="90" r="1.5" fill="#C9A05E" opacity="0.6"/>
+</svg>

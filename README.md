@@ -7,7 +7,7 @@
   
   ### The Premier Marketplace & DeFi Hub for the Gorbagana Chain
   
-  [![Live](https://img.shields.io/badge/LIVE-trashmarket.fun-adff02?style=for-the-badge&labelColor=000000)](https://trashmarket.fun)
+  [![Live](https://img.shields.io/badge/LIVE-trashmarket.fun-00d4ff?style=for-the-badge&labelColor=000000)](https://trashmarket.fun)
   
   <br/>
   

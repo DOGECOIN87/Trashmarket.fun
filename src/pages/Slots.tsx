@@ -47,8 +47,8 @@ export default function SlotsPage() {
                 fallback={
                     <div className="flex h-screen items-center justify-center">
                         <div className="text-center">
-                            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-magic-green mx-auto mb-4"></div>
-                            <p className="text-magic-green text-lg font-bold">Loading Slots...</p>
+                            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-magic-blue mx-auto mb-4"></div>
+                            <p className="text-magic-blue text-lg font-bold">Loading Slots...</p>
                             <p className="text-gray-400 text-sm mt-2">Initializing game engine...</p>
                         </div>
                     </div>
